@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bison re2c libonig-dev cmake wget pkg-config python3 git curl
+
+      - name: Fetch dependencies
+        run: |
+          ./scripts/fetch.sh
+          ./scripts/setup-emsdk.sh
+
+      - name: Apply patches
+        run: |
+          ./scripts/apply-patches.sh
+
+      - name: Build transitive deps
+        run: |
+          ./scripts/build-deps.sh
+
+      - name: Build project
+        run: |
+          ./scripts/build.sh
+
+      - name: Package web demo
+        run: |
+          ./scripts/package-web.sh
+
+      - name: Upload web demo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: web/**
+
+  website:
+    name: Website
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: web-dist
+
+      - name: List files
+        run: |
+          ls -laR web-dist
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web-dist
+          publish_branch: gh-pages
