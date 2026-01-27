@@ -1,0 +1,108 @@
+diff --git a/Zend/zend_alloc.c b/Zend/zend_alloc.c
+index f3dfe0f9df5..8a2f9c70d5a 100644
+--- a/Zend/zend_alloc.c
++++ b/Zend/zend_alloc.c
+@@ -469,12 +469,14 @@ static void zend_mm_munmap(void *addr, size_t size)
+ 		}
+ 	}
+ #else
++#if !defined(__EMSCRIPTEN__)
+ 	if (munmap(addr, size) != 0) {
+ #if ZEND_MM_ERROR
+ 		fprintf(stderr, "\nmunmap() failed: [%d] %s\n", errno, strerror(errno));
+ #endif
+ 	}
+ #endif
++#endif
+ }
+ 
+ #ifndef HAVE_MREMAP
+diff --git a/Zend/zend_fibers.c b/Zend/zend_fibers.c
+index 2ca8da645ef..d77f2ef7fb5 100644
+--- a/Zend/zend_fibers.c
++++ b/Zend/zend_fibers.c
+@@ -348,11 +348,15 @@ static void zend_fiber_stack_free(zend_fiber_stack *stack)
+ #ifdef ZEND_WIN32
+ 	VirtualFree(pointer, 0, MEM_RELEASE);
+ #else
++#if !defined(__EMSCRIPTEN__)
+ 	munmap(pointer, stack->size + ZEND_FIBER_GUARD_PAGES * page_size);
+ #endif
++#endif
+ 
+ #if !defined(ZEND_FIBER_UCONTEXT) && BOOST_CONTEXT_SHADOW_STACK
++#if !defined(__EMSCRIPTEN__)
+ 	munmap(stack->ss_base, stack->ss_size);
++#endif
+ #endif
+ 
+ 	efree(stack);
+diff --git a/ext/opcache/ZendAccelerator.c b/ext/opcache/ZendAccelerator.c
+index a6772268e9c..b0a901e5c56 100644
+--- a/ext/opcache/ZendAccelerator.c
++++ b/ext/opcache/ZendAccelerator.c
+@@ -3039,7 +3039,9 @@ accel_remap_huge_pages(void *start, size_t size, size_t real_size)
+ #  else
+ 		memcpy(start, mem, real_size);
+ 		mprotect(start, size, PROT_READ | PROT_EXEC);
++#if !defined(__EMSCRIPTEN__)
+ 		munmap(mem, size);
++#endif
+ 		zend_error(E_WARNING,
+ 			ACCELERATOR_PRODUCT_NAME " huge_code_pages: mmap(HUGETLB) failed: %s (%d)",
+ 			strerror(errno), errno);
+@@ -3054,7 +3056,9 @@ accel_remap_huge_pages(void *start, size_t size, size_t real_size)
+ 	mprotect(start, size, PROT_READ | PROT_EXEC);
+ 	zend_mmap_set_name(start, size, "zend_huge_code_pages");
+ 
++#if !defined(__EMSCRIPTEN__)
+ 	munmap(mem, size);
++#endif
+ 
+ 	return SUCCESS;
+ }
+diff --git a/ext/opcache/shared_alloc_mmap.c b/ext/opcache/shared_alloc_mmap.c
+index cf5dbb29ebf..ffddc43c04b 100644
+--- a/ext/opcache/shared_alloc_mmap.c
++++ b/ext/opcache/shared_alloc_mmap.c
+@@ -247,7 +247,9 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
+ 
+ 		p = mmap(NULL, requested_size, flags, MAP_SHARED|MAP_ANONYMOUS|MAP_32BIT, fd, 0);
+ 		if (p != MAP_FAILED) {
++#if !defined(__EMSCRIPTEN__)
+ 			munmap(p, requested_size);
++#endif
+ 			p = (void*)(ZEND_MM_ALIGNED_SIZE_EX((ptrdiff_t)p, huge_page_size));
+ 			p = mmap(p, requested_size, flags, MAP_SHARED|MAP_ANONYMOUS|MAP_32BIT|MAP_HUGETLB|MAP_FIXED, -1, 0);
+ 			if (p != MAP_FAILED) {
+diff --git a/ext/opcache/shared_alloc_posix.c b/ext/opcache/shared_alloc_posix.c
+index 3f1e097fe97..a9ee281de82 100644
+--- a/ext/opcache/shared_alloc_posix.c
++++ b/ext/opcache/shared_alloc_posix.c
+@@ -118,7 +118,9 @@ static int create_segments(size_t requested_size, zend_shared_segment_posix ***s
+ 
+ static int detach_segment(zend_shared_segment_posix *shared_segment)
+ {
++#if !defined(__EMSCRIPTEN__)
+ 	munmap(shared_segment->common.p, shared_segment->common.size);
++#endif
+ 	close(shared_segment->shm_fd);
+ 	return 0;
+ }
+diff --git a/main/streams/plain_wrapper.c b/main/streams/plain_wrapper.c
+index 688d271db81..4931e1008c5 100644
+--- a/main/streams/plain_wrapper.c
++++ b/main/streams/plain_wrapper.c
+@@ -514,7 +514,9 @@ static int php_stdiop_close(php_stream *stream, int close_handle)
+ 
+ #ifdef HAVE_MMAP
+ 	if (data->last_mapped_addr) {
++#if !defined(__EMSCRIPTEN__)
+ 		munmap(data->last_mapped_addr, data->last_mapped_len);
++#endif
+ 		data->last_mapped_addr = NULL;
+ 	}
+ #elif defined(PHP_WIN32)
+-- 
+2.43.0
+

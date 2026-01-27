@@ -1,0 +1,93 @@
+<!--
+SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas <alganet@gmail.com>
+
+SPDX-License-Identifier: ISC
+-->
+
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>PHP 8.5 WASM Demo</title>
+	<style>
+		body {
+			font-family: system-ui, sans-serif;
+			margin: 2rem;
+		}
+
+		#output {
+			white-space: pre-wrap;
+			background: #111;
+			color: #0f0;
+			padding: 1rem;
+			min-height: 200px;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>PHP 8.5 WASM Demo</h1>
+	<p id="status">Loading...</p>
+	<pre id="output"></pre>
+	<script>
+		const statusEl = document.getElementById("status");
+		const outputEl = document.getElementById("output");
+
+		if (typeof WebAssembly === "undefined") {
+			statusEl.textContent = "WebAssembly unavailable";
+			outputEl.textContent = "This demo requires a WebAssembly-enabled browser.";
+		} else {
+			window.Module = {
+				noInitialRun: true,
+				arguments: ["-m"],
+				stdin: () => null,
+				print: (text) => {
+					outputEl.textContent += `${text}\n`;
+				},
+				printErr: (text) => {
+					outputEl.textContent += `[err] ${text}\n`;
+				},
+				onRuntimeInitialized: async () => {
+					statusEl.textContent = "Ready";
+					try {
+						let content;
+						const res = await fetch('assets/script.php?');
+						if (!res.ok) throw new Error('Failed to fetch script.php: ' + res.status);
+						content = await res.text();
+						try {
+							FS.createDataFile('/', 'script.php', content, true, true);
+							Module.FS = Module.FS || FS;
+						} catch (e) {
+							outputEl.textContent += `[err] FS write failed: ${e.stack || e}`;
+							throw e;
+						}
+						try {
+							callMain(Module.arguments);
+						} catch (callErr) {
+							outputEl.textContent += `[err] callMain failed: ${callErr.stack || callErr}`;
+							throw callErr;
+						}
+					} catch (err) {
+						statusEl.textContent = 'Failed to prepare script';
+						outputEl.textContent += `[err] ${err.stack || err}`;
+					}
+				}
+			};
+
+			const script = document.createElement("script");
+			script.src = "assets/php.js";
+			script.onload = () => {
+				statusEl.textContent = "Initializing...";
+			};
+			script.onerror = () => {
+				statusEl.textContent = "Failed to load php.js";
+				outputEl.textContent += "Unable to load assets/php.js";
+			};
+			document.body.appendChild(script);
+		}
+	</script>
+</body>
+
+</html>

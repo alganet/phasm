@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas <alganet@gmail.com>
+#
+# SPDX-License-Identifier: ISC
+
+/build/
+/tools
+/dist/
+/sources/
+/web/assets/php**
+*.log
+*.pid

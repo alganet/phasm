@@ -1,0 +1,82 @@
+diff --git a/Zend/zend_fibers.c b/Zend/zend_fibers.c
+index 97b7cdcc911..2ca8da645ef 100644
+--- a/Zend/zend_fibers.c
++++ b/Zend/zend_fibers.c
+@@ -42,6 +42,35 @@
+ # include <ucontext.h>
+ #endif
+ 
++#ifdef __EMSCRIPTEN__
++# include <errno.h>
++static int emscripten_getcontext(ucontext_t *ucp)
++{
++	errno = ENOSYS;
++	(void) ucp;
++	return -1;
++}
++
++static void emscripten_makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
++{
++	(void) ucp;
++	(void) func;
++	(void) argc;
++}
++
++static int emscripten_swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
++{
++	errno = ENOSYS;
++	(void) oucp;
++	(void) ucp;
++	return -1;
++}
++
++# define getcontext emscripten_getcontext
++# define makecontext emscripten_makecontext
++# define swapcontext emscripten_swapcontext
++#endif
++
+ #ifndef ZEND_WIN32
+ # include <unistd.h>
+ # include <sys/mman.h>
+@@ -421,7 +450,11 @@ ZEND_API zend_result zend_fiber_init_context(zend_fiber_context *context, void *
+ #ifdef ZEND_FIBER_UCONTEXT
+ 	ucontext_t *handle = &context->stack->ucontext;
+ 
+-	getcontext(handle);
++	if (getcontext(handle) != 0) {
++		zend_fiber_stack_free(context->stack);
++		context->stack = NULL;
++		return FAILURE;
++	}
+ 
+ 	handle->uc_stack.ss_size = context->stack->size;
+ 	handle->uc_stack.ss_sp = context->stack->pointer;
+@@ -514,7 +547,10 @@ ZEND_API void zend_fiber_switch_context(zend_fiber_transfer *transfer)
+ #ifdef ZEND_FIBER_UCONTEXT
+ 	transfer_data = transfer;
+ 
+-	swapcontext(from->handle, to->handle);
++	if (swapcontext(from->handle, to->handle) != 0) {
++		zend_fiber_switch_blocking = 0;
++		zend_throw_error(NULL, "Fiber switching is not supported on this platform");
++	}
+ 
+ 	/* Copy transfer struct because it might live on the other fiber's stack that will eventually be destroyed. */
+ 	*transfer = *transfer_data;
+diff --git a/ext/opcache/ZendAccelerator.c b/ext/opcache/ZendAccelerator.c
+index 84acae980ce..a6772268e9c 100644
+--- a/ext/opcache/ZendAccelerator.c
++++ b/ext/opcache/ZendAccelerator.c
+@@ -5028,10 +5028,12 @@ static zend_result accel_finish_startup_preload_subprocess(pid_t *pid)
+ 			zend_accel_error(ACCEL_LOG_WARNING, "Preloading failed to setgid(%d)", pw->pw_gid);
+ 			exit(1);
+ 		}
++	#if defined(HAVE_INITGROUPS) && !defined(__EMSCRIPTEN__)
+ 		if (initgroups(pw->pw_name, pw->pw_gid) < 0) {
+ 			zend_accel_error(ACCEL_LOG_WARNING, "Preloading failed to initgroups(\"%s\", %d)", pw->pw_name, pw->pw_uid);
+ 			exit(1);
+ 		}
++	#endif
+ 		if (setuid(pw->pw_uid) < 0) {
+ 			zend_accel_error(ACCEL_LOG_WARNING, "Preloading failed to setuid(%d)", pw->pw_uid);
+ 			exit(1);

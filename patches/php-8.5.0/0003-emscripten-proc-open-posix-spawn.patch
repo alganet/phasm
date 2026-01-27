@@ -1,0 +1,13 @@
+diff --git a/ext/standard/proc_open.c b/ext/standard/proc_open.c
+index 8572022762d..d3942afca61 100644
+--- a/ext/standard/proc_open.c
++++ b/ext/standard/proc_open.c
+@@ -1112,7 +1112,7 @@ static zend_result set_proc_descriptor_from_resource(zval *resource, descriptors
+ }
+ 
+ #ifndef PHP_WIN32
+-#if defined(USE_POSIX_SPAWN)
++#if defined(USE_POSIX_SPAWN) && !defined(__EMSCRIPTEN__)
+ static zend_result close_parentends_of_pipes(posix_spawn_file_actions_t * actions, const descriptorspec_item *descriptors, int ndesc)
+ {
+ 	int r;
