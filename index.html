@@ -40,7 +40,7 @@ SPDX-License-Identifier: ISC
 			statusEl.textContent = "WebAssembly unavailable";
 			outputEl.textContent = "This demo requires a WebAssembly-enabled browser.";
 		} else {
-			window.Module = {
+			window.Phasm = {
 				noInitialRun: true,
 				arguments: ["-m"],
 				stdin: () => null,
@@ -54,18 +54,18 @@ SPDX-License-Identifier: ISC
 					statusEl.textContent = "Ready";
 					try {
 						let content;
-						const res = await fetch('assets/script.php?');
-						if (!res.ok) throw new Error('Failed to fetch script.php: ' + res.status);
+						const res = await fetch('assets/test.txt');
+						if (!res.ok) throw new Error('Failed to fetch test.txt: ' + res.status);
 						content = await res.text();
 						try {
-							FS.createDataFile('/', 'script.php', content, true, true);
-							Module.FS = Module.FS || FS;
+							FS.createDataFile('/', 'test.txt', content, true, true);
+							Phasm.FS = Phasm.FS || FS;
 						} catch (e) {
 							outputEl.textContent += `[err] FS write failed: ${e.stack || e}`;
 							throw e;
 						}
 						try {
-							callMain(Module.arguments);
+							callMain(Phasm.arguments);
 						} catch (callErr) {
 							outputEl.textContent += `[err] callMain failed: ${callErr.stack || callErr}`;
 							throw callErr;
