@@ -13,7 +13,6 @@ source "$(dirname "$0")/env.sh"
 
 # If EMSDK env helper is set, source it so emcmake/emmake are on PATH
 if [[ -n "${EMSDK_ENV:-}" && -f "${EMSDK_ENV}" ]]; then
-	# shellcheck disable=SC1090
 	source "${EMSDK_ENV}"
 fi
 

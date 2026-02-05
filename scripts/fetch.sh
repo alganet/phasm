@@ -27,32 +27,37 @@ else
 fi
 
 # Ensure zlib and libzip sources are present in ${SOURCES_DIR} as subdirs
-# zlib
-if [[ ! -d "${SOURCES_DIR}/zlib-${ZLIB_VERSION}" ]]; then
-	echo "Fetching zlib ${ZLIB_VERSION} into ${SOURCES_DIR}..."
-	ZLIB_TAR="zlib-${ZLIB_VERSION}.tar.gz"
-	ZLIB_URL="https://zlib.net/fossils/${ZLIB_TAR}"
-	if [[ ! -f "${SOURCES_DIR}/${ZLIB_TAR}" ]] || [[ ! -s "${SOURCES_DIR}/${ZLIB_TAR}" ]]; then
-		wget -O "${SOURCES_DIR}/${ZLIB_TAR}" "${ZLIB_URL}" || true
-		if [[ ! -s "${SOURCES_DIR}/${ZLIB_TAR}" ]]; then
-			echo "Primary zlib URL failed; trying GitHub release..."
-			GITHUB_URL="https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz"
-			wget -O "${SOURCES_DIR}/${ZLIB_TAR}" "${GITHUB_URL}"
+
+fetch_and_extract() {
+	local tarname="$1" dir="$2"
+	shift 2
+	# remaining args are URLs to try in order
+	if [[ ! -d "${dir}" ]]; then
+		echo "Fetching ${tarname} into ${SOURCES_DIR}..."
+		if [[ ! -f "${SOURCES_DIR}/${tarname}" ]] || [[ ! -s "${SOURCES_DIR}/${tarname}" ]]; then
+			local success=0
+			for url in "$@"; do
+				echo "  trying ${url}..."
+				if wget -O "${SOURCES_DIR}/${tarname}" "${url}" >/dev/null 2>&1; then
+					if [[ -s "${SOURCES_DIR}/${tarname}" ]]; then
+						success=1
+						break
+					fi
+				fi
+			done
+			if [[ ${success} -ne 1 ]]; then
+				echo "Failed to download ${tarname} from provided URLs" >&2
+				exit 1
+			fi
 		fi
+		echo "Extracting ${tarname} into ${SOURCES_DIR}..."
+		tar -xf "${SOURCES_DIR}/${tarname}" -C "${SOURCES_DIR}"
 	fi
-	echo "Extracting zlib into ${SOURCES_DIR}..."
-	tar -xf "${SOURCES_DIR}/${ZLIB_TAR}" -C "${SOURCES_DIR}"
-fi
+}
+
+# zlib (with GitHub fallback)
+fetch_and_extract "zlib-${ZLIB_VERSION}.tar.gz" "${SOURCES_DIR}/zlib-${ZLIB_VERSION}" "https://zlib.net/fossils/zlib-${ZLIB_VERSION}.tar.gz" "https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz"
 
 # libzip
-if [[ ! -d "${SOURCES_DIR}/libzip-${LIBZIP_VERSION}" ]]; then
-	echo "Fetching libzip ${LIBZIP_VERSION} into ${SOURCES_DIR}..."
-	LIBZIP_TAR="libzip-${LIBZIP_VERSION}.tar.xz"
-	LIBZIP_URL="https://libzip.org/download/${LIBZIP_TAR}"
-	if [[ ! -f "${SOURCES_DIR}/${LIBZIP_TAR}" ]]; then
-		wget -O "${SOURCES_DIR}/${LIBZIP_TAR}" "${LIBZIP_URL}"
-	fi
-	echo "Extracting libzip into ${SOURCES_DIR}..."
-	tar -xf "${SOURCES_DIR}/${LIBZIP_TAR}" -C "${SOURCES_DIR}"
-fi
+fetch_and_extract "libzip-${LIBZIP_VERSION}.tar.xz" "${SOURCES_DIR}/libzip-${LIBZIP_VERSION}" "https://libzip.org/download/libzip-${LIBZIP_VERSION}.tar.xz"
 

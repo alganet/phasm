@@ -21,31 +21,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install system deps
+      - name: Install deps
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential bison re2c libonig-dev cmake wget pkg-config python3 git curl
 
-      - name: Fetch dependencies
-        run: |
-          ./scripts/fetch.sh
-          ./scripts/setup-emsdk.sh
-
-      - name: Apply patches
-        run: |
-          ./scripts/apply-patches.sh
-
-      - name: Build transitive deps
-        run: |
-          ./scripts/build-deps.sh
-
-      - name: Build project
-        run: |
-          ./scripts/build.sh
-
-      - name: Package web demo
-        run: |
-          ./scripts/package-web.sh
+      - run: ./scripts/setup.sh
+      - run: ./scripts/fetch.sh
+      - run: ./scripts/apply-patches.sh
+      - run: ./scripts/deps.sh
+      - run: ./scripts/build.sh
+      - run: ./scripts/package-web.sh
 
       - name: Upload web demo artifact
         uses: actions/upload-artifact@v4

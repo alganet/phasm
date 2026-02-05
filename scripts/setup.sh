@@ -8,7 +8,7 @@ set -euo pipefail
 
 source "$(dirname "$0")/env.sh"
 
-EMSDK_DIR="${ROOT_DIR}/tools/emsdk"
+EMSDK_DIR="${ROOT_DIR}/build/emsdk"
 
 if [[ ! -d "${EMSDK_DIR}/.git" ]]; then
 	mkdir -p "${ROOT_DIR}/tools"
@@ -17,7 +17,13 @@ fi
 
 cd "${EMSDK_DIR}"
 
-./emsdk install latest
-./emsdk activate latest
+# Install if not installed
+if ! ./emsdk list | grep -q 'latest.*(installed)'; then
+	./emsdk install latest
+fi
+# Activate if not activated
+if ! ./emsdk list | grep -q 'latest.*(active)'; then
+	./emsdk activate latest
+fi
 
 echo "Emscripten installed. Source ${EMSDK_DIR}/emsdk_env.sh or set EMSDK_ENV=${EMSDK_DIR}/emsdk_env.sh"

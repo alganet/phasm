@@ -9,12 +9,11 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
 if [[ -n "${EMSDK_ENV}" ]]; then
-	# shellcheck disable=SC1090
 	source "${EMSDK_ENV}"
 fi
 
 if ! command -v emcc >/dev/null 2>&1; then
-	echo "emcc not found. Ensure Emscripten is installed and EMSDK_ENV is set."
+	echo "emcc not found. Run ./scripts/setup.sh first."
 	exit 1
 fi
 
@@ -23,7 +22,12 @@ if [[ ! -d "${PHP_SRC_DIR}/.git" ]]; then
 	exit 1
 fi
 
-rm -rf "${BUILD_DIR}"
+# Ensure libzip is built for WASM; build it unless already present
+if [[ ! -f "${BUILD_DIR}/sysroot/lib/libzip.a" ]]; then
+	echo "libzip not found for WASM in ${BUILD_DIR}/sysroot. Run ./scripts/deps.sh first."
+	exit 1
+fi
+
 mkdir -p "${BUILD_DIR}" "${DIST_DIR}"
 
 cd "${PHP_SRC_DIR}"
@@ -32,54 +36,13 @@ cd "${PHP_SRC_DIR}"
 
 pushd "${BUILD_DIR}" >/dev/null
 
-# Ensure libzip is available for cross-compilation. If not found, build it
-SYSROOT_PKGCONFIG="${BUILD_DIR}/sysroot/lib/pkgconfig:${BUILD_DIR}/sysroot/share/pkgconfig"
-export PKG_CONFIG_PATH="${SYSROOT_PKGCONFIG}:${PKG_CONFIG_PATH:-}"
-
-if ! command -v pkg-config >/dev/null 2>&1; then
-	# pkg-config is required for detection; warn but continue (configure will also error)
-	echo "pkg-config not found; install it (e.g. apt-get install pkg-config)" >&2
-fi
-
-# Prefer a WASM-built libzip even if a host libzip exists. Try to compile a trivial
-# test with the flags from pkg-config to make sure it's usable with Emscripten.
-if pkg-config --exists libzip >/dev/null 2>&1; then
-	LIBZIP_CFLAGS="$(pkg-config --cflags libzip)"
-	LIBZIP_LIBS="$(pkg-config --libs libzip)"
-	# Try a small compile to verify the flags are usable by emcc
-	TMPTEST="${BUILD_DIR}/tmp_libzip_test.c"
-	cat > "${TMPTEST}" <<'EOF'
-int main(void){return 0;}
-EOF
-	set +e
-	echo "Trying to compile a test program with system libzip using emcc..."
-	if ! ${EMCC:-emcc} ${LIBZIP_CFLAGS} "${TMPTEST}" ${LIBZIP_LIBS} -o "${BUILD_DIR}/tmp_libzip_test.wasm" >/dev/null 2>&1; then
-		set -e
-		echo "Found host libzip via pkg-config but it's not usable with Emscripten. Building WASM libzip..."
-		"${ROOT_DIR}/scripts/build-deps.sh"
-		export PKG_CONFIG_PATH="${SYSROOT_PKGCONFIG}:${PKG_CONFIG_PATH:-}"
-	else
-		echo "pkg-config libzip appears usable with emcc. Using it." 
-		rm -f "${BUILD_DIR}/tmp_libzip_test.c" "${BUILD_DIR}/tmp_libzip_test.wasm" || true
-		set -e
-	fi
-else
-	echo "libzip not found for cross-compile. Building libzip into ${BUILD_DIR}/sysroot..."
-	"${ROOT_DIR}/scripts/build-deps.sh"
-	# Ensure new .pc files are visible
-	export PKG_CONFIG_PATH="${SYSROOT_PKGCONFIG}:${PKG_CONFIG_PATH:-}"
-fi
-
-# Debugging info
-echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
-# Export LIBZIP_CFLAGS/LIBZIP_LIBS to avoid PKG_CHECK_MODULES issues during configure
-export LIBZIP_CFLAGS="$(PKG_CONFIG_PATH="${SYSROOT_PKGCONFIG}:${PKG_CONFIG_PATH:-}" pkg-config --cflags libzip 2>/dev/null || true)"
-export LIBZIP_LIBS="$(PKG_CONFIG_PATH="${SYSROOT_PKGCONFIG}:${PKG_CONFIG_PATH:-}" pkg-config --libs --static libzip 2>/dev/null || true)"
+# Export LIBZIP_CFLAGS/LIBZIP_LIBS using sysroot paths (no pkg-config)
+export LIBZIP_CFLAGS="-I${BUILD_DIR}/sysroot/include"
+export LIBZIP_LIBS="-L${BUILD_DIR}/sysroot/lib -lzip -lz"
 echo "LIBZIP_CFLAGS=${LIBZIP_CFLAGS}"
 echo "LIBZIP_LIBS=${LIBZIP_LIBS}"
-pkg-config --modversion libzip || true
 
-PKG_CONFIG_PATH="${SYSROOT_PKGCONFIG}:${PKG_CONFIG_PATH:-}" emconfigure "${PHP_SRC_DIR}/configure" \
+emconfigure "${PHP_SRC_DIR}/configure" \
 	--without-pear \
 	--without-iconv \
 	--without-pcre-jit \

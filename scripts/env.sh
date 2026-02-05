@@ -20,7 +20,7 @@ PATCH_DIR="${ROOT_DIR}/patches/php-${PHP_VERSION}"
 ZLIB_VERSION="${ZLIB_VERSION:-1.2.11}"
 LIBZIP_VERSION="${LIBZIP_VERSION:-1.9.2}"
 
-DEFAULT_EMSDK_ENV="${ROOT_DIR}/tools/emsdk/emsdk_env.sh"
+DEFAULT_EMSDK_ENV="${ROOT_DIR}/build/emsdk/emsdk_env.sh"
 if [[ -z "${EMSDK_ENV:-}" && -f "${DEFAULT_EMSDK_ENV}" ]]; then
 	EMSDK_ENV="${DEFAULT_EMSDK_ENV}"
 else

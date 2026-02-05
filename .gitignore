@@ -2,10 +2,8 @@
 #
 # SPDX-License-Identifier: ISC
 
-/build/
-/tools
-/dist/
+/build
+/dist
 /sources/
 /web/assets/php**
-*.log
-*.pid
+
