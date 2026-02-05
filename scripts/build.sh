@@ -59,7 +59,8 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--enable-gmp \
 	--enable-tokenizer
 
-emmake make -j"$(nproc)"
+emmake make -j"$(nproc)" \
+	EMCC_CFLAGS="-s EXPORT_NAME='Phasm'"
 
 popd >/dev/null
 
