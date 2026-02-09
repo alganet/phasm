@@ -1,0 +1,23 @@
+{
+  "name": "@alganet/php-wasm",
+  "version": "0.1.0",
+  "description": "PHP 8.5 compiled to WebAssembly",
+  "main": "dist/php.js",
+  "module": "dist/php.js",
+  "types": "dist/php.d.ts",
+  "files": ["dist/"],
+  "exports": {
+    ".": {
+      "import": "./dist/php.js",
+      "default": "./dist/php.js"
+    },
+    "./wasm": "./dist/php.wasm"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alganet/phasm.git"
+  },
+  "keywords": ["php", "wasm", "webassembly"],
+  "author": "Alexandre Gomes Gaigalas <alganet@gmail.com>",
+  "license": "ISC"
+}

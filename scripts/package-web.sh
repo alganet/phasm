@@ -8,7 +8,7 @@ set -euo pipefail
 
 source "$(dirname "$0")/env.sh"
 
-mkdir -p "${WEB_DIR}/assets"
+mkdir -p "${WEB_DIR}/assets" "${DIST_DIR}"
 
 if [[ ! -f "${DIST_DIR}/php.js" || ! -f "${DIST_DIR}/php.wasm" ]]; then
 	echo "Missing dist artifacts. Run ./scripts/build.sh first."
@@ -19,3 +19,4 @@ cp "${DIST_DIR}/php.js" "${WEB_DIR}/assets/php.js"
 cp "${DIST_DIR}/php.wasm" "${WEB_DIR}/assets/php.wasm"
 
 echo "Web assets updated in ${WEB_DIR}/assets"
+echo "npm distribution files ready in ${DIST_DIR}"
