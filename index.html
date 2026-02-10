@@ -20,21 +20,66 @@ SPDX-License-Identifier: ISC
 		#output {
 			white-space: pre-wrap;
 			background: #111;
-			color: #0f0;
+			color: #FFF;
 			padding: 1rem;
 			min-height: 200px;
 		}
 	</style>
 	<script async src="https://www.googletagmanager.com/gtag/js?id=G-087KLX3WP7"></script><script>window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-087KLX3WP7');</script>
+	<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.39.0/min/vs/loader.js"></script>
 </head>
 
 <body>
 	<h1>PHP 8.5 WASM Demo</h1>
 	<p id="status">Loading...</p>
+	<div id="editor" style="width:100%; height:300px; border:1px solid #ddd; font-family: monospace;"></div>
+	<div style="margin: .5rem 0;">
+		<button id="runBtn">Run</button>
+	</div>
 	<pre id="output"></pre>
 	<script>
 		const statusEl = document.getElementById("status");
 		const outputEl = document.getElementById("output");
+
+		const defaultCode = `<?php
+
+echo 'Hello World!' . PHP_EOL;
+`;
+
+		// Monaco editor (CDN) initialization
+		window.monacoReady = new Promise((resolve) => {
+			if (typeof require === 'function' && require.config) {
+				require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.39.0/min/vs' }});
+				require(['vs/editor/editor.main'], function () {
+					try {
+						window.monacoEditor = monaco.editor.create(document.getElementById('editor'), {
+							value: defaultCode,
+							language: 'php',
+							automaticLayout: true,
+							minimap: { enabled: false },
+							theme: 'vs-light'
+						});
+						resolve(window.monacoEditor);
+					} catch (e) {
+						resolve(null);
+					}
+				});
+			} else {
+				resolve(null);
+			}
+		});
+		window.monacoReady.then((ed) => {
+			if (!ed) {
+				// fallback to a textarea inside the editor div
+				const ta = document.createElement('textarea');
+				ta.id = 'editorText';
+				ta.style.width = '100%';
+				ta.style.height = '300px';
+				ta.style.fontFamily = 'monospace';
+				ta.value = defaultCode;
+				document.getElementById('editor').appendChild(ta);
+			}
+		});
 
 		if (typeof WebAssembly === "undefined") {
 			statusEl.textContent = "WebAssembly unavailable";
@@ -42,7 +87,7 @@ SPDX-License-Identifier: ISC
 		} else {
 			window.Phasm = {
 				noInitialRun: true,
-				arguments: ["-m"],
+				arguments: ["main.php"],
 				stdin: () => null,
 				print: (text) => {
 					outputEl.textContent += `${text}\n`;
@@ -51,14 +96,30 @@ SPDX-License-Identifier: ISC
 					outputEl.textContent += `[err] ${text}\n`;
 				},
 				onRuntimeInitialized: async () => {
+					try {
+						const res = await fetch('assets/vendor.zip');
+						if (!res.ok) throw new Error('Failed to fetch vendor.zip: ' + res.status);
+						const zipData = await res.arrayBuffer();
+						try {
+							FS.createDataFile('/', 'vendor.zip', new Uint8Array(zipData), true, true);
+						} catch (e) {
+							outputEl.textContent += `[err] FS write failed: ${e.stack || e}`;
+							throw e;
+						}
+					} catch (err) {
+						statusEl.textContent = 'Failed to prepare vendor.zip';
+						outputEl.textContent += `[err] ${err.stack || err}`;
+						return;
+					}
+
 					statusEl.textContent = "Ready";
 					try {
 						let content;
-						const res = await fetch('assets/test.txt');
-						if (!res.ok) throw new Error('Failed to fetch test.txt: ' + res.status);
+						const res = await fetch('assets/main.php');
+						if (!res.ok) throw new Error('Failed to fetch main.php: ' + res.status);
 						content = await res.text();
 						try {
-							FS.createDataFile('/', 'test.txt', content, true, true);
+							FS.createDataFile('/', 'main.php', content, true, true);
 							Phasm.FS = Phasm.FS || FS;
 						} catch (e) {
 							outputEl.textContent += `[err] FS write failed: ${e.stack || e}`;
@@ -74,6 +135,27 @@ SPDX-License-Identifier: ISC
 						statusEl.textContent = 'Failed to prepare script';
 						outputEl.textContent += `[err] ${err.stack || err}`;
 					}
+
+				// bind run button to editor (Monaco or fallback)
+				const runBtn = document.getElementById("runBtn");
+				runBtn.onclick = async () => {
+					let code;
+					if (window.monacoEditor) {
+						code = window.monacoEditor.getValue();
+					} else {
+						const ta = document.getElementById('editorText');
+						const el = document.getElementById('editor');
+						code = (ta && ta.value) || (el && el.textContent) || '';
+					}
+						try {
+							FS.writeFile('/user.php', code);
+							Phasm.arguments = ['user.php'];
+							outputEl.textContent = "";
+							callMain(Phasm.arguments);
+						} catch (err) {
+							outputEl.textContent += `[err] Failed to run user code: ${err.stack || err}`;
+						}
+					};
 				}
 			};
 

@@ -1283,6 +1283,13 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
           return size;
         },
   write(stream, buffer, offset, length, position, canOwn) {
+          // If the buffer is located in main memory (HEAP), and if
+          // memory can grow, we can't hold on to references of the
+          // memory buffer, as they may get invalidated. That means we
+          // need to copy its contents.
+          if (buffer.buffer === HEAP8.buffer) {
+            canOwn = false;
+          }
   
           if (!length) return 0;
           var node = stream.node;
@@ -5428,18 +5435,77 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
 
 
   var getHeapMax = () =>
-      HEAPU8.length;
+      // Stay one Wasm page short of 4GB: while e.g. Chrome is able to allocate
+      // full 4GB Wasm memories, the size will wrap back to 0 bytes in Wasm side
+      // for any code that deals with heap sizes, which would require special
+      // casing all heap size related code to treat 0 specially.
+      2147483648;
   var _emscripten_get_heap_max = () => getHeapMax();
 
 
-  var abortOnCannotGrowMemory = (requestedSize) => {
-      abort('OOM');
+  
+  
+  var growMemory = (size) => {
+      var oldHeapSize = wasmMemory.buffer.byteLength;
+      var pages = ((size - oldHeapSize + 65535) / 65536) | 0;
+      try {
+        // round size grow request up to wasm page size (fixed 64KB per spec)
+        wasmMemory.grow(pages); // .grow() takes a delta compared to the previous size
+        updateMemoryViews();
+        return 1 /*success*/;
+      } catch(e) {
+      }
+      // implicit 0 return to save code size (caller will cast "undefined" into 0
+      // anyhow)
     };
   var _emscripten_resize_heap = (requestedSize) => {
       var oldSize = HEAPU8.length;
       // With CAN_ADDRESS_2GB or MEMORY64, pointers are already unsigned.
       requestedSize >>>= 0;
-      abortOnCannotGrowMemory(requestedSize);
+      // With multithreaded builds, races can happen (another thread might increase the size
+      // in between), so return a failure, and let the caller retry.
+  
+      // Memory resize rules:
+      // 1.  Always increase heap size to at least the requested size, rounded up
+      //     to next page multiple.
+      // 2a. If MEMORY_GROWTH_LINEAR_STEP == -1, excessively resize the heap
+      //     geometrically: increase the heap size according to
+      //     MEMORY_GROWTH_GEOMETRIC_STEP factor (default +20%), At most
+      //     overreserve by MEMORY_GROWTH_GEOMETRIC_CAP bytes (default 96MB).
+      // 2b. If MEMORY_GROWTH_LINEAR_STEP != -1, excessively resize the heap
+      //     linearly: increase the heap size by at least
+      //     MEMORY_GROWTH_LINEAR_STEP bytes.
+      // 3.  Max size for the heap is capped at 2048MB-WASM_PAGE_SIZE, or by
+      //     MAXIMUM_MEMORY, or by ASAN limit, depending on which is smallest
+      // 4.  If we were unable to allocate as much memory, it may be due to
+      //     over-eager decision to excessively reserve due to (3) above.
+      //     Hence if an allocation fails, cut down on the amount of excess
+      //     growth, in an attempt to succeed to perform a smaller allocation.
+  
+      // A limit is set for how much we can grow. We should not exceed that
+      // (the wasm binary specifies it, so if we tried, we'd fail anyhow).
+      var maxHeapSize = getHeapMax();
+      if (requestedSize > maxHeapSize) {
+        return false;
+      }
+  
+      // Loop through potential heap size increases. If we attempt a too eager
+      // reservation that fails, cut down on the attempted size and reserve a
+      // smaller bump instead. (max 3 times, chosen somewhat arbitrarily)
+      for (var cutDown = 1; cutDown <= 4; cutDown *= 2) {
+        var overGrownHeapSize = oldSize * (1 + 0.2 / cutDown); // ensure geometric growth
+        // but limit overreserving (default to capping at +96MB overgrowth at most)
+        overGrownHeapSize = Math.min(overGrownHeapSize, requestedSize + 100663296 );
+  
+        var newSize = Math.min(maxHeapSize, alignMemory(Math.max(requestedSize, overGrownHeapSize), 65536));
+  
+        var replacement = growMemory(newSize);
+        if (replacement) {
+  
+          return true;
+        }
+      }
+      return false;
     };
 
   var ENV = {
@@ -6735,6 +6801,37 @@ var _php_time,
   _add_next_index_str,
   _php_safe_bcmp,
   _object_properties_load,
+  _php_stream_filter_register_factory,
+  _php_output_handler_alias_register,
+  _php_output_handler_conflict_register,
+  _php_stream_filter_unregister_factory,
+  _zend_get_constant_str,
+  _php_output_handler_create_internal,
+  _php_output_get_level,
+  _php_output_handler_conflict,
+  _php_iconv_string,
+  _libiconv_open,
+  _libiconv,
+  _libiconv_close,
+  _php_get_internal_encoding,
+  _php_base64_encode_ex,
+  _php_base64_decode_ex,
+  _php_quot_print_decode,
+  _add_next_index_stringl,
+  _add_assoc_stringl_ex,
+  __emalloc_40,
+  _zend_alter_ini_entry,
+  _php_get_input_encoding,
+  _php_get_output_encoding,
+  _php_output_get_status,
+  _sapi_add_header_ex,
+  _php_output_handler_hook,
+  __php_stream_filter_alloc,
+  _php_stream_bucket_unlink,
+  _php_stream_bucket_delref,
+  _php_stream_bucket_new,
+  _php_stream_bucket_append,
+  ___zend_realloc,
   _zend_gcvt,
   _php_next_utf8_char,
   _zend_get_recursion_guard,
@@ -7915,9 +8012,6 @@ var _php_time,
   __zend_bailout,
   _zend_string_hash_func,
   _zend_hash_str_find_ptr_lc,
-  _zend_get_constant_str,
-  _add_assoc_stringl_ex,
-  _add_next_index_stringl,
   _setTempRet0,
   _getTempRet0,
   _zend_stream_init_filename_ex,
@@ -7980,7 +8074,6 @@ var _php_time,
   _php_get_stream_filters_hash_global,
   _php_stream_get_url_stream_wrappers_hash_global,
   _php_stream_xport_get_hash,
-  ___zend_realloc,
   _zend_internal_run_time_cache_reserved_size,
   _zend_interned_strings_switch_storage,
   _php_request_startup,
@@ -8089,7 +8182,6 @@ var _php_time,
   _zend_class_can_be_lazy,
   _php_info_print_module,
   _zend_get_extension,
-  __emalloc_40,
   _smart_str_append_zval,
   _zend_ast_export,
   _smart_str_append_escaped,
@@ -8228,8 +8320,6 @@ var _php_time,
   _zend_get_executed_lineno,
   _zend_throw_unwind_exit,
   _zend_alter_ini_entry_ex,
-  _php_base64_encode_ex,
-  _php_base64_decode_ex,
   _php_register_incomplete_class_handlers,
   _php_register_url_stream_wrapper,
   _php_unregister_url_stream_wrapper,
@@ -8330,7 +8420,6 @@ var _php_time,
   _php_network_gethostbyname,
   _php_exec,
   __php_stream_fopen_from_pipe,
-  _php_output_get_level,
   _php_escape_shell_cmd,
   _php_escape_shell_arg,
   __php_stream_copy_to_mem,
@@ -8356,15 +8445,8 @@ var _php_time,
   _realpath_cache_size,
   _realpath_cache_get_buckets,
   _realpath_cache_max_buckets,
-  _php_stream_filter_register_factory,
-  _php_stream_filter_unregister_factory,
   _php_stream_bucket_make_writeable,
   _php_strtr,
-  _php_stream_bucket_append,
-  __php_stream_filter_alloc,
-  _php_stream_bucket_unlink,
-  _php_stream_bucket_delref,
-  _php_stream_bucket_new,
   ___zend_strdup,
   _php_flock,
   _php_conv_fp,
@@ -8473,7 +8555,6 @@ var _php_time,
   _zend_fetch_resource,
   _php_socket_error_str,
   _zend_register_resource,
-  _php_quot_print_decode,
   _php_quot_print_encode,
   _ValidateFormat,
   _convert_to_null,
@@ -8620,9 +8701,6 @@ var _php_time,
   _smart_string_append_printf,
   __smart_string_alloc,
   _php_print_version,
-  _php_get_internal_encoding,
-  _php_get_input_encoding,
-  _php_get_output_encoding,
   _php_during_module_startup,
   _php_during_module_shutdown,
   _php_get_module_initialized,
@@ -8639,7 +8717,6 @@ var _php_time,
   _php_output_activate,
   _zend_activate,
   _zend_set_timeout,
-  _sapi_add_header_ex,
   _php_output_start_user,
   _php_output_set_implicit_flush,
   _php_hash_environment,
@@ -8724,7 +8801,6 @@ var _php_time,
   _zend_get_compiled_filename,
   _zend_get_compiled_lineno,
   _php_output_handler_free,
-  _php_output_get_status,
   _php_output_write_unbuffered,
   _zend_stack_count,
   _zend_stack_apply_with_argument,
@@ -8736,18 +8812,13 @@ var _php_time,
   _php_output_clean_all,
   _php_output_get_length,
   _php_output_get_active_handler,
-  _php_output_handler_create_internal,
   _php_output_handler_start,
   _php_output_start_devnull,
   _php_output_handler_create_user,
   _php_output_handler_set_context,
   _php_output_handler_alias,
   _php_output_handler_started,
-  _php_output_handler_conflict,
-  _php_output_handler_conflict_register,
   _php_output_handler_reverse_conflict_register,
-  _php_output_handler_alias_register,
-  _php_output_handler_hook,
   _php_default_post_reader,
   _sapi_read_standard_form_data,
   _sapi_register_default_post_reader,
@@ -9359,7 +9430,6 @@ var _php_time,
   _zend_ini_deactivate,
   _zend_register_ini_entries,
   _zend_unregister_ini_entries,
-  _zend_alter_ini_entry,
   _zend_alter_ini_entry_chars_ex,
   _zend_ini_register_displayer,
   _zend_ini_parse_uquantity,
@@ -9502,6 +9572,10 @@ var _php_time,
   _php_cli_get_shell_callbacks,
   _sapi_cli_single_write,
   _main,
+  _libiconv_open_into,
+  _libiconvctl,
+  _libiconvlist,
+  _iconv_canonicalize,
   __emscripten_memcpy_bulkmem,
   _emscripten_stack_get_end,
   _emscripten_stack_get_base,
@@ -9537,6 +9611,8 @@ var _php_time,
   _core_globals,
   _php_hashcontext_ce,
   _zend_ce_value_error,
+  __libiconv_version,
+  _sapi_globals,
   _php_json_serializable_ce,
   _zend_empty_array,
   _php_json_exception_ce,
@@ -9633,7 +9709,6 @@ var _php_time,
   _lxb_encoding_multi_jis0212_65374_65375_map,
   _module_registry,
   _smm_shared_globals,
-  _sapi_globals,
   _zend_ce_closure,
   _zend_resolve_path,
   _sapi_module,
@@ -10327,6 +10402,37 @@ function assignWasmExports(wasmExports) {
   _add_next_index_str = Module['_add_next_index_str'] = wasmExports['add_next_index_str'];
   _php_safe_bcmp = Module['_php_safe_bcmp'] = wasmExports['php_safe_bcmp'];
   _object_properties_load = Module['_object_properties_load'] = wasmExports['object_properties_load'];
+  _php_stream_filter_register_factory = Module['_php_stream_filter_register_factory'] = wasmExports['php_stream_filter_register_factory'];
+  _php_output_handler_alias_register = Module['_php_output_handler_alias_register'] = wasmExports['php_output_handler_alias_register'];
+  _php_output_handler_conflict_register = Module['_php_output_handler_conflict_register'] = wasmExports['php_output_handler_conflict_register'];
+  _php_stream_filter_unregister_factory = Module['_php_stream_filter_unregister_factory'] = wasmExports['php_stream_filter_unregister_factory'];
+  _zend_get_constant_str = Module['_zend_get_constant_str'] = wasmExports['zend_get_constant_str'];
+  _php_output_handler_create_internal = Module['_php_output_handler_create_internal'] = wasmExports['php_output_handler_create_internal'];
+  _php_output_get_level = Module['_php_output_get_level'] = wasmExports['php_output_get_level'];
+  _php_output_handler_conflict = Module['_php_output_handler_conflict'] = wasmExports['php_output_handler_conflict'];
+  _php_iconv_string = Module['_php_iconv_string'] = wasmExports['php_iconv_string'];
+  _libiconv_open = Module['_libiconv_open'] = wasmExports['libiconv_open'];
+  _libiconv = Module['_libiconv'] = wasmExports['libiconv'];
+  _libiconv_close = Module['_libiconv_close'] = wasmExports['libiconv_close'];
+  _php_get_internal_encoding = Module['_php_get_internal_encoding'] = wasmExports['php_get_internal_encoding'];
+  _php_base64_encode_ex = Module['_php_base64_encode_ex'] = wasmExports['php_base64_encode_ex'];
+  _php_base64_decode_ex = Module['_php_base64_decode_ex'] = wasmExports['php_base64_decode_ex'];
+  _php_quot_print_decode = Module['_php_quot_print_decode'] = wasmExports['php_quot_print_decode'];
+  _add_next_index_stringl = Module['_add_next_index_stringl'] = wasmExports['add_next_index_stringl'];
+  _add_assoc_stringl_ex = Module['_add_assoc_stringl_ex'] = wasmExports['add_assoc_stringl_ex'];
+  __emalloc_40 = Module['__emalloc_40'] = wasmExports['_emalloc_40'];
+  _zend_alter_ini_entry = Module['_zend_alter_ini_entry'] = wasmExports['zend_alter_ini_entry'];
+  _php_get_input_encoding = Module['_php_get_input_encoding'] = wasmExports['php_get_input_encoding'];
+  _php_get_output_encoding = Module['_php_get_output_encoding'] = wasmExports['php_get_output_encoding'];
+  _php_output_get_status = Module['_php_output_get_status'] = wasmExports['php_output_get_status'];
+  _sapi_add_header_ex = Module['_sapi_add_header_ex'] = wasmExports['sapi_add_header_ex'];
+  _php_output_handler_hook = Module['_php_output_handler_hook'] = wasmExports['php_output_handler_hook'];
+  __php_stream_filter_alloc = Module['__php_stream_filter_alloc'] = wasmExports['_php_stream_filter_alloc'];
+  _php_stream_bucket_unlink = Module['_php_stream_bucket_unlink'] = wasmExports['php_stream_bucket_unlink'];
+  _php_stream_bucket_delref = Module['_php_stream_bucket_delref'] = wasmExports['php_stream_bucket_delref'];
+  _php_stream_bucket_new = Module['_php_stream_bucket_new'] = wasmExports['php_stream_bucket_new'];
+  _php_stream_bucket_append = Module['_php_stream_bucket_append'] = wasmExports['php_stream_bucket_append'];
+  ___zend_realloc = Module['___zend_realloc'] = wasmExports['__zend_realloc'];
   _zend_gcvt = Module['_zend_gcvt'] = wasmExports['zend_gcvt'];
   _php_next_utf8_char = Module['_php_next_utf8_char'] = wasmExports['php_next_utf8_char'];
   _zend_get_recursion_guard = Module['_zend_get_recursion_guard'] = wasmExports['zend_get_recursion_guard'];
@@ -11507,9 +11613,6 @@ function assignWasmExports(wasmExports) {
   __zend_bailout = Module['__zend_bailout'] = wasmExports['_zend_bailout'];
   _zend_string_hash_func = Module['_zend_string_hash_func'] = wasmExports['zend_string_hash_func'];
   _zend_hash_str_find_ptr_lc = Module['_zend_hash_str_find_ptr_lc'] = wasmExports['zend_hash_str_find_ptr_lc'];
-  _zend_get_constant_str = Module['_zend_get_constant_str'] = wasmExports['zend_get_constant_str'];
-  _add_assoc_stringl_ex = Module['_add_assoc_stringl_ex'] = wasmExports['add_assoc_stringl_ex'];
-  _add_next_index_stringl = Module['_add_next_index_stringl'] = wasmExports['add_next_index_stringl'];
   _setTempRet0 = Module['_setTempRet0'] = wasmExports['setTempRet0'];
   _getTempRet0 = Module['_getTempRet0'] = wasmExports['getTempRet0'];
   _zend_stream_init_filename_ex = Module['_zend_stream_init_filename_ex'] = wasmExports['zend_stream_init_filename_ex'];
@@ -11572,7 +11675,6 @@ function assignWasmExports(wasmExports) {
   _php_get_stream_filters_hash_global = Module['_php_get_stream_filters_hash_global'] = wasmExports['php_get_stream_filters_hash_global'];
   _php_stream_get_url_stream_wrappers_hash_global = Module['_php_stream_get_url_stream_wrappers_hash_global'] = wasmExports['php_stream_get_url_stream_wrappers_hash_global'];
   _php_stream_xport_get_hash = Module['_php_stream_xport_get_hash'] = wasmExports['php_stream_xport_get_hash'];
-  ___zend_realloc = Module['___zend_realloc'] = wasmExports['__zend_realloc'];
   _zend_internal_run_time_cache_reserved_size = Module['_zend_internal_run_time_cache_reserved_size'] = wasmExports['zend_internal_run_time_cache_reserved_size'];
   _zend_interned_strings_switch_storage = Module['_zend_interned_strings_switch_storage'] = wasmExports['zend_interned_strings_switch_storage'];
   _php_request_startup = Module['_php_request_startup'] = wasmExports['php_request_startup'];
@@ -11681,7 +11783,6 @@ function assignWasmExports(wasmExports) {
   _zend_class_can_be_lazy = Module['_zend_class_can_be_lazy'] = wasmExports['zend_class_can_be_lazy'];
   _php_info_print_module = Module['_php_info_print_module'] = wasmExports['php_info_print_module'];
   _zend_get_extension = Module['_zend_get_extension'] = wasmExports['zend_get_extension'];
-  __emalloc_40 = Module['__emalloc_40'] = wasmExports['_emalloc_40'];
   _smart_str_append_zval = Module['_smart_str_append_zval'] = wasmExports['smart_str_append_zval'];
   _zend_ast_export = Module['_zend_ast_export'] = wasmExports['zend_ast_export'];
   _smart_str_append_escaped = Module['_smart_str_append_escaped'] = wasmExports['smart_str_append_escaped'];
@@ -11820,8 +11921,6 @@ function assignWasmExports(wasmExports) {
   _zend_get_executed_lineno = Module['_zend_get_executed_lineno'] = wasmExports['zend_get_executed_lineno'];
   _zend_throw_unwind_exit = Module['_zend_throw_unwind_exit'] = wasmExports['zend_throw_unwind_exit'];
   _zend_alter_ini_entry_ex = Module['_zend_alter_ini_entry_ex'] = wasmExports['zend_alter_ini_entry_ex'];
-  _php_base64_encode_ex = Module['_php_base64_encode_ex'] = wasmExports['php_base64_encode_ex'];
-  _php_base64_decode_ex = Module['_php_base64_decode_ex'] = wasmExports['php_base64_decode_ex'];
   _php_register_incomplete_class_handlers = Module['_php_register_incomplete_class_handlers'] = wasmExports['php_register_incomplete_class_handlers'];
   _php_register_url_stream_wrapper = Module['_php_register_url_stream_wrapper'] = wasmExports['php_register_url_stream_wrapper'];
   _php_unregister_url_stream_wrapper = Module['_php_unregister_url_stream_wrapper'] = wasmExports['php_unregister_url_stream_wrapper'];
@@ -11922,7 +12021,6 @@ function assignWasmExports(wasmExports) {
   _php_network_gethostbyname = Module['_php_network_gethostbyname'] = wasmExports['php_network_gethostbyname'];
   _php_exec = Module['_php_exec'] = wasmExports['php_exec'];
   __php_stream_fopen_from_pipe = Module['__php_stream_fopen_from_pipe'] = wasmExports['_php_stream_fopen_from_pipe'];
-  _php_output_get_level = Module['_php_output_get_level'] = wasmExports['php_output_get_level'];
   _php_escape_shell_cmd = Module['_php_escape_shell_cmd'] = wasmExports['php_escape_shell_cmd'];
   _php_escape_shell_arg = Module['_php_escape_shell_arg'] = wasmExports['php_escape_shell_arg'];
   __php_stream_copy_to_mem = Module['__php_stream_copy_to_mem'] = wasmExports['_php_stream_copy_to_mem'];
@@ -11948,15 +12046,8 @@ function assignWasmExports(wasmExports) {
   _realpath_cache_size = Module['_realpath_cache_size'] = wasmExports['realpath_cache_size'];
   _realpath_cache_get_buckets = Module['_realpath_cache_get_buckets'] = wasmExports['realpath_cache_get_buckets'];
   _realpath_cache_max_buckets = Module['_realpath_cache_max_buckets'] = wasmExports['realpath_cache_max_buckets'];
-  _php_stream_filter_register_factory = Module['_php_stream_filter_register_factory'] = wasmExports['php_stream_filter_register_factory'];
-  _php_stream_filter_unregister_factory = Module['_php_stream_filter_unregister_factory'] = wasmExports['php_stream_filter_unregister_factory'];
   _php_stream_bucket_make_writeable = Module['_php_stream_bucket_make_writeable'] = wasmExports['php_stream_bucket_make_writeable'];
   _php_strtr = Module['_php_strtr'] = wasmExports['php_strtr'];
-  _php_stream_bucket_append = Module['_php_stream_bucket_append'] = wasmExports['php_stream_bucket_append'];
-  __php_stream_filter_alloc = Module['__php_stream_filter_alloc'] = wasmExports['_php_stream_filter_alloc'];
-  _php_stream_bucket_unlink = Module['_php_stream_bucket_unlink'] = wasmExports['php_stream_bucket_unlink'];
-  _php_stream_bucket_delref = Module['_php_stream_bucket_delref'] = wasmExports['php_stream_bucket_delref'];
-  _php_stream_bucket_new = Module['_php_stream_bucket_new'] = wasmExports['php_stream_bucket_new'];
   ___zend_strdup = Module['___zend_strdup'] = wasmExports['__zend_strdup'];
   _php_flock = Module['_php_flock'] = wasmExports['php_flock'];
   _php_conv_fp = Module['_php_conv_fp'] = wasmExports['php_conv_fp'];
@@ -12065,7 +12156,6 @@ function assignWasmExports(wasmExports) {
   _zend_fetch_resource = Module['_zend_fetch_resource'] = wasmExports['zend_fetch_resource'];
   _php_socket_error_str = Module['_php_socket_error_str'] = wasmExports['php_socket_error_str'];
   _zend_register_resource = Module['_zend_register_resource'] = wasmExports['zend_register_resource'];
-  _php_quot_print_decode = Module['_php_quot_print_decode'] = wasmExports['php_quot_print_decode'];
   _php_quot_print_encode = Module['_php_quot_print_encode'] = wasmExports['php_quot_print_encode'];
   _ValidateFormat = Module['_ValidateFormat'] = wasmExports['ValidateFormat'];
   _convert_to_null = Module['_convert_to_null'] = wasmExports['convert_to_null'];
@@ -12212,9 +12302,6 @@ function assignWasmExports(wasmExports) {
   _smart_string_append_printf = Module['_smart_string_append_printf'] = wasmExports['smart_string_append_printf'];
   __smart_string_alloc = Module['__smart_string_alloc'] = wasmExports['_smart_string_alloc'];
   _php_print_version = Module['_php_print_version'] = wasmExports['php_print_version'];
-  _php_get_internal_encoding = Module['_php_get_internal_encoding'] = wasmExports['php_get_internal_encoding'];
-  _php_get_input_encoding = Module['_php_get_input_encoding'] = wasmExports['php_get_input_encoding'];
-  _php_get_output_encoding = Module['_php_get_output_encoding'] = wasmExports['php_get_output_encoding'];
   _php_during_module_startup = Module['_php_during_module_startup'] = wasmExports['php_during_module_startup'];
   _php_during_module_shutdown = Module['_php_during_module_shutdown'] = wasmExports['php_during_module_shutdown'];
   _php_get_module_initialized = Module['_php_get_module_initialized'] = wasmExports['php_get_module_initialized'];
@@ -12231,7 +12318,6 @@ function assignWasmExports(wasmExports) {
   _php_output_activate = Module['_php_output_activate'] = wasmExports['php_output_activate'];
   _zend_activate = Module['_zend_activate'] = wasmExports['zend_activate'];
   _zend_set_timeout = Module['_zend_set_timeout'] = wasmExports['zend_set_timeout'];
-  _sapi_add_header_ex = Module['_sapi_add_header_ex'] = wasmExports['sapi_add_header_ex'];
   _php_output_start_user = Module['_php_output_start_user'] = wasmExports['php_output_start_user'];
   _php_output_set_implicit_flush = Module['_php_output_set_implicit_flush'] = wasmExports['php_output_set_implicit_flush'];
   _php_hash_environment = Module['_php_hash_environment'] = wasmExports['php_hash_environment'];
@@ -12316,7 +12402,6 @@ function assignWasmExports(wasmExports) {
   _zend_get_compiled_filename = Module['_zend_get_compiled_filename'] = wasmExports['zend_get_compiled_filename'];
   _zend_get_compiled_lineno = Module['_zend_get_compiled_lineno'] = wasmExports['zend_get_compiled_lineno'];
   _php_output_handler_free = Module['_php_output_handler_free'] = wasmExports['php_output_handler_free'];
-  _php_output_get_status = Module['_php_output_get_status'] = wasmExports['php_output_get_status'];
   _php_output_write_unbuffered = Module['_php_output_write_unbuffered'] = wasmExports['php_output_write_unbuffered'];
   _zend_stack_count = Module['_zend_stack_count'] = wasmExports['zend_stack_count'];
   _zend_stack_apply_with_argument = Module['_zend_stack_apply_with_argument'] = wasmExports['zend_stack_apply_with_argument'];
@@ -12328,18 +12413,13 @@ function assignWasmExports(wasmExports) {
   _php_output_clean_all = Module['_php_output_clean_all'] = wasmExports['php_output_clean_all'];
   _php_output_get_length = Module['_php_output_get_length'] = wasmExports['php_output_get_length'];
   _php_output_get_active_handler = Module['_php_output_get_active_handler'] = wasmExports['php_output_get_active_handler'];
-  _php_output_handler_create_internal = Module['_php_output_handler_create_internal'] = wasmExports['php_output_handler_create_internal'];
   _php_output_handler_start = Module['_php_output_handler_start'] = wasmExports['php_output_handler_start'];
   _php_output_start_devnull = Module['_php_output_start_devnull'] = wasmExports['php_output_start_devnull'];
   _php_output_handler_create_user = Module['_php_output_handler_create_user'] = wasmExports['php_output_handler_create_user'];
   _php_output_handler_set_context = Module['_php_output_handler_set_context'] = wasmExports['php_output_handler_set_context'];
   _php_output_handler_alias = Module['_php_output_handler_alias'] = wasmExports['php_output_handler_alias'];
   _php_output_handler_started = Module['_php_output_handler_started'] = wasmExports['php_output_handler_started'];
-  _php_output_handler_conflict = Module['_php_output_handler_conflict'] = wasmExports['php_output_handler_conflict'];
-  _php_output_handler_conflict_register = Module['_php_output_handler_conflict_register'] = wasmExports['php_output_handler_conflict_register'];
   _php_output_handler_reverse_conflict_register = Module['_php_output_handler_reverse_conflict_register'] = wasmExports['php_output_handler_reverse_conflict_register'];
-  _php_output_handler_alias_register = Module['_php_output_handler_alias_register'] = wasmExports['php_output_handler_alias_register'];
-  _php_output_handler_hook = Module['_php_output_handler_hook'] = wasmExports['php_output_handler_hook'];
   _php_default_post_reader = Module['_php_default_post_reader'] = wasmExports['php_default_post_reader'];
   _sapi_read_standard_form_data = Module['_sapi_read_standard_form_data'] = wasmExports['sapi_read_standard_form_data'];
   _sapi_register_default_post_reader = Module['_sapi_register_default_post_reader'] = wasmExports['sapi_register_default_post_reader'];
@@ -12951,7 +13031,6 @@ function assignWasmExports(wasmExports) {
   _zend_ini_deactivate = Module['_zend_ini_deactivate'] = wasmExports['zend_ini_deactivate'];
   _zend_register_ini_entries = Module['_zend_register_ini_entries'] = wasmExports['zend_register_ini_entries'];
   _zend_unregister_ini_entries = Module['_zend_unregister_ini_entries'] = wasmExports['zend_unregister_ini_entries'];
-  _zend_alter_ini_entry = Module['_zend_alter_ini_entry'] = wasmExports['zend_alter_ini_entry'];
   _zend_alter_ini_entry_chars_ex = Module['_zend_alter_ini_entry_chars_ex'] = wasmExports['zend_alter_ini_entry_chars_ex'];
   _zend_ini_register_displayer = Module['_zend_ini_register_displayer'] = wasmExports['zend_ini_register_displayer'];
   _zend_ini_parse_uquantity = Module['_zend_ini_parse_uquantity'] = wasmExports['zend_ini_parse_uquantity'];
@@ -13094,6 +13173,10 @@ function assignWasmExports(wasmExports) {
   _php_cli_get_shell_callbacks = Module['_php_cli_get_shell_callbacks'] = wasmExports['php_cli_get_shell_callbacks'];
   _sapi_cli_single_write = Module['_sapi_cli_single_write'] = wasmExports['sapi_cli_single_write'];
   _main = Module['_main'] = wasmExports['__main_argc_argv'];
+  _libiconv_open_into = Module['_libiconv_open_into'] = wasmExports['libiconv_open_into'];
+  _libiconvctl = Module['_libiconvctl'] = wasmExports['libiconvctl'];
+  _libiconvlist = Module['_libiconvlist'] = wasmExports['libiconvlist'];
+  _iconv_canonicalize = Module['_iconv_canonicalize'] = wasmExports['iconv_canonicalize'];
   __emscripten_memcpy_bulkmem = Module['__emscripten_memcpy_bulkmem'] = wasmExports['_emscripten_memcpy_bulkmem'];
   _emscripten_stack_get_end = Module['_emscripten_stack_get_end'] = wasmExports['emscripten_stack_get_end'];
   _emscripten_stack_get_base = Module['_emscripten_stack_get_base'] = wasmExports['emscripten_stack_get_base'];
@@ -13129,6 +13212,8 @@ function assignWasmExports(wasmExports) {
   _core_globals = Module['_core_globals'] = wasmExports['core_globals'].value;
   _php_hashcontext_ce = Module['_php_hashcontext_ce'] = wasmExports['php_hashcontext_ce'].value;
   _zend_ce_value_error = Module['_zend_ce_value_error'] = wasmExports['zend_ce_value_error'].value;
+  __libiconv_version = Module['__libiconv_version'] = wasmExports['_libiconv_version'].value;
+  _sapi_globals = Module['_sapi_globals'] = wasmExports['sapi_globals'].value;
   _php_json_serializable_ce = Module['_php_json_serializable_ce'] = wasmExports['php_json_serializable_ce'].value;
   _zend_empty_array = Module['_zend_empty_array'] = wasmExports['zend_empty_array'].value;
   _php_json_exception_ce = Module['_php_json_exception_ce'] = wasmExports['php_json_exception_ce'].value;
@@ -13225,7 +13310,6 @@ function assignWasmExports(wasmExports) {
   _lxb_encoding_multi_jis0212_65374_65375_map = Module['_lxb_encoding_multi_jis0212_65374_65375_map'] = wasmExports['lxb_encoding_multi_jis0212_65374_65375_map'].value;
   _module_registry = Module['_module_registry'] = wasmExports['module_registry'].value;
   _smm_shared_globals = Module['_smm_shared_globals'] = wasmExports['smm_shared_globals'].value;
-  _sapi_globals = Module['_sapi_globals'] = wasmExports['sapi_globals'].value;
   _zend_ce_closure = Module['_zend_ce_closure'] = wasmExports['zend_ce_closure'].value;
   _zend_resolve_path = Module['_zend_resolve_path'] = wasmExports['zend_resolve_path'].value;
   _sapi_module = Module['_sapi_module'] = wasmExports['sapi_module'].value;
