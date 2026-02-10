@@ -1,5 +1,5 @@
 {
-  "name": "@alganet/php-wasm",
+  "name": "@alganet/phasm",
   "version": "0.1.0",
   "description": "PHP 8.5 compiled to WebAssembly",
   "main": "dist/php.js",

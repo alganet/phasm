@@ -6,7 +6,9 @@ SPDX-License-Identifier: ISC
 
 # PHP 8.5 → WebAssembly
 
-## Quickstart
+    npm install @alganet/phasm
+
+## Compilation Instructions
 
 - `apt-get install -y build-essential bison re2c libonig-dev cmake wget pkg-config php-cli git curl` or equivalent.
 - ./scripts/setup.sh
