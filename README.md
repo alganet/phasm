@@ -10,13 +10,13 @@ SPDX-License-Identifier: ISC
 
 ## Compilation Instructions
 
-- `apt-get install -y build-essential bison re2c libonig-dev cmake wget pkg-config php-cli git curl` or equivalent.
-- ./scripts/setup.sh
-- ./scripts/fetch.sh
-- ./scripts/apply-patches.sh
-- ./scripts/deps.sh
-- ./scripts/build.sh
-- `composer install`
-- ./scripts/package-web.sh
-- ./scripts/run-local.sh
+- `apt-get install -y build-essential bison re2c libonig-dev cmake wget pkg-config python3 php-cli git curl` or equivalent.
+- `./scripts/setup.sh` - Setup tools
+- `./scripts/fetch.sh` - Fetch source for PHP and dependencies
+- `./scripts/apply-patches.sh` - Apply PHP patches for emscripten
+- `./scripts/deps.sh` - Build dependencies
+- `./scripts/build.sh` - Build PHP itself
+- `composer install` - Creates `vendor` folder used for `vendor.zip` (browser composer dir)
+- `./scripts/package-web.sh` - Packages for the local web demo
+- `./scripts/run-local.sh` - Runs locally
 

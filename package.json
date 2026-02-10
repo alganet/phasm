@@ -1,6 +1,6 @@
 {
   "name": "@alganet/phasm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "PHP 8.5 compiled to WebAssembly",
   "main": "dist/php.js",
   "module": "dist/php.js",
