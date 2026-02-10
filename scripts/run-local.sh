@@ -13,4 +13,4 @@ source "$(dirname "$0")/env.sh"
 cd "${WEB_DIR}"
 
 echo "Serving ${WEB_DIR} at http://localhost:8001"
-php -S localhost:8001
+python3 -m http.server 8001

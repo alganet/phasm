@@ -83,6 +83,29 @@ if [[ ! -f "${SYSROOT_DIR}/lib/libz.a" ]]; then
     popd >/dev/null
 fi
 
+# libiconv (GNU libiconv)
+LIBICONV_TAR="libiconv-${LIBICONV_VERSION}.tar.gz"
+LIBICONV_URL="https://ftp.gnu.org/pub/gnu/libiconv/${LIBICONV_TAR}"
+if [[ ! -f "${SRC_DIR}/${LIBICONV_TAR}" ]]; then
+    echo "Downloading libiconv ${LIBICONV_VERSION} into ${SRC_DIR}..."
+    wget -O "${SRC_DIR}/${LIBICONV_TAR}" "${LIBICONV_URL}"
+fi
+if [[ ! -d "${SRC_DIR}/libiconv-${LIBICONV_VERSION}" ]]; then
+    echo "Extracting libiconv into ${SRC_DIR}..."
+    tar -xf "${SRC_DIR}/${LIBICONV_TAR}" -C "${SRC_DIR}"
+fi
+if [[ ! -f "${SYSROOT_DIR}/lib/libiconv.a" ]]; then
+    echo "Building libiconv for WASM..."
+    pushd "${SRC_DIR}/libiconv-${LIBICONV_VERSION}" >/dev/null
+    # Use emconfigure/emmake to cross-build statically
+    emconfigure ./configure --prefix="${SYSROOT_DIR}" --disable-shared
+    emmake make -j"$(nproc)" || true
+
+    # Try install
+    emmake make install || true
+    popd >/dev/null
+fi
+
 pushd "libzip-${LIBZIP_VERSION}" >/dev/null
 mkdir -p build
 pushd build >/dev/null

@@ -39,12 +39,16 @@ pushd "${BUILD_DIR}" >/dev/null
 # Export LIBZIP_CFLAGS/LIBZIP_LIBS using sysroot paths (no pkg-config)
 export LIBZIP_CFLAGS="-I${BUILD_DIR}/sysroot/include"
 export LIBZIP_LIBS="-L${BUILD_DIR}/sysroot/lib -lzip -lz"
+export ICONV_CFLAGS="-I${BUILD_DIR}/sysroot/include"
+export ICONV_LIBS="-L${BUILD_DIR}/sysroot/lib -liconv"
 echo "LIBZIP_CFLAGS=${LIBZIP_CFLAGS}"
 echo "LIBZIP_LIBS=${LIBZIP_LIBS}"
+echo "ICONV_CFLAGS=${ICONV_CFLAGS}"
+echo "ICONV_LIBS=${ICONV_LIBS}"
 
 emconfigure "${PHP_SRC_DIR}/configure" \
 	--without-pear \
-	--without-iconv \
+	--with-iconv="${BUILD_DIR}/sysroot" \
 	--without-pcre-jit \
 	--disable-all \
 	--disable-opcache-jit \
@@ -59,8 +63,7 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--enable-gmp \
 	--enable-tokenizer
 
-emmake make -j"$(nproc)" \
-	EMCC_CFLAGS="-s EXPORT_NAME='Phasm'"
+emmake make -j"$(nproc)" EMCC_CFLAGS="${EMCC_FLAGS}"
 
 popd >/dev/null
 

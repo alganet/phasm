@@ -1,0 +1,7 @@
+{
+    "scripts": {
+        "post-install-cmd": [
+            "zip -r web/assets/vendor.zip vendor"
+        ]
+    }
+}

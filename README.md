@@ -16,6 +16,7 @@ SPDX-License-Identifier: ISC
 - ./scripts/apply-patches.sh
 - ./scripts/deps.sh
 - ./scripts/build.sh
+- `composer install`
 - ./scripts/package-web.sh
 - ./scripts/run-local.sh
 

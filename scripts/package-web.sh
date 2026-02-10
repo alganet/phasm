@@ -18,5 +18,6 @@ fi
 cp "${DIST_DIR}/php.js" "${WEB_DIR}/assets/php.js"
 cp "${DIST_DIR}/php.wasm" "${WEB_DIR}/assets/php.wasm"
 
+
 echo "Web assets updated in ${WEB_DIR}/assets"
 echo "npm distribution files ready in ${DIST_DIR}"

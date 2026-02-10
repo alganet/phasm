@@ -6,3 +6,4 @@
 /dist
 /sources/
 /web/assets/php**
+/vendor
