@@ -24,7 +24,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bison re2c libonig-dev cmake wget pkg-config python3 git curl
+          sudo apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config python3 git curl zip
 
       - run: ./scripts/setup.sh
       - run: ./scripts/fetch.sh

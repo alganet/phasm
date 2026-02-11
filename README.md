@@ -10,7 +10,7 @@ SPDX-License-Identifier: ISC
 
 ## Compilation Instructions
 
-- `apt-get install -y build-essential bison re2c libonig-dev cmake wget pkg-config python3 php-cli git curl` or equivalent.
+- `apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config python3 git curl zip` or equivalent.
 - `./scripts/setup.sh` - Setup tools
 - `./scripts/fetch.sh` - Fetch source for PHP and dependencies
 - `./scripts/apply-patches.sh` - Apply PHP patches for emscripten
