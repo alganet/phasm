@@ -41,10 +41,16 @@ export LIBZIP_CFLAGS="-I${BUILD_DIR}/sysroot/include"
 export LIBZIP_LIBS="-L${BUILD_DIR}/sysroot/lib -lzip -lz"
 export ICONV_CFLAGS="-I${BUILD_DIR}/sysroot/include"
 export ICONV_LIBS="-L${BUILD_DIR}/sysroot/lib -liconv"
+# Oniguruma for ext/mbstring
+export ONIG_CFLAGS="-I${BUILD_DIR}/sysroot/include"
+export ONIG_LIBS="-L${BUILD_DIR}/sysroot/lib -lonig"
+
 echo "LIBZIP_CFLAGS=${LIBZIP_CFLAGS}"
 echo "LIBZIP_LIBS=${LIBZIP_LIBS}"
 echo "ICONV_CFLAGS=${ICONV_CFLAGS}"
 echo "ICONV_LIBS=${ICONV_LIBS}"
+echo "ONIG_CFLAGS=${ONIG_CFLAGS}"
+echo "ONIG_LIBS=${ONIG_LIBS}"
 
 emconfigure "${PHP_SRC_DIR}/configure" \
 	--without-pear \
@@ -56,11 +62,15 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--disable-fiber-asm \
 	--disable-cgi \
 	--with-zip \
+	--enable-calendar \
 	--enable-cli \
 	--enable-ctype \
 	--enable-filter \
 	--enable-fileinfo \
 	--enable-gmp \
+	--enable-mbstring \
+	--enable-pcntl \
+	--enable-static \
 	--enable-tokenizer
 
 emmake make -j"$(nproc)" EMCC_CFLAGS="${EMCC_FLAGS}"

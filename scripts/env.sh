@@ -20,6 +20,8 @@ PATCH_DIR="${ROOT_DIR}/patches/php-${PHP_VERSION}"
 ZLIB_VERSION="${ZLIB_VERSION:-1.2.11}"
 LIBZIP_VERSION="${LIBZIP_VERSION:-1.9.2}"
 LIBICONV_VERSION="${LIBICONV_VERSION:-1.16}"
+# Oniguruma (used by ext/mbstring)
+ONIGURUMA_VERSION="${ONIGURUMA_VERSION:-6.9.4}"
 
 DEFAULT_EMSDK_ENV="${ROOT_DIR}/build/emsdk/emsdk_env.sh"
 if [[ -z "${EMSDK_ENV:-}" && -f "${DEFAULT_EMSDK_ENV}" ]]; then

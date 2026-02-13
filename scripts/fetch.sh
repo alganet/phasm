@@ -18,6 +18,41 @@ cd "${PHP_SRC_DIR}"
 
 git fetch --tags origin
 
+# Ensure oniguruma source is available (used by ext/mbstring)
+if [[ ! -d "${SOURCES_DIR}/oniguruma" ]]; then
+	if [[ "${ONIGURUMA_VERSION:-}" != "master" ]]; then
+		# Try to download a release tarball (contains configure/autotools generated files)
+		ONIG_TAR="oniguruma-${ONIGURUMA_VERSION}.tar.gz"
+		ONIG_URLS=(
+			"https://github.com/kkos/oniguruma/releases/download/v${ONIGURUMA_VERSION}/${ONIG_TAR}"
+			"https://github.com/kkos/oniguruma/archive/refs/tags/v${ONIGURUMA_VERSION}.tar.gz"
+			"https://github.com/kkos/oniguruma/archive/refs/tags/${ONIGURUMA_VERSION}.tar.gz"
+			"https://github.com/kkos/oniguruma/archive/${ONIGURUMA_VERSION}.tar.gz"
+		)
+		if [[ ! -f "${SOURCES_DIR}/${ONIG_TAR}" ]]; then
+			echo "Fetching ${ONIG_TAR} into ${SOURCES_DIR}..."
+			for url in "${ONIG_URLS[@]}"; do
+				echo "  trying ${url}..."
+				if wget -O "${SOURCES_DIR}/${ONIG_TAR}" "${url}" >/dev/null 2>&1; then
+					if [[ -s "${SOURCES_DIR}/${ONIG_TAR}" ]]; then
+						break
+					fi
+				fi
+			done
+		fi
+		if [[ -f "${SOURCES_DIR}/${ONIG_TAR}" && ! -d "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION}" ]]; then
+			mkdir -p "${SOURCES_DIR}"
+			tar -xf "${SOURCES_DIR}/${ONIG_TAR}" -C "${SOURCES_DIR}"
+			# normalize directory name
+			if [[ -d "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION}" ]]; then
+				mv "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION}" "${SOURCES_DIR}/oniguruma"
+			elif [[ -d "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION%.*}" ]]; then
+				mv "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION%.*}" "${SOURCES_DIR}/oniguruma" || true
+			fi
+		fi
+	fi
+fi
+
 if git rev-parse --verify "${PHP_GIT_REF}" >/dev/null 2>&1; then
 	git checkout "${PHP_GIT_REF}"
 elif git rev-parse --verify "origin/${PHP_GIT_REF}" >/dev/null 2>&1; then

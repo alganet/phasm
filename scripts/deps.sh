@@ -106,6 +106,40 @@ if [[ ! -f "${SYSROOT_DIR}/lib/libiconv.a" ]]; then
     popd >/dev/null
 fi
 
+# oniguruma (used by PHP ext/mbstring)
+# If sources/oniguruma was populated by fetch.sh (git clone), build and install it
+if [[ -d "${SRC_DIR}/oniguruma" && ! -f "${SYSROOT_DIR}/lib/libonig.a" ]]; then
+    echo "Building oniguruma for WASM..."
+    pushd "${SRC_DIR}/oniguruma" >/dev/null
+
+    # Prepare build system only if configure is missing (release tarballs already include it)
+    if [[ ! -f configure && -f autogen.sh ]]; then
+        echo "Running autogen.sh to generate configure (git clone detected)"
+        ./autogen.sh || true
+    fi
+    # Prefer CMake build if available (avoids autotools/tooling differences)
+    if [[ -f CMakeLists.txt ]]; then
+        echo "oniguruma: building with CMake"
+        mkdir -p build && pushd build >/dev/null
+        emcmake cmake .. -DCMAKE_INSTALL_PREFIX="${SYSROOT_DIR}" -DBUILD_SHARED_LIBS=OFF
+        emmake make -j"$(nproc)"
+        emmake make install || true
+        popd >/dev/null
+    else
+        if [[ -f configure ]]; then
+            emconfigure ./configure --prefix="${SYSROOT_DIR}" --disable-shared || true
+        else
+            echo "oniguruma: no configure script found; attempting autoreconf..."
+            autoreconf -i || true
+            emconfigure ./configure --prefix="${SYSROOT_DIR}" --disable-shared || true
+        fi
+
+        emmake make -j"$(nproc)" || true
+        emmake make install || true
+    fi
+    popd >/dev/null
+fi
+
 pushd "libzip-${LIBZIP_VERSION}" >/dev/null
 mkdir -p build
 pushd build >/dev/null
