@@ -6604,9 +6604,10 @@ var _php_time,
   _php_pcre_pce_re,
   _zend_call_function,
   _OnUpdateLong,
+  _zend_parse_parameters,
+  _zend_value_error,
   _zend_zval_type_name,
   _finfo_objects_new,
-  _zend_parse_parameters,
   _php_check_open_basedir,
   _expand_filepath_with_mode,
   _zend_throw_exception,
@@ -6647,7 +6648,6 @@ var _php_time,
   _php_escape_html_entities_ex,
   _php_addslashes,
   _get_active_function_name,
-  _zend_value_error,
   __is_numeric_string_ex,
   _php_uri_get_parser,
   _php_uri_parse_to_struct,
@@ -8001,6 +8001,101 @@ var _php_time,
   _lxb_url_search_params_set,
   _lxb_url_search_params_sort,
   _lxb_url_search_params_serialize,
+  _mbstr_treat_data,
+  _sapi_register_treat_data,
+  _sapi_register_post_entries,
+  _zend_multibyte_set_functions,
+  _php_rfc1867_set_multibyte_callbacks,
+  _zend_multibyte_restore_functions,
+  _mbfl_no2encoding,
+  _zend_multibyte_set_internal_encoding,
+  _php_info_print_table_header,
+  _mbfl_name2encoding,
+  _mbfl_name2encoding_ex,
+  _php_mb_safe_strrchr,
+  _mbfl_no_language2name,
+  ___zend_calloc,
+  _zend_parse_arg_str_or_long_slow,
+  _mbfl_encoding_preferred_mime_name,
+  _mb_fast_convert,
+  _zend_memnrstr_ex,
+  _php_mb_stripos,
+  _php_unicode_convert_case,
+  _mbfl_strcut,
+  _php_mb_convert_encoding_ex,
+  _php_mb_convert_encoding,
+  _mb_guess_encoding_for_strings,
+  _php_mb_convert_encoding_recursive,
+  _zend_hash_index_add,
+  _php_mb_check_encoding,
+  _mbfl_get_supported_encodings,
+  _zend_lazy_object_get_property_info_for_slot,
+  _zend_get_property_info_for_slot_slow,
+  _zend_ref_del_type_source,
+  _zval_try_get_long,
+  _mbfl_no2language,
+  _php_mail_build_headers,
+  _php_trim,
+  _zend_str_tolower,
+  _zend_ini_str_ex,
+  _php_escape_shell_cmd,
+  _php_mail,
+  _zend_ini_str,
+  _mbfl_no_encoding2name,
+  _php_mb_mbchar_bytes,
+  _mbfl_name2no_language,
+  _OnUpdateBool,
+  _sapi_unregister_post_entry,
+  _sapi_read_standard_form_data,
+  _rfc1867_post_handler,
+  _zend_ini_boolean_displayer_cb,
+  _php_std_post_handler,
+  _php_unicode_is_prop1,
+  _php_unicode_is_prop,
+  _php_default_treat_data,
+  _sapi_handle_post,
+  _php_url_decode,
+  _php_register_variable_safe,
+  __php_stream_copy_to_mem,
+  _add_index_stringl,
+  _add_index_bool,
+  _zend_make_compiled_string_description,
+  _mbfl_filt_conv_illegal_output,
+  _mb_illegal_output,
+  _mbfl_filt_conv_common_ctor,
+  _mbfl_filt_conv_common_flush,
+  _mbfl_string_init,
+  _mbfl_memory_device_output,
+  _mbfl_convert_filter_new,
+  _mbfl_filter_output_null,
+  _mbfl_convert_filter_delete,
+  _mbfl_memory_device_init,
+  _mbfl_convert_filter_copy,
+  _mbfl_memory_device_result,
+  _mbfl_filt_conv_pass,
+  _mbfl_convert_filter_get_vtbl,
+  __emalloc_64,
+  _mbfl_convert_filter_new2,
+  _mbfl_convert_filter_feed,
+  _mbfl_convert_filter_feed_string,
+  _mbfl_convert_filter_flush,
+  _mbfl_convert_filter_reset,
+  _mbfl_convert_filter_devcat,
+  _mbfl_convert_filter_strcat,
+  _mbfl_filter_output_pipe,
+  _mbfl_name2language,
+  _mbfl_memory_device_realloc,
+  _mbfl_memory_device_clear,
+  _mbfl_memory_device_reset,
+  _mbfl_memory_device_unput,
+  _mbfl_memory_device_strcat,
+  _mbfl_memory_device_strncat,
+  _mbfl_memory_device_devcat,
+  _mbfl_wchar_device_init,
+  _mbfl_wchar_device_clear,
+  _mbfl_wchar_device_output,
+  _mbfl_string_init_set,
+  _mbfl_string_clear,
   _opcache_preloading,
   _php_glob,
   _tsrm_realpath,
@@ -8017,10 +8112,8 @@ var _php_time,
   _zend_stream_init_filename_ex,
   _destroy_op_array,
   _zend_destroy_file_handle,
-  _OnUpdateBool,
   _zend_ini_parse_bool,
   _zend_ini_parse_quantity_warn,
-  _zend_ini_boolean_displayer_cb,
   _OnUpdateStringUnempty,
   _zend_function_dtor,
   _destroy_zend_class,
@@ -8098,6 +8191,14 @@ var _php_time,
   _zend_update_class_constant,
   _zval_update_constant_ex,
   _zend_error_at,
+  _zend_register_internal_enum,
+  _zend_enum_add_case_cstr,
+  _php_add_tick_function,
+  __try_convert_to_string,
+  _zend_long_to_str,
+  _zend_fiber_switch_block,
+  _zend_fiber_switch_unblock,
+  _zend_sigaction,
   _php_random_bytes_ex,
   _php_random_bytes,
   _php_random_int,
@@ -8111,7 +8212,6 @@ var _php_time,
   _php_random_generate_fallback_seed,
   _php_random_pcgoneseq128xslrr64_seed128,
   _php_random_pcgoneseq128xslrr64_advance,
-  _zend_parse_arg_str_or_long_slow,
   _php_random_xoshiro256starstar_seed256,
   _php_random_xoshiro256starstar_seed64,
   _php_random_xoshiro256starstar_jump,
@@ -8123,7 +8223,6 @@ var _php_time,
   _php_random_gammasection_open_open,
   _php_random_range32,
   _php_random_status_alloc,
-  ___zend_calloc,
   _php_random_status_copy,
   _php_random_status_free,
   _php_random_engine_common_init,
@@ -8137,8 +8236,6 @@ var _php_time,
   _php_mt_rand,
   _php_mt_rand_range,
   _php_mt_rand_common,
-  _zend_register_internal_enum,
-  _zend_enum_add_case_cstr,
   _zend_objects_store_del,
   _gc_possible_root,
   _php_array_data_shuffle,
@@ -8218,7 +8315,6 @@ var _php_time,
   __emalloc_80,
   _zend_incompatible_double_to_long_error,
   _zend_use_resource_as_offset,
-  _zend_long_to_str,
   _zend_hash_get_current_key_ex,
   _zend_hash_get_current_pos,
   _zend_hash_iterator_add,
@@ -8276,8 +8372,6 @@ var _php_time,
   _zend_array_sort_ex,
   _zend_hash_internal_pointer_end_ex,
   _zend_hash_minmax,
-  _zend_lazy_object_get_property_info_for_slot,
-  _zend_get_property_info_for_slot_slow,
   _zend_hash_iterator_pos_ex,
   _zend_hash_iterator_pos,
   _zendi_smart_streq,
@@ -8339,7 +8433,6 @@ var _php_time,
   _php_get_current_user,
   _cfg_get_entry_ex,
   __php_error_log_ex,
-  _php_mail,
   _php_log_err_with_severity,
   __php_error_log,
   _zend_get_called_scope,
@@ -8359,20 +8452,17 @@ var _php_time,
   _open_file_for_scanning,
   _zend_restore_lexical_state,
   _zend_strip,
-  _zend_make_compiled_string_description,
   _highlight_string,
   _zend_ini_parse_quantity,
   _zend_ini_get_value,
   _zend_ini_sort_entries,
   _zend_restore_ini_entry,
   _zend_ini_string,
-  _zend_ini_str,
   _zend_print_zval_r,
   _zend_print_zval_r_to_str,
   _ntohs,
   _htons,
   _zend_llist_init,
-  _php_add_tick_function,
   _zend_llist_add_element,
   _zend_llist_apply,
   _php_copy_file_ex,
@@ -8398,7 +8488,6 @@ var _php_time,
   _php_print_credits,
   _php_print_info_htmlhead,
   _php_output_write,
-  _php_info_print_table_header,
   _php_info_print_table_colspan_header,
   _php_crypt,
   __emalloc_128,
@@ -8420,15 +8509,11 @@ var _php_time,
   _php_network_gethostbyname,
   _php_exec,
   __php_stream_fopen_from_pipe,
-  _php_escape_shell_cmd,
   _php_escape_shell_arg,
-  __php_stream_copy_to_mem,
   _zend_register_list_destructors_ex,
   _php_stream_context_free,
-  _zend_str_tolower,
   __php_stream_copy_to_stream_ex,
   _php_stream_locate_eol,
-  _add_index_stringl,
   _php_open_temporary_fd_ex,
   __php_stream_fopen_tmpfile,
   _php_error_docref2,
@@ -8478,8 +8563,6 @@ var _php_time,
   _php_escape_html_entities,
   _zend_set_local_var_str,
   _php_stream_context_set_option,
-  _php_trim,
-  _php_url_decode,
   _php_stream_filter_free,
   __php_stream_filter_append,
   _php_stream_filter_create,
@@ -8489,13 +8572,11 @@ var _php_time,
   _php_url_encode_to_smart_str,
   _zend_double_to_str,
   _sapi_read_post_data,
-  _sapi_handle_post,
   _php_is_image_avif,
   _php_image_type_to_mime_type,
   _php_getimagetype,
   __php_stream_memory_open,
   _php_image_register_handler,
-  _zend_hash_index_add,
   _php_image_unregister_handler,
   _zend_objects_new,
   _php_lookup_class_name,
@@ -8515,8 +8596,6 @@ var _php_time,
   _php_info_print_hr,
   _php_info_print_table_row_ex,
   _zend_get_module_version,
-  _php_mail_build_headers,
-  _zend_ini_str_ex,
   _zend_get_executed_filename,
   _php_syslog,
   _php_math_round_mode_from_enum,
@@ -8533,8 +8612,6 @@ var _php_time,
   _make_digest_ex,
   __emalloc_56,
   _php_inet_ntop,
-  __emalloc_64,
-  __try_convert_to_string,
   _php_statpage,
   _sapi_get_stat,
   _php_getlastmod,
@@ -8590,7 +8667,6 @@ var _php_time,
   _php_stristr,
   _php_strspn,
   _php_strcspn,
-  _zend_memnrstr_ex,
   _add_index_str,
   _php_str_to_str,
   _php_addcslashes_str,
@@ -8647,7 +8723,6 @@ var _php_time,
   _php_var_unserialize_get_cur_depth,
   _zend_is_valid_class_name,
   _zend_hash_lookup,
-  _zend_ref_del_type_source,
   _zend_verify_prop_assignable_by_ref,
   _php_var_dump,
   _php_printf,
@@ -8820,14 +8895,8 @@ var _php_time,
   _php_output_handler_started,
   _php_output_handler_reverse_conflict_register,
   _php_default_post_reader,
-  _sapi_read_standard_form_data,
   _sapi_register_default_post_reader,
-  _php_default_treat_data,
-  _sapi_register_treat_data,
   _php_default_input_filter,
-  _sapi_register_post_entries,
-  _php_std_post_handler,
-  _rfc1867_post_handler,
   _php_ini_builder_prepend,
   _php_ini_builder_unquoted,
   _php_ini_builder_quoted,
@@ -8854,7 +8923,6 @@ var _php_time,
   _zend_llist_clean,
   _php_remove_tick_function,
   _php_register_variable,
-  _php_register_variable_safe,
   _zend_hash_str_update_ind,
   _php_register_known_variable,
   _php_build_argv,
@@ -8867,7 +8935,6 @@ var _php_time,
   _zend_llist_get_next_ex,
   _zend_multibyte_encoding_converter,
   _zend_hash_str_add_empty_element,
-  _php_rfc1867_set_multibyte_callbacks,
   _sapi_startup,
   _sapi_shutdown,
   _sapi_free_header,
@@ -8876,7 +8943,6 @@ var _php_time,
   _sapi_apply_default_charset,
   _sapi_activate_headers_only,
   _sapi_register_post_entry,
-  _sapi_unregister_post_entry,
   _sapi_get_fd,
   _sapi_force_http_10,
   _sapi_get_target_uid,
@@ -9069,7 +9135,6 @@ var _php_time,
   _add_assoc_object_ex,
   _add_assoc_reference_ex,
   _add_index_null,
-  _add_index_bool,
   _add_index_resource,
   _add_index_array,
   _add_index_object,
@@ -9352,8 +9417,6 @@ var _php_time,
   _div_function,
   _boolean_xor_function,
   _zend_asymmetric_property_has_set_access,
-  _zend_fiber_switch_block,
-  _zend_fiber_switch_unblock,
   _zend_iterator_unwrap,
   _zend_generator_close,
   _compare_function,
@@ -9468,13 +9531,10 @@ var _php_time,
   _zend_llist_sort,
   _zend_llist_get_last_ex,
   _zend_llist_get_prev_ex,
-  _zend_multibyte_set_functions,
   _zend_multibyte_set_script_encoding_by_string,
-  _zend_multibyte_restore_functions,
   _zend_multibyte_parse_encoding_list,
   _zend_multibyte_get_script_encoding,
   _zend_multibyte_set_script_encoding,
-  _zend_multibyte_set_internal_encoding,
   _zend_std_get_gc,
   _zend_std_get_debug_info,
   _zend_get_property_guard,
@@ -9505,7 +9565,6 @@ var _php_time,
   _zend_atol,
   _zend_atoi,
   _convert_scalar_to_number,
-  _zval_try_get_long,
   _zend_oob_string_to_long_error,
   _string_compare_function_ex,
   _zend_compare_arrays,
@@ -9524,7 +9583,6 @@ var _php_time,
   _zend_ptr_stack_n_pop,
   _zend_ptr_stack_apply,
   _zend_ptr_stack_num_elements,
-  _zend_sigaction,
   _zend_signal_startup,
   _smart_str_realloc,
   __smart_string_alloc_persistent,
@@ -9707,11 +9765,14 @@ var _php_time,
   _lxb_encoding_multi_jis0212_8470_8483_map,
   _lxb_encoding_multi_jis0212_19970_40870_map,
   _lxb_encoding_multi_jis0212_65374_65375_map,
+  _php_internal_encoding_changed,
+  _mbfl_encoding_pass,
+  _sapi_module,
+  _vtbl_pass,
   _module_registry,
   _smm_shared_globals,
   _zend_ce_closure,
   _zend_resolve_path,
-  _sapi_module,
   _zend_observer_function_declared_observed,
   _zend_observer_class_linked_observed,
   _zend_system_id,
@@ -9730,6 +9791,7 @@ var _php_time,
   _zend_map_ptr_static_size,
   _zend_observer_fcall_op_array_extension,
   _zend_error_cb,
+  _zend_interrupt_function,
   _random_ce_Random_RandomException,
   _php_random_algo_mt19937,
   _php_random_algo_pcgoneseq128xslrr64,
@@ -9889,7 +9951,6 @@ var _php_time,
   _php_uri_parser_php_parse_url,
   _le_index_ptr,
   _php_register_internal_extensions_func,
-  _php_internal_encoding_changed,
   _output_globals,
   _php_import_environment_variables,
   _php_rfc1867_callback,
@@ -9929,7 +9990,6 @@ var _php_time,
   _zend_ce_argument_count_error,
   _zend_ce_error_exception,
   _zend_ce_unhandled_match_error,
-  _zend_interrupt_function,
   _zend_on_timeout,
   _zend_observer_fcall_internal_function_extension,
   _zend_pass_function,
@@ -10205,9 +10265,10 @@ function assignWasmExports(wasmExports) {
   _php_pcre_pce_re = Module['_php_pcre_pce_re'] = wasmExports['php_pcre_pce_re'];
   _zend_call_function = Module['_zend_call_function'] = wasmExports['zend_call_function'];
   _OnUpdateLong = Module['_OnUpdateLong'] = wasmExports['OnUpdateLong'];
+  _zend_parse_parameters = Module['_zend_parse_parameters'] = wasmExports['zend_parse_parameters'];
+  _zend_value_error = Module['_zend_value_error'] = wasmExports['zend_value_error'];
   _zend_zval_type_name = Module['_zend_zval_type_name'] = wasmExports['zend_zval_type_name'];
   _finfo_objects_new = Module['_finfo_objects_new'] = wasmExports['finfo_objects_new'];
-  _zend_parse_parameters = Module['_zend_parse_parameters'] = wasmExports['zend_parse_parameters'];
   _php_check_open_basedir = Module['_php_check_open_basedir'] = wasmExports['php_check_open_basedir'];
   _expand_filepath_with_mode = Module['_expand_filepath_with_mode'] = wasmExports['expand_filepath_with_mode'];
   _zend_throw_exception = Module['_zend_throw_exception'] = wasmExports['zend_throw_exception'];
@@ -10248,7 +10309,6 @@ function assignWasmExports(wasmExports) {
   _php_escape_html_entities_ex = Module['_php_escape_html_entities_ex'] = wasmExports['php_escape_html_entities_ex'];
   _php_addslashes = Module['_php_addslashes'] = wasmExports['php_addslashes'];
   _get_active_function_name = Module['_get_active_function_name'] = wasmExports['get_active_function_name'];
-  _zend_value_error = Module['_zend_value_error'] = wasmExports['zend_value_error'];
   __is_numeric_string_ex = Module['__is_numeric_string_ex'] = wasmExports['_is_numeric_string_ex'];
   _php_uri_get_parser = Module['_php_uri_get_parser'] = wasmExports['php_uri_get_parser'];
   _php_uri_parse_to_struct = Module['_php_uri_parse_to_struct'] = wasmExports['php_uri_parse_to_struct'];
@@ -11602,6 +11662,101 @@ function assignWasmExports(wasmExports) {
   _lxb_url_search_params_set = Module['_lxb_url_search_params_set'] = wasmExports['lxb_url_search_params_set'];
   _lxb_url_search_params_sort = Module['_lxb_url_search_params_sort'] = wasmExports['lxb_url_search_params_sort'];
   _lxb_url_search_params_serialize = Module['_lxb_url_search_params_serialize'] = wasmExports['lxb_url_search_params_serialize'];
+  _mbstr_treat_data = Module['_mbstr_treat_data'] = wasmExports['mbstr_treat_data'];
+  _sapi_register_treat_data = Module['_sapi_register_treat_data'] = wasmExports['sapi_register_treat_data'];
+  _sapi_register_post_entries = Module['_sapi_register_post_entries'] = wasmExports['sapi_register_post_entries'];
+  _zend_multibyte_set_functions = Module['_zend_multibyte_set_functions'] = wasmExports['zend_multibyte_set_functions'];
+  _php_rfc1867_set_multibyte_callbacks = Module['_php_rfc1867_set_multibyte_callbacks'] = wasmExports['php_rfc1867_set_multibyte_callbacks'];
+  _zend_multibyte_restore_functions = Module['_zend_multibyte_restore_functions'] = wasmExports['zend_multibyte_restore_functions'];
+  _mbfl_no2encoding = Module['_mbfl_no2encoding'] = wasmExports['mbfl_no2encoding'];
+  _zend_multibyte_set_internal_encoding = Module['_zend_multibyte_set_internal_encoding'] = wasmExports['zend_multibyte_set_internal_encoding'];
+  _php_info_print_table_header = Module['_php_info_print_table_header'] = wasmExports['php_info_print_table_header'];
+  _mbfl_name2encoding = Module['_mbfl_name2encoding'] = wasmExports['mbfl_name2encoding'];
+  _mbfl_name2encoding_ex = Module['_mbfl_name2encoding_ex'] = wasmExports['mbfl_name2encoding_ex'];
+  _php_mb_safe_strrchr = Module['_php_mb_safe_strrchr'] = wasmExports['php_mb_safe_strrchr'];
+  _mbfl_no_language2name = Module['_mbfl_no_language2name'] = wasmExports['mbfl_no_language2name'];
+  ___zend_calloc = Module['___zend_calloc'] = wasmExports['__zend_calloc'];
+  _zend_parse_arg_str_or_long_slow = Module['_zend_parse_arg_str_or_long_slow'] = wasmExports['zend_parse_arg_str_or_long_slow'];
+  _mbfl_encoding_preferred_mime_name = Module['_mbfl_encoding_preferred_mime_name'] = wasmExports['mbfl_encoding_preferred_mime_name'];
+  _mb_fast_convert = Module['_mb_fast_convert'] = wasmExports['mb_fast_convert'];
+  _zend_memnrstr_ex = Module['_zend_memnrstr_ex'] = wasmExports['zend_memnrstr_ex'];
+  _php_mb_stripos = Module['_php_mb_stripos'] = wasmExports['php_mb_stripos'];
+  _php_unicode_convert_case = Module['_php_unicode_convert_case'] = wasmExports['php_unicode_convert_case'];
+  _mbfl_strcut = Module['_mbfl_strcut'] = wasmExports['mbfl_strcut'];
+  _php_mb_convert_encoding_ex = Module['_php_mb_convert_encoding_ex'] = wasmExports['php_mb_convert_encoding_ex'];
+  _php_mb_convert_encoding = Module['_php_mb_convert_encoding'] = wasmExports['php_mb_convert_encoding'];
+  _mb_guess_encoding_for_strings = Module['_mb_guess_encoding_for_strings'] = wasmExports['mb_guess_encoding_for_strings'];
+  _php_mb_convert_encoding_recursive = Module['_php_mb_convert_encoding_recursive'] = wasmExports['php_mb_convert_encoding_recursive'];
+  _zend_hash_index_add = Module['_zend_hash_index_add'] = wasmExports['zend_hash_index_add'];
+  _php_mb_check_encoding = Module['_php_mb_check_encoding'] = wasmExports['php_mb_check_encoding'];
+  _mbfl_get_supported_encodings = Module['_mbfl_get_supported_encodings'] = wasmExports['mbfl_get_supported_encodings'];
+  _zend_lazy_object_get_property_info_for_slot = Module['_zend_lazy_object_get_property_info_for_slot'] = wasmExports['zend_lazy_object_get_property_info_for_slot'];
+  _zend_get_property_info_for_slot_slow = Module['_zend_get_property_info_for_slot_slow'] = wasmExports['zend_get_property_info_for_slot_slow'];
+  _zend_ref_del_type_source = Module['_zend_ref_del_type_source'] = wasmExports['zend_ref_del_type_source'];
+  _zval_try_get_long = Module['_zval_try_get_long'] = wasmExports['zval_try_get_long'];
+  _mbfl_no2language = Module['_mbfl_no2language'] = wasmExports['mbfl_no2language'];
+  _php_mail_build_headers = Module['_php_mail_build_headers'] = wasmExports['php_mail_build_headers'];
+  _php_trim = Module['_php_trim'] = wasmExports['php_trim'];
+  _zend_str_tolower = Module['_zend_str_tolower'] = wasmExports['zend_str_tolower'];
+  _zend_ini_str_ex = Module['_zend_ini_str_ex'] = wasmExports['zend_ini_str_ex'];
+  _php_escape_shell_cmd = Module['_php_escape_shell_cmd'] = wasmExports['php_escape_shell_cmd'];
+  _php_mail = Module['_php_mail'] = wasmExports['php_mail'];
+  _zend_ini_str = Module['_zend_ini_str'] = wasmExports['zend_ini_str'];
+  _mbfl_no_encoding2name = Module['_mbfl_no_encoding2name'] = wasmExports['mbfl_no_encoding2name'];
+  _php_mb_mbchar_bytes = Module['_php_mb_mbchar_bytes'] = wasmExports['php_mb_mbchar_bytes'];
+  _mbfl_name2no_language = Module['_mbfl_name2no_language'] = wasmExports['mbfl_name2no_language'];
+  _OnUpdateBool = Module['_OnUpdateBool'] = wasmExports['OnUpdateBool'];
+  _sapi_unregister_post_entry = Module['_sapi_unregister_post_entry'] = wasmExports['sapi_unregister_post_entry'];
+  _sapi_read_standard_form_data = Module['_sapi_read_standard_form_data'] = wasmExports['sapi_read_standard_form_data'];
+  _rfc1867_post_handler = Module['_rfc1867_post_handler'] = wasmExports['rfc1867_post_handler'];
+  _zend_ini_boolean_displayer_cb = Module['_zend_ini_boolean_displayer_cb'] = wasmExports['zend_ini_boolean_displayer_cb'];
+  _php_std_post_handler = Module['_php_std_post_handler'] = wasmExports['php_std_post_handler'];
+  _php_unicode_is_prop1 = Module['_php_unicode_is_prop1'] = wasmExports['php_unicode_is_prop1'];
+  _php_unicode_is_prop = Module['_php_unicode_is_prop'] = wasmExports['php_unicode_is_prop'];
+  _php_default_treat_data = Module['_php_default_treat_data'] = wasmExports['php_default_treat_data'];
+  _sapi_handle_post = Module['_sapi_handle_post'] = wasmExports['sapi_handle_post'];
+  _php_url_decode = Module['_php_url_decode'] = wasmExports['php_url_decode'];
+  _php_register_variable_safe = Module['_php_register_variable_safe'] = wasmExports['php_register_variable_safe'];
+  __php_stream_copy_to_mem = Module['__php_stream_copy_to_mem'] = wasmExports['_php_stream_copy_to_mem'];
+  _add_index_stringl = Module['_add_index_stringl'] = wasmExports['add_index_stringl'];
+  _add_index_bool = Module['_add_index_bool'] = wasmExports['add_index_bool'];
+  _zend_make_compiled_string_description = Module['_zend_make_compiled_string_description'] = wasmExports['zend_make_compiled_string_description'];
+  _mbfl_filt_conv_illegal_output = Module['_mbfl_filt_conv_illegal_output'] = wasmExports['mbfl_filt_conv_illegal_output'];
+  _mb_illegal_output = Module['_mb_illegal_output'] = wasmExports['mb_illegal_output'];
+  _mbfl_filt_conv_common_ctor = Module['_mbfl_filt_conv_common_ctor'] = wasmExports['mbfl_filt_conv_common_ctor'];
+  _mbfl_filt_conv_common_flush = Module['_mbfl_filt_conv_common_flush'] = wasmExports['mbfl_filt_conv_common_flush'];
+  _mbfl_string_init = Module['_mbfl_string_init'] = wasmExports['mbfl_string_init'];
+  _mbfl_memory_device_output = Module['_mbfl_memory_device_output'] = wasmExports['mbfl_memory_device_output'];
+  _mbfl_convert_filter_new = Module['_mbfl_convert_filter_new'] = wasmExports['mbfl_convert_filter_new'];
+  _mbfl_filter_output_null = Module['_mbfl_filter_output_null'] = wasmExports['mbfl_filter_output_null'];
+  _mbfl_convert_filter_delete = Module['_mbfl_convert_filter_delete'] = wasmExports['mbfl_convert_filter_delete'];
+  _mbfl_memory_device_init = Module['_mbfl_memory_device_init'] = wasmExports['mbfl_memory_device_init'];
+  _mbfl_convert_filter_copy = Module['_mbfl_convert_filter_copy'] = wasmExports['mbfl_convert_filter_copy'];
+  _mbfl_memory_device_result = Module['_mbfl_memory_device_result'] = wasmExports['mbfl_memory_device_result'];
+  _mbfl_filt_conv_pass = Module['_mbfl_filt_conv_pass'] = wasmExports['mbfl_filt_conv_pass'];
+  _mbfl_convert_filter_get_vtbl = Module['_mbfl_convert_filter_get_vtbl'] = wasmExports['mbfl_convert_filter_get_vtbl'];
+  __emalloc_64 = Module['__emalloc_64'] = wasmExports['_emalloc_64'];
+  _mbfl_convert_filter_new2 = Module['_mbfl_convert_filter_new2'] = wasmExports['mbfl_convert_filter_new2'];
+  _mbfl_convert_filter_feed = Module['_mbfl_convert_filter_feed'] = wasmExports['mbfl_convert_filter_feed'];
+  _mbfl_convert_filter_feed_string = Module['_mbfl_convert_filter_feed_string'] = wasmExports['mbfl_convert_filter_feed_string'];
+  _mbfl_convert_filter_flush = Module['_mbfl_convert_filter_flush'] = wasmExports['mbfl_convert_filter_flush'];
+  _mbfl_convert_filter_reset = Module['_mbfl_convert_filter_reset'] = wasmExports['mbfl_convert_filter_reset'];
+  _mbfl_convert_filter_devcat = Module['_mbfl_convert_filter_devcat'] = wasmExports['mbfl_convert_filter_devcat'];
+  _mbfl_convert_filter_strcat = Module['_mbfl_convert_filter_strcat'] = wasmExports['mbfl_convert_filter_strcat'];
+  _mbfl_filter_output_pipe = Module['_mbfl_filter_output_pipe'] = wasmExports['mbfl_filter_output_pipe'];
+  _mbfl_name2language = Module['_mbfl_name2language'] = wasmExports['mbfl_name2language'];
+  _mbfl_memory_device_realloc = Module['_mbfl_memory_device_realloc'] = wasmExports['mbfl_memory_device_realloc'];
+  _mbfl_memory_device_clear = Module['_mbfl_memory_device_clear'] = wasmExports['mbfl_memory_device_clear'];
+  _mbfl_memory_device_reset = Module['_mbfl_memory_device_reset'] = wasmExports['mbfl_memory_device_reset'];
+  _mbfl_memory_device_unput = Module['_mbfl_memory_device_unput'] = wasmExports['mbfl_memory_device_unput'];
+  _mbfl_memory_device_strcat = Module['_mbfl_memory_device_strcat'] = wasmExports['mbfl_memory_device_strcat'];
+  _mbfl_memory_device_strncat = Module['_mbfl_memory_device_strncat'] = wasmExports['mbfl_memory_device_strncat'];
+  _mbfl_memory_device_devcat = Module['_mbfl_memory_device_devcat'] = wasmExports['mbfl_memory_device_devcat'];
+  _mbfl_wchar_device_init = Module['_mbfl_wchar_device_init'] = wasmExports['mbfl_wchar_device_init'];
+  _mbfl_wchar_device_clear = Module['_mbfl_wchar_device_clear'] = wasmExports['mbfl_wchar_device_clear'];
+  _mbfl_wchar_device_output = Module['_mbfl_wchar_device_output'] = wasmExports['mbfl_wchar_device_output'];
+  _mbfl_string_init_set = Module['_mbfl_string_init_set'] = wasmExports['mbfl_string_init_set'];
+  _mbfl_string_clear = Module['_mbfl_string_clear'] = wasmExports['mbfl_string_clear'];
   _opcache_preloading = Module['_opcache_preloading'] = wasmExports['opcache_preloading'];
   _php_glob = Module['_php_glob'] = wasmExports['php_glob'];
   _tsrm_realpath = Module['_tsrm_realpath'] = wasmExports['tsrm_realpath'];
@@ -11618,10 +11773,8 @@ function assignWasmExports(wasmExports) {
   _zend_stream_init_filename_ex = Module['_zend_stream_init_filename_ex'] = wasmExports['zend_stream_init_filename_ex'];
   _destroy_op_array = Module['_destroy_op_array'] = wasmExports['destroy_op_array'];
   _zend_destroy_file_handle = Module['_zend_destroy_file_handle'] = wasmExports['zend_destroy_file_handle'];
-  _OnUpdateBool = Module['_OnUpdateBool'] = wasmExports['OnUpdateBool'];
   _zend_ini_parse_bool = Module['_zend_ini_parse_bool'] = wasmExports['zend_ini_parse_bool'];
   _zend_ini_parse_quantity_warn = Module['_zend_ini_parse_quantity_warn'] = wasmExports['zend_ini_parse_quantity_warn'];
-  _zend_ini_boolean_displayer_cb = Module['_zend_ini_boolean_displayer_cb'] = wasmExports['zend_ini_boolean_displayer_cb'];
   _OnUpdateStringUnempty = Module['_OnUpdateStringUnempty'] = wasmExports['OnUpdateStringUnempty'];
   _zend_function_dtor = Module['_zend_function_dtor'] = wasmExports['zend_function_dtor'];
   _destroy_zend_class = Module['_destroy_zend_class'] = wasmExports['destroy_zend_class'];
@@ -11699,6 +11852,14 @@ function assignWasmExports(wasmExports) {
   _zend_update_class_constant = Module['_zend_update_class_constant'] = wasmExports['zend_update_class_constant'];
   _zval_update_constant_ex = Module['_zval_update_constant_ex'] = wasmExports['zval_update_constant_ex'];
   _zend_error_at = Module['_zend_error_at'] = wasmExports['zend_error_at'];
+  _zend_register_internal_enum = Module['_zend_register_internal_enum'] = wasmExports['zend_register_internal_enum'];
+  _zend_enum_add_case_cstr = Module['_zend_enum_add_case_cstr'] = wasmExports['zend_enum_add_case_cstr'];
+  _php_add_tick_function = Module['_php_add_tick_function'] = wasmExports['php_add_tick_function'];
+  __try_convert_to_string = Module['__try_convert_to_string'] = wasmExports['_try_convert_to_string'];
+  _zend_long_to_str = Module['_zend_long_to_str'] = wasmExports['zend_long_to_str'];
+  _zend_fiber_switch_block = Module['_zend_fiber_switch_block'] = wasmExports['zend_fiber_switch_block'];
+  _zend_fiber_switch_unblock = Module['_zend_fiber_switch_unblock'] = wasmExports['zend_fiber_switch_unblock'];
+  _zend_sigaction = Module['_zend_sigaction'] = wasmExports['zend_sigaction'];
   _php_random_bytes_ex = Module['_php_random_bytes_ex'] = wasmExports['php_random_bytes_ex'];
   _php_random_bytes = Module['_php_random_bytes'] = wasmExports['php_random_bytes'];
   _php_random_int = Module['_php_random_int'] = wasmExports['php_random_int'];
@@ -11712,7 +11873,6 @@ function assignWasmExports(wasmExports) {
   _php_random_generate_fallback_seed = Module['_php_random_generate_fallback_seed'] = wasmExports['php_random_generate_fallback_seed'];
   _php_random_pcgoneseq128xslrr64_seed128 = Module['_php_random_pcgoneseq128xslrr64_seed128'] = wasmExports['php_random_pcgoneseq128xslrr64_seed128'];
   _php_random_pcgoneseq128xslrr64_advance = Module['_php_random_pcgoneseq128xslrr64_advance'] = wasmExports['php_random_pcgoneseq128xslrr64_advance'];
-  _zend_parse_arg_str_or_long_slow = Module['_zend_parse_arg_str_or_long_slow'] = wasmExports['zend_parse_arg_str_or_long_slow'];
   _php_random_xoshiro256starstar_seed256 = Module['_php_random_xoshiro256starstar_seed256'] = wasmExports['php_random_xoshiro256starstar_seed256'];
   _php_random_xoshiro256starstar_seed64 = Module['_php_random_xoshiro256starstar_seed64'] = wasmExports['php_random_xoshiro256starstar_seed64'];
   _php_random_xoshiro256starstar_jump = Module['_php_random_xoshiro256starstar_jump'] = wasmExports['php_random_xoshiro256starstar_jump'];
@@ -11724,7 +11884,6 @@ function assignWasmExports(wasmExports) {
   _php_random_gammasection_open_open = Module['_php_random_gammasection_open_open'] = wasmExports['php_random_gammasection_open_open'];
   _php_random_range32 = Module['_php_random_range32'] = wasmExports['php_random_range32'];
   _php_random_status_alloc = Module['_php_random_status_alloc'] = wasmExports['php_random_status_alloc'];
-  ___zend_calloc = Module['___zend_calloc'] = wasmExports['__zend_calloc'];
   _php_random_status_copy = Module['_php_random_status_copy'] = wasmExports['php_random_status_copy'];
   _php_random_status_free = Module['_php_random_status_free'] = wasmExports['php_random_status_free'];
   _php_random_engine_common_init = Module['_php_random_engine_common_init'] = wasmExports['php_random_engine_common_init'];
@@ -11738,8 +11897,6 @@ function assignWasmExports(wasmExports) {
   _php_mt_rand = Module['_php_mt_rand'] = wasmExports['php_mt_rand'];
   _php_mt_rand_range = Module['_php_mt_rand_range'] = wasmExports['php_mt_rand_range'];
   _php_mt_rand_common = Module['_php_mt_rand_common'] = wasmExports['php_mt_rand_common'];
-  _zend_register_internal_enum = Module['_zend_register_internal_enum'] = wasmExports['zend_register_internal_enum'];
-  _zend_enum_add_case_cstr = Module['_zend_enum_add_case_cstr'] = wasmExports['zend_enum_add_case_cstr'];
   _zend_objects_store_del = Module['_zend_objects_store_del'] = wasmExports['zend_objects_store_del'];
   _gc_possible_root = Module['_gc_possible_root'] = wasmExports['gc_possible_root'];
   _php_array_data_shuffle = Module['_php_array_data_shuffle'] = wasmExports['php_array_data_shuffle'];
@@ -11819,7 +11976,6 @@ function assignWasmExports(wasmExports) {
   __emalloc_80 = Module['__emalloc_80'] = wasmExports['_emalloc_80'];
   _zend_incompatible_double_to_long_error = Module['_zend_incompatible_double_to_long_error'] = wasmExports['zend_incompatible_double_to_long_error'];
   _zend_use_resource_as_offset = Module['_zend_use_resource_as_offset'] = wasmExports['zend_use_resource_as_offset'];
-  _zend_long_to_str = Module['_zend_long_to_str'] = wasmExports['zend_long_to_str'];
   _zend_hash_get_current_key_ex = Module['_zend_hash_get_current_key_ex'] = wasmExports['zend_hash_get_current_key_ex'];
   _zend_hash_get_current_pos = Module['_zend_hash_get_current_pos'] = wasmExports['zend_hash_get_current_pos'];
   _zend_hash_iterator_add = Module['_zend_hash_iterator_add'] = wasmExports['zend_hash_iterator_add'];
@@ -11877,8 +12033,6 @@ function assignWasmExports(wasmExports) {
   _zend_array_sort_ex = Module['_zend_array_sort_ex'] = wasmExports['zend_array_sort_ex'];
   _zend_hash_internal_pointer_end_ex = Module['_zend_hash_internal_pointer_end_ex'] = wasmExports['zend_hash_internal_pointer_end_ex'];
   _zend_hash_minmax = Module['_zend_hash_minmax'] = wasmExports['zend_hash_minmax'];
-  _zend_lazy_object_get_property_info_for_slot = Module['_zend_lazy_object_get_property_info_for_slot'] = wasmExports['zend_lazy_object_get_property_info_for_slot'];
-  _zend_get_property_info_for_slot_slow = Module['_zend_get_property_info_for_slot_slow'] = wasmExports['zend_get_property_info_for_slot_slow'];
   _zend_hash_iterator_pos_ex = Module['_zend_hash_iterator_pos_ex'] = wasmExports['zend_hash_iterator_pos_ex'];
   _zend_hash_iterator_pos = Module['_zend_hash_iterator_pos'] = wasmExports['zend_hash_iterator_pos'];
   _zendi_smart_streq = Module['_zendi_smart_streq'] = wasmExports['zendi_smart_streq'];
@@ -11940,7 +12094,6 @@ function assignWasmExports(wasmExports) {
   _php_get_current_user = Module['_php_get_current_user'] = wasmExports['php_get_current_user'];
   _cfg_get_entry_ex = Module['_cfg_get_entry_ex'] = wasmExports['cfg_get_entry_ex'];
   __php_error_log_ex = Module['__php_error_log_ex'] = wasmExports['_php_error_log_ex'];
-  _php_mail = Module['_php_mail'] = wasmExports['php_mail'];
   _php_log_err_with_severity = Module['_php_log_err_with_severity'] = wasmExports['php_log_err_with_severity'];
   __php_error_log = Module['__php_error_log'] = wasmExports['_php_error_log'];
   _zend_get_called_scope = Module['_zend_get_called_scope'] = wasmExports['zend_get_called_scope'];
@@ -11960,20 +12113,17 @@ function assignWasmExports(wasmExports) {
   _open_file_for_scanning = Module['_open_file_for_scanning'] = wasmExports['open_file_for_scanning'];
   _zend_restore_lexical_state = Module['_zend_restore_lexical_state'] = wasmExports['zend_restore_lexical_state'];
   _zend_strip = Module['_zend_strip'] = wasmExports['zend_strip'];
-  _zend_make_compiled_string_description = Module['_zend_make_compiled_string_description'] = wasmExports['zend_make_compiled_string_description'];
   _highlight_string = Module['_highlight_string'] = wasmExports['highlight_string'];
   _zend_ini_parse_quantity = Module['_zend_ini_parse_quantity'] = wasmExports['zend_ini_parse_quantity'];
   _zend_ini_get_value = Module['_zend_ini_get_value'] = wasmExports['zend_ini_get_value'];
   _zend_ini_sort_entries = Module['_zend_ini_sort_entries'] = wasmExports['zend_ini_sort_entries'];
   _zend_restore_ini_entry = Module['_zend_restore_ini_entry'] = wasmExports['zend_restore_ini_entry'];
   _zend_ini_string = Module['_zend_ini_string'] = wasmExports['zend_ini_string'];
-  _zend_ini_str = Module['_zend_ini_str'] = wasmExports['zend_ini_str'];
   _zend_print_zval_r = Module['_zend_print_zval_r'] = wasmExports['zend_print_zval_r'];
   _zend_print_zval_r_to_str = Module['_zend_print_zval_r_to_str'] = wasmExports['zend_print_zval_r_to_str'];
   _ntohs = wasmExports['ntohs'];
   _htons = wasmExports['htons'];
   _zend_llist_init = Module['_zend_llist_init'] = wasmExports['zend_llist_init'];
-  _php_add_tick_function = Module['_php_add_tick_function'] = wasmExports['php_add_tick_function'];
   _zend_llist_add_element = Module['_zend_llist_add_element'] = wasmExports['zend_llist_add_element'];
   _zend_llist_apply = Module['_zend_llist_apply'] = wasmExports['zend_llist_apply'];
   _php_copy_file_ex = Module['_php_copy_file_ex'] = wasmExports['php_copy_file_ex'];
@@ -11999,7 +12149,6 @@ function assignWasmExports(wasmExports) {
   _php_print_credits = Module['_php_print_credits'] = wasmExports['php_print_credits'];
   _php_print_info_htmlhead = Module['_php_print_info_htmlhead'] = wasmExports['php_print_info_htmlhead'];
   _php_output_write = Module['_php_output_write'] = wasmExports['php_output_write'];
-  _php_info_print_table_header = Module['_php_info_print_table_header'] = wasmExports['php_info_print_table_header'];
   _php_info_print_table_colspan_header = Module['_php_info_print_table_colspan_header'] = wasmExports['php_info_print_table_colspan_header'];
   _php_crypt = Module['_php_crypt'] = wasmExports['php_crypt'];
   __emalloc_128 = Module['__emalloc_128'] = wasmExports['_emalloc_128'];
@@ -12021,15 +12170,11 @@ function assignWasmExports(wasmExports) {
   _php_network_gethostbyname = Module['_php_network_gethostbyname'] = wasmExports['php_network_gethostbyname'];
   _php_exec = Module['_php_exec'] = wasmExports['php_exec'];
   __php_stream_fopen_from_pipe = Module['__php_stream_fopen_from_pipe'] = wasmExports['_php_stream_fopen_from_pipe'];
-  _php_escape_shell_cmd = Module['_php_escape_shell_cmd'] = wasmExports['php_escape_shell_cmd'];
   _php_escape_shell_arg = Module['_php_escape_shell_arg'] = wasmExports['php_escape_shell_arg'];
-  __php_stream_copy_to_mem = Module['__php_stream_copy_to_mem'] = wasmExports['_php_stream_copy_to_mem'];
   _zend_register_list_destructors_ex = Module['_zend_register_list_destructors_ex'] = wasmExports['zend_register_list_destructors_ex'];
   _php_stream_context_free = Module['_php_stream_context_free'] = wasmExports['php_stream_context_free'];
-  _zend_str_tolower = Module['_zend_str_tolower'] = wasmExports['zend_str_tolower'];
   __php_stream_copy_to_stream_ex = Module['__php_stream_copy_to_stream_ex'] = wasmExports['_php_stream_copy_to_stream_ex'];
   _php_stream_locate_eol = Module['_php_stream_locate_eol'] = wasmExports['php_stream_locate_eol'];
-  _add_index_stringl = Module['_add_index_stringl'] = wasmExports['add_index_stringl'];
   _php_open_temporary_fd_ex = Module['_php_open_temporary_fd_ex'] = wasmExports['php_open_temporary_fd_ex'];
   __php_stream_fopen_tmpfile = Module['__php_stream_fopen_tmpfile'] = wasmExports['_php_stream_fopen_tmpfile'];
   _php_error_docref2 = Module['_php_error_docref2'] = wasmExports['php_error_docref2'];
@@ -12079,8 +12224,6 @@ function assignWasmExports(wasmExports) {
   _php_escape_html_entities = Module['_php_escape_html_entities'] = wasmExports['php_escape_html_entities'];
   _zend_set_local_var_str = Module['_zend_set_local_var_str'] = wasmExports['zend_set_local_var_str'];
   _php_stream_context_set_option = Module['_php_stream_context_set_option'] = wasmExports['php_stream_context_set_option'];
-  _php_trim = Module['_php_trim'] = wasmExports['php_trim'];
-  _php_url_decode = Module['_php_url_decode'] = wasmExports['php_url_decode'];
   _php_stream_filter_free = Module['_php_stream_filter_free'] = wasmExports['php_stream_filter_free'];
   __php_stream_filter_append = Module['__php_stream_filter_append'] = wasmExports['_php_stream_filter_append'];
   _php_stream_filter_create = Module['_php_stream_filter_create'] = wasmExports['php_stream_filter_create'];
@@ -12090,13 +12233,11 @@ function assignWasmExports(wasmExports) {
   _php_url_encode_to_smart_str = Module['_php_url_encode_to_smart_str'] = wasmExports['php_url_encode_to_smart_str'];
   _zend_double_to_str = Module['_zend_double_to_str'] = wasmExports['zend_double_to_str'];
   _sapi_read_post_data = Module['_sapi_read_post_data'] = wasmExports['sapi_read_post_data'];
-  _sapi_handle_post = Module['_sapi_handle_post'] = wasmExports['sapi_handle_post'];
   _php_is_image_avif = Module['_php_is_image_avif'] = wasmExports['php_is_image_avif'];
   _php_image_type_to_mime_type = Module['_php_image_type_to_mime_type'] = wasmExports['php_image_type_to_mime_type'];
   _php_getimagetype = Module['_php_getimagetype'] = wasmExports['php_getimagetype'];
   __php_stream_memory_open = Module['__php_stream_memory_open'] = wasmExports['_php_stream_memory_open'];
   _php_image_register_handler = Module['_php_image_register_handler'] = wasmExports['php_image_register_handler'];
-  _zend_hash_index_add = Module['_zend_hash_index_add'] = wasmExports['zend_hash_index_add'];
   _php_image_unregister_handler = Module['_php_image_unregister_handler'] = wasmExports['php_image_unregister_handler'];
   _zend_objects_new = Module['_zend_objects_new'] = wasmExports['zend_objects_new'];
   _php_lookup_class_name = Module['_php_lookup_class_name'] = wasmExports['php_lookup_class_name'];
@@ -12116,8 +12257,6 @@ function assignWasmExports(wasmExports) {
   _php_info_print_hr = Module['_php_info_print_hr'] = wasmExports['php_info_print_hr'];
   _php_info_print_table_row_ex = Module['_php_info_print_table_row_ex'] = wasmExports['php_info_print_table_row_ex'];
   _zend_get_module_version = Module['_zend_get_module_version'] = wasmExports['zend_get_module_version'];
-  _php_mail_build_headers = Module['_php_mail_build_headers'] = wasmExports['php_mail_build_headers'];
-  _zend_ini_str_ex = Module['_zend_ini_str_ex'] = wasmExports['zend_ini_str_ex'];
   _zend_get_executed_filename = Module['_zend_get_executed_filename'] = wasmExports['zend_get_executed_filename'];
   _php_syslog = Module['_php_syslog'] = wasmExports['php_syslog'];
   _php_math_round_mode_from_enum = Module['_php_math_round_mode_from_enum'] = wasmExports['php_math_round_mode_from_enum'];
@@ -12134,8 +12273,6 @@ function assignWasmExports(wasmExports) {
   _make_digest_ex = Module['_make_digest_ex'] = wasmExports['make_digest_ex'];
   __emalloc_56 = Module['__emalloc_56'] = wasmExports['_emalloc_56'];
   _php_inet_ntop = Module['_php_inet_ntop'] = wasmExports['php_inet_ntop'];
-  __emalloc_64 = Module['__emalloc_64'] = wasmExports['_emalloc_64'];
-  __try_convert_to_string = Module['__try_convert_to_string'] = wasmExports['_try_convert_to_string'];
   _php_statpage = Module['_php_statpage'] = wasmExports['php_statpage'];
   _sapi_get_stat = Module['_sapi_get_stat'] = wasmExports['sapi_get_stat'];
   _php_getlastmod = Module['_php_getlastmod'] = wasmExports['php_getlastmod'];
@@ -12191,7 +12328,6 @@ function assignWasmExports(wasmExports) {
   _php_stristr = Module['_php_stristr'] = wasmExports['php_stristr'];
   _php_strspn = Module['_php_strspn'] = wasmExports['php_strspn'];
   _php_strcspn = Module['_php_strcspn'] = wasmExports['php_strcspn'];
-  _zend_memnrstr_ex = Module['_zend_memnrstr_ex'] = wasmExports['zend_memnrstr_ex'];
   _add_index_str = Module['_add_index_str'] = wasmExports['add_index_str'];
   _php_str_to_str = Module['_php_str_to_str'] = wasmExports['php_str_to_str'];
   _php_addcslashes_str = Module['_php_addcslashes_str'] = wasmExports['php_addcslashes_str'];
@@ -12248,7 +12384,6 @@ function assignWasmExports(wasmExports) {
   _php_var_unserialize_get_cur_depth = Module['_php_var_unserialize_get_cur_depth'] = wasmExports['php_var_unserialize_get_cur_depth'];
   _zend_is_valid_class_name = Module['_zend_is_valid_class_name'] = wasmExports['zend_is_valid_class_name'];
   _zend_hash_lookup = Module['_zend_hash_lookup'] = wasmExports['zend_hash_lookup'];
-  _zend_ref_del_type_source = Module['_zend_ref_del_type_source'] = wasmExports['zend_ref_del_type_source'];
   _zend_verify_prop_assignable_by_ref = Module['_zend_verify_prop_assignable_by_ref'] = wasmExports['zend_verify_prop_assignable_by_ref'];
   _php_var_dump = Module['_php_var_dump'] = wasmExports['php_var_dump'];
   _php_printf = Module['_php_printf'] = wasmExports['php_printf'];
@@ -12421,14 +12556,8 @@ function assignWasmExports(wasmExports) {
   _php_output_handler_started = Module['_php_output_handler_started'] = wasmExports['php_output_handler_started'];
   _php_output_handler_reverse_conflict_register = Module['_php_output_handler_reverse_conflict_register'] = wasmExports['php_output_handler_reverse_conflict_register'];
   _php_default_post_reader = Module['_php_default_post_reader'] = wasmExports['php_default_post_reader'];
-  _sapi_read_standard_form_data = Module['_sapi_read_standard_form_data'] = wasmExports['sapi_read_standard_form_data'];
   _sapi_register_default_post_reader = Module['_sapi_register_default_post_reader'] = wasmExports['sapi_register_default_post_reader'];
-  _php_default_treat_data = Module['_php_default_treat_data'] = wasmExports['php_default_treat_data'];
-  _sapi_register_treat_data = Module['_sapi_register_treat_data'] = wasmExports['sapi_register_treat_data'];
   _php_default_input_filter = Module['_php_default_input_filter'] = wasmExports['php_default_input_filter'];
-  _sapi_register_post_entries = Module['_sapi_register_post_entries'] = wasmExports['sapi_register_post_entries'];
-  _php_std_post_handler = Module['_php_std_post_handler'] = wasmExports['php_std_post_handler'];
-  _rfc1867_post_handler = Module['_rfc1867_post_handler'] = wasmExports['rfc1867_post_handler'];
   _php_ini_builder_prepend = Module['_php_ini_builder_prepend'] = wasmExports['php_ini_builder_prepend'];
   _php_ini_builder_unquoted = Module['_php_ini_builder_unquoted'] = wasmExports['php_ini_builder_unquoted'];
   _php_ini_builder_quoted = Module['_php_ini_builder_quoted'] = wasmExports['php_ini_builder_quoted'];
@@ -12455,7 +12584,6 @@ function assignWasmExports(wasmExports) {
   _zend_llist_clean = Module['_zend_llist_clean'] = wasmExports['zend_llist_clean'];
   _php_remove_tick_function = Module['_php_remove_tick_function'] = wasmExports['php_remove_tick_function'];
   _php_register_variable = Module['_php_register_variable'] = wasmExports['php_register_variable'];
-  _php_register_variable_safe = Module['_php_register_variable_safe'] = wasmExports['php_register_variable_safe'];
   _zend_hash_str_update_ind = Module['_zend_hash_str_update_ind'] = wasmExports['zend_hash_str_update_ind'];
   _php_register_known_variable = Module['_php_register_known_variable'] = wasmExports['php_register_known_variable'];
   _php_build_argv = Module['_php_build_argv'] = wasmExports['php_build_argv'];
@@ -12468,7 +12596,6 @@ function assignWasmExports(wasmExports) {
   _zend_llist_get_next_ex = Module['_zend_llist_get_next_ex'] = wasmExports['zend_llist_get_next_ex'];
   _zend_multibyte_encoding_converter = Module['_zend_multibyte_encoding_converter'] = wasmExports['zend_multibyte_encoding_converter'];
   _zend_hash_str_add_empty_element = Module['_zend_hash_str_add_empty_element'] = wasmExports['zend_hash_str_add_empty_element'];
-  _php_rfc1867_set_multibyte_callbacks = Module['_php_rfc1867_set_multibyte_callbacks'] = wasmExports['php_rfc1867_set_multibyte_callbacks'];
   _sapi_startup = Module['_sapi_startup'] = wasmExports['sapi_startup'];
   _sapi_shutdown = Module['_sapi_shutdown'] = wasmExports['sapi_shutdown'];
   _sapi_free_header = Module['_sapi_free_header'] = wasmExports['sapi_free_header'];
@@ -12477,7 +12604,6 @@ function assignWasmExports(wasmExports) {
   _sapi_apply_default_charset = Module['_sapi_apply_default_charset'] = wasmExports['sapi_apply_default_charset'];
   _sapi_activate_headers_only = Module['_sapi_activate_headers_only'] = wasmExports['sapi_activate_headers_only'];
   _sapi_register_post_entry = Module['_sapi_register_post_entry'] = wasmExports['sapi_register_post_entry'];
-  _sapi_unregister_post_entry = Module['_sapi_unregister_post_entry'] = wasmExports['sapi_unregister_post_entry'];
   _sapi_get_fd = Module['_sapi_get_fd'] = wasmExports['sapi_get_fd'];
   _sapi_force_http_10 = Module['_sapi_force_http_10'] = wasmExports['sapi_force_http_10'];
   _sapi_get_target_uid = Module['_sapi_get_target_uid'] = wasmExports['sapi_get_target_uid'];
@@ -12670,7 +12796,6 @@ function assignWasmExports(wasmExports) {
   _add_assoc_object_ex = Module['_add_assoc_object_ex'] = wasmExports['add_assoc_object_ex'];
   _add_assoc_reference_ex = Module['_add_assoc_reference_ex'] = wasmExports['add_assoc_reference_ex'];
   _add_index_null = Module['_add_index_null'] = wasmExports['add_index_null'];
-  _add_index_bool = Module['_add_index_bool'] = wasmExports['add_index_bool'];
   _add_index_resource = Module['_add_index_resource'] = wasmExports['add_index_resource'];
   _add_index_array = Module['_add_index_array'] = wasmExports['add_index_array'];
   _add_index_object = Module['_add_index_object'] = wasmExports['add_index_object'];
@@ -12953,8 +13078,6 @@ function assignWasmExports(wasmExports) {
   _div_function = Module['_div_function'] = wasmExports['div_function'];
   _boolean_xor_function = Module['_boolean_xor_function'] = wasmExports['boolean_xor_function'];
   _zend_asymmetric_property_has_set_access = Module['_zend_asymmetric_property_has_set_access'] = wasmExports['zend_asymmetric_property_has_set_access'];
-  _zend_fiber_switch_block = Module['_zend_fiber_switch_block'] = wasmExports['zend_fiber_switch_block'];
-  _zend_fiber_switch_unblock = Module['_zend_fiber_switch_unblock'] = wasmExports['zend_fiber_switch_unblock'];
   _zend_iterator_unwrap = Module['_zend_iterator_unwrap'] = wasmExports['zend_iterator_unwrap'];
   _zend_generator_close = Module['_zend_generator_close'] = wasmExports['zend_generator_close'];
   _compare_function = Module['_compare_function'] = wasmExports['compare_function'];
@@ -13069,13 +13192,10 @@ function assignWasmExports(wasmExports) {
   _zend_llist_sort = Module['_zend_llist_sort'] = wasmExports['zend_llist_sort'];
   _zend_llist_get_last_ex = Module['_zend_llist_get_last_ex'] = wasmExports['zend_llist_get_last_ex'];
   _zend_llist_get_prev_ex = Module['_zend_llist_get_prev_ex'] = wasmExports['zend_llist_get_prev_ex'];
-  _zend_multibyte_set_functions = Module['_zend_multibyte_set_functions'] = wasmExports['zend_multibyte_set_functions'];
   _zend_multibyte_set_script_encoding_by_string = Module['_zend_multibyte_set_script_encoding_by_string'] = wasmExports['zend_multibyte_set_script_encoding_by_string'];
-  _zend_multibyte_restore_functions = Module['_zend_multibyte_restore_functions'] = wasmExports['zend_multibyte_restore_functions'];
   _zend_multibyte_parse_encoding_list = Module['_zend_multibyte_parse_encoding_list'] = wasmExports['zend_multibyte_parse_encoding_list'];
   _zend_multibyte_get_script_encoding = Module['_zend_multibyte_get_script_encoding'] = wasmExports['zend_multibyte_get_script_encoding'];
   _zend_multibyte_set_script_encoding = Module['_zend_multibyte_set_script_encoding'] = wasmExports['zend_multibyte_set_script_encoding'];
-  _zend_multibyte_set_internal_encoding = Module['_zend_multibyte_set_internal_encoding'] = wasmExports['zend_multibyte_set_internal_encoding'];
   _zend_std_get_gc = Module['_zend_std_get_gc'] = wasmExports['zend_std_get_gc'];
   _zend_std_get_debug_info = Module['_zend_std_get_debug_info'] = wasmExports['zend_std_get_debug_info'];
   _zend_get_property_guard = Module['_zend_get_property_guard'] = wasmExports['zend_get_property_guard'];
@@ -13106,7 +13226,6 @@ function assignWasmExports(wasmExports) {
   _zend_atol = Module['_zend_atol'] = wasmExports['zend_atol'];
   _zend_atoi = Module['_zend_atoi'] = wasmExports['zend_atoi'];
   _convert_scalar_to_number = Module['_convert_scalar_to_number'] = wasmExports['convert_scalar_to_number'];
-  _zval_try_get_long = Module['_zval_try_get_long'] = wasmExports['zval_try_get_long'];
   _zend_oob_string_to_long_error = Module['_zend_oob_string_to_long_error'] = wasmExports['zend_oob_string_to_long_error'];
   _string_compare_function_ex = Module['_string_compare_function_ex'] = wasmExports['string_compare_function_ex'];
   _zend_compare_arrays = Module['_zend_compare_arrays'] = wasmExports['zend_compare_arrays'];
@@ -13125,7 +13244,6 @@ function assignWasmExports(wasmExports) {
   _zend_ptr_stack_n_pop = Module['_zend_ptr_stack_n_pop'] = wasmExports['zend_ptr_stack_n_pop'];
   _zend_ptr_stack_apply = Module['_zend_ptr_stack_apply'] = wasmExports['zend_ptr_stack_apply'];
   _zend_ptr_stack_num_elements = Module['_zend_ptr_stack_num_elements'] = wasmExports['zend_ptr_stack_num_elements'];
-  _zend_sigaction = Module['_zend_sigaction'] = wasmExports['zend_sigaction'];
   _zend_signal_startup = Module['_zend_signal_startup'] = wasmExports['zend_signal_startup'];
   _smart_str_realloc = Module['_smart_str_realloc'] = wasmExports['smart_str_realloc'];
   __smart_string_alloc_persistent = Module['__smart_string_alloc_persistent'] = wasmExports['_smart_string_alloc_persistent'];
@@ -13308,11 +13426,14 @@ function assignWasmExports(wasmExports) {
   _lxb_encoding_multi_jis0212_8470_8483_map = Module['_lxb_encoding_multi_jis0212_8470_8483_map'] = wasmExports['lxb_encoding_multi_jis0212_8470_8483_map'].value;
   _lxb_encoding_multi_jis0212_19970_40870_map = Module['_lxb_encoding_multi_jis0212_19970_40870_map'] = wasmExports['lxb_encoding_multi_jis0212_19970_40870_map'].value;
   _lxb_encoding_multi_jis0212_65374_65375_map = Module['_lxb_encoding_multi_jis0212_65374_65375_map'] = wasmExports['lxb_encoding_multi_jis0212_65374_65375_map'].value;
+  _php_internal_encoding_changed = Module['_php_internal_encoding_changed'] = wasmExports['php_internal_encoding_changed'].value;
+  _mbfl_encoding_pass = Module['_mbfl_encoding_pass'] = wasmExports['mbfl_encoding_pass'].value;
+  _sapi_module = Module['_sapi_module'] = wasmExports['sapi_module'].value;
+  _vtbl_pass = Module['_vtbl_pass'] = wasmExports['vtbl_pass'].value;
   _module_registry = Module['_module_registry'] = wasmExports['module_registry'].value;
   _smm_shared_globals = Module['_smm_shared_globals'] = wasmExports['smm_shared_globals'].value;
   _zend_ce_closure = Module['_zend_ce_closure'] = wasmExports['zend_ce_closure'].value;
   _zend_resolve_path = Module['_zend_resolve_path'] = wasmExports['zend_resolve_path'].value;
-  _sapi_module = Module['_sapi_module'] = wasmExports['sapi_module'].value;
   _zend_observer_function_declared_observed = Module['_zend_observer_function_declared_observed'] = wasmExports['zend_observer_function_declared_observed'].value;
   _zend_observer_class_linked_observed = Module['_zend_observer_class_linked_observed'] = wasmExports['zend_observer_class_linked_observed'].value;
   _zend_system_id = Module['_zend_system_id'] = wasmExports['zend_system_id'].value;
@@ -13331,6 +13452,7 @@ function assignWasmExports(wasmExports) {
   _zend_map_ptr_static_size = Module['_zend_map_ptr_static_size'] = wasmExports['zend_map_ptr_static_size'].value;
   _zend_observer_fcall_op_array_extension = Module['_zend_observer_fcall_op_array_extension'] = wasmExports['zend_observer_fcall_op_array_extension'].value;
   _zend_error_cb = Module['_zend_error_cb'] = wasmExports['zend_error_cb'].value;
+  _zend_interrupt_function = Module['_zend_interrupt_function'] = wasmExports['zend_interrupt_function'].value;
   _random_ce_Random_RandomException = Module['_random_ce_Random_RandomException'] = wasmExports['random_ce_Random_RandomException'].value;
   _php_random_algo_mt19937 = Module['_php_random_algo_mt19937'] = wasmExports['php_random_algo_mt19937'].value;
   _php_random_algo_pcgoneseq128xslrr64 = Module['_php_random_algo_pcgoneseq128xslrr64'] = wasmExports['php_random_algo_pcgoneseq128xslrr64'].value;
@@ -13490,7 +13612,6 @@ function assignWasmExports(wasmExports) {
   _php_uri_parser_php_parse_url = Module['_php_uri_parser_php_parse_url'] = wasmExports['php_uri_parser_php_parse_url'].value;
   _le_index_ptr = Module['_le_index_ptr'] = wasmExports['le_index_ptr'].value;
   _php_register_internal_extensions_func = Module['_php_register_internal_extensions_func'] = wasmExports['php_register_internal_extensions_func'].value;
-  _php_internal_encoding_changed = Module['_php_internal_encoding_changed'] = wasmExports['php_internal_encoding_changed'].value;
   _output_globals = Module['_output_globals'] = wasmExports['output_globals'].value;
   _php_import_environment_variables = Module['_php_import_environment_variables'] = wasmExports['php_import_environment_variables'].value;
   _php_rfc1867_callback = Module['_php_rfc1867_callback'] = wasmExports['php_rfc1867_callback'].value;
@@ -13530,7 +13651,6 @@ function assignWasmExports(wasmExports) {
   _zend_ce_argument_count_error = Module['_zend_ce_argument_count_error'] = wasmExports['zend_ce_argument_count_error'].value;
   _zend_ce_error_exception = Module['_zend_ce_error_exception'] = wasmExports['zend_ce_error_exception'].value;
   _zend_ce_unhandled_match_error = Module['_zend_ce_unhandled_match_error'] = wasmExports['zend_ce_unhandled_match_error'].value;
-  _zend_interrupt_function = Module['_zend_interrupt_function'] = wasmExports['zend_interrupt_function'].value;
   _zend_on_timeout = Module['_zend_on_timeout'] = wasmExports['zend_on_timeout'].value;
   _zend_observer_fcall_internal_function_extension = Module['_zend_observer_fcall_internal_function_extension'] = wasmExports['zend_observer_fcall_internal_function_extension'].value;
   _zend_pass_function = Module['_zend_pass_function'] = wasmExports['zend_pass_function'].value;
