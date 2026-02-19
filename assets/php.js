@@ -1468,8 +1468,6 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
   ignorePermissions:true,
   filesystems:null,
   syncFSRequests:0,
-  readFiles:{
-  },
   ErrnoError:class {
         name = 'ErrnoError';
         // We set the `name` property to be able to identify `FS.ErrnoError`
@@ -1735,9 +1733,11 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
         // return 0 if any user, group or owner bits are set.
         if (perms.includes('r') && !(node.mode & 292)) {
           return 2;
-        } else if (perms.includes('w') && !(node.mode & 146)) {
+        }
+        if (perms.includes('w') && !(node.mode & 146)) {
           return 2;
-        } else if (perms.includes('x') && !(node.mode & 73)) {
+        }
+        if (perms.includes('x') && !(node.mode & 73)) {
           return 2;
         }
         return 0;
@@ -1778,10 +1778,8 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
           if (FS.isRoot(node) || FS.getPath(node) === FS.cwd()) {
             return 10;
           }
-        } else {
-          if (FS.isDir(node.mode)) {
-            return 31;
-          }
+        } else if (FS.isDir(node.mode)) {
+          return 31;
         }
         return 0;
       },
@@ -1791,13 +1789,16 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
         }
         if (FS.isLink(node.mode)) {
           return 32;
-        } else if (FS.isDir(node.mode)) {
-          if (FS.flagsToPermissionString(flags) !== 'r' // opening for write
-              || (flags & (512 | 64))) { // TODO: check for O_SEARCH? (== search for dir only)
+        }
+        var mode = FS.flagsToPermissionString(flags);
+        if (FS.isDir(node.mode)) {
+          // opening for write
+          // TODO: check for O_SEARCH? (== search for dir only)
+          if (mode !== 'r' || (flags & (512 | 64))) {
             return 31;
           }
         }
-        return FS.nodePermissions(node, FS.flagsToPermissionString(flags));
+        return FS.nodePermissions(node, mode);
       },
   checkOpExists(op, err) {
         if (!op) {
@@ -2451,11 +2452,6 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
         }
         if (created) {
           FS.chmod(node, mode & 0o777);
-        }
-        if (Module['logReadFiles'] && !(flags & 1)) {
-          if (!(path in FS.readFiles)) {
-            FS.readFiles[path] = 1;
-          }
         }
         return stream;
       },
@@ -4220,6 +4216,17 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
   }
   }
 
+  function ___syscall_fchown32(fd, owner, group) {
+  try {
+  
+      FS.fchown(fd, owner, group);
+      return 0;
+    } catch (e) {
+    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+    return -e.errno;
+  }
+  }
+
   function ___syscall_fchownat(dirfd, path, owner, group, flags) {
   try {
   
@@ -4373,12 +4380,12 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
         var name = stream.getdents[idx];
         if (name === '.') {
           id = stream.node.id;
-          type = 4; // DT_DIR
+          type = 4;
         }
         else if (name === '..') {
           var lookup = FS.lookupPath(stream.path, { parent: true });
           id = lookup.node.id;
-          type = 4; // DT_DIR
+          type = 4;
         }
         else {
           var child;
@@ -4393,10 +4400,10 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
             throw e;
           }
           id = child.id;
-          type = FS.isChrdev(child.mode) ? 2 :  // DT_CHR, character device.
-                 FS.isDir(child.mode) ? 4 :     // DT_DIR, directory.
-                 FS.isLink(child.mode) ? 10 :   // DT_LNK, symbolic link.
-                 8;                             // DT_REG, regular file.
+          type = FS.isChrdev(child.mode) ? 2 : // character device.
+                 FS.isDir(child.mode) ? 4 :    // directory
+                 FS.isLink(child.mode) ? 10 :   // symbolic link.
+                 8;                            // regular file.
         }
         HEAP64[((dirp + pos)>>3)] = BigInt(id);
         HEAP64[(((dirp + pos)+(8))>>3)] = BigInt((idx + 1) * struct_size);
@@ -6605,13 +6612,106 @@ var _php_time,
   _zend_call_function,
   _OnUpdateLong,
   _zend_parse_parameters,
+  _zend_throw_exception,
+  _expand_filepath,
+  _php_check_open_basedir,
+  _sqlite3_open_v2,
+  _sqlite3_errmsg,
+  _sqlite3_errstr,
+  _sqlite3_close,
+  _sqlite3_set_authorizer,
+  _sqlite3_db_config,
+  __emalloc_160,
+  _zend_call_known_function,
+  _zend_llist_clean,
+  _zend_vspprintf,
+  _sqlite3_exec,
+  _sqlite3_free,
+  _sqlite3_libversion,
+  _sqlite3_libversion_number,
+  _sqlite3_last_insert_rowid,
+  _sqlite3_errcode,
+  _sqlite3_extended_errcode,
+  _sqlite3_extended_result_codes,
+  _sqlite3_busy_timeout,
+  _zend_argument_must_not_be_empty_error,
+  _tsrm_realpath,
+  _sqlite3_enable_load_extension,
+  _sqlite3_load_extension,
+  _sqlite3_changes,
+  _sqlite3_mprintf,
+  _sqlite3_prepare_v2,
+  _zend_llist_add_element,
+  _sqlite3_step,
+  _sqlite3_reset,
+  _sqlite3_finalize,
+  _sqlite3_data_count,
+  _sqlite3_column_name,
+  _sqlite3_column_type,
+  _sqlite3_column_int64,
+  _sqlite3_column_text,
+  _sqlite3_column_bytes,
+  _sqlite3_column_double,
+  _sqlite3_column_blob,
+  _sqlite3_create_function,
+  _sqlite3_user_data,
+  _sqlite3_aggregate_context,
+  _sqlite3_create_collation,
+  _sqlite3_blob_open,
+  _sqlite3_blob_bytes,
+  __php_stream_alloc,
+  _zend_objects_store_del,
+  _gc_possible_root,
+  _sqlite3_backup_init,
+  _sqlite3_backup_step,
+  _sqlite3_backup_finish,
+  _sqlite3_bind_parameter_count,
+  _zend_llist_del_element,
+  _sqlite3_db_handle,
+  _sqlite3_clear_bindings,
+  _sqlite3_stmt_readonly,
+  _sqlite3_stmt_busy,
+  _sqlite3_expanded_sql,
+  _sqlite3_sql,
+  _sqlite3_bind_null,
+  _convert_to_long,
+  _sqlite3_bind_int,
+  _convert_to_double,
+  _sqlite3_bind_double,
+  _php_file_le_stream,
+  _php_file_le_pstream,
+  _zend_fetch_resource2_ex,
+  __php_stream_copy_to_mem,
+  _sqlite3_bind_blob,
+  _sqlite3_bind_text,
+  _zend_parse_arg_str_or_long_slow,
+  _sqlite3_bind_parameter_index,
+  _zend_hash_index_del,
+  _sqlite3_column_count,
+  __zend_handle_numeric_str_ex,
+  _zend_std_get_gc,
+  _zend_get_gc_buffer_create,
+  _zend_get_gc_buffer_grow,
+  _zend_llist_init,
+  _sqlite3_value_type,
+  _sqlite3_value_int,
+  _sqlite3_value_double,
+  _sqlite3_value_text,
+  _sqlite3_value_bytes,
+  _sqlite3_result_int,
+  _sqlite3_result_null,
+  _sqlite3_result_double,
+  _sqlite3_result_text,
+  _sqlite3_result_error,
+  _sqlite3_blob_write,
+  _sqlite3_blob_read,
+  _sqlite3_blob_close,
+  _OnUpdateBool,
+  _zend_ini_boolean_displayer_cb,
   _zend_value_error,
   _zend_zval_type_name,
   _finfo_objects_new,
-  _php_check_open_basedir,
   _expand_filepath_with_mode,
-  _zend_throw_exception,
-  _zend_argument_must_not_be_empty_error,
   _php_le_stream_context,
   _zend_fetch_resource_ex,
   _php_stream_context_alloc,
@@ -6619,13 +6719,9 @@ var _php_time,
   __php_stream_open_wrapper_ex,
   __php_stream_stat,
   __php_stream_free,
-  _php_file_le_stream,
-  _php_file_le_pstream,
-  _zend_fetch_resource2_ex,
   __php_stream_tell,
   __php_stream_seek,
   _zend_zval_value_name,
-  __emalloc_160,
   __php_stream_write,
   __php_stream_read,
   __emalloc_huge,
@@ -6634,13 +6730,11 @@ var _php_time,
   __php_stream_readdir,
   __php_stream_get_line,
   __emalloc_large,
-  _zend_vspprintf,
   __php_stream_cast,
   _zend_str_tolower_dup,
   _zend_memnstr_ex,
   _zend_hash_index_find,
   _sapi_register_input_filter,
-  __zend_handle_numeric_str_ex,
   _php_register_variable_ex,
   _zend_is_auto_global,
   __convert_to_string,
@@ -6835,7 +6929,6 @@ var _php_time,
   _zend_gcvt,
   _php_next_utf8_char,
   _zend_get_recursion_guard,
-  _zend_call_known_function,
   _rc_dtor_func,
   _zend_get_properties_for,
   _zend_read_property_ex,
@@ -8015,7 +8108,6 @@ var _php_time,
   _php_mb_safe_strrchr,
   _mbfl_no_language2name,
   ___zend_calloc,
-  _zend_parse_arg_str_or_long_slow,
   _mbfl_encoding_preferred_mime_name,
   _mb_fast_convert,
   _zend_memnrstr_ex,
@@ -8044,11 +8136,9 @@ var _php_time,
   _mbfl_no_encoding2name,
   _php_mb_mbchar_bytes,
   _mbfl_name2no_language,
-  _OnUpdateBool,
   _sapi_unregister_post_entry,
   _sapi_read_standard_form_data,
   _rfc1867_post_handler,
-  _zend_ini_boolean_displayer_cb,
   _php_std_post_handler,
   _php_unicode_is_prop1,
   _php_unicode_is_prop,
@@ -8056,7 +8146,6 @@ var _php_time,
   _sapi_handle_post,
   _php_url_decode,
   _php_register_variable_safe,
-  __php_stream_copy_to_mem,
   _add_index_stringl,
   _add_index_bool,
   _zend_make_compiled_string_description,
@@ -8098,11 +8187,9 @@ var _php_time,
   _mbfl_string_clear,
   _opcache_preloading,
   _php_glob,
-  _tsrm_realpath,
   _zend_dirname,
   _zend_strndup,
   _expand_filepath_ex,
-  _expand_filepath,
   _php_globfree,
   __zend_bailout,
   _zend_string_hash_func,
@@ -8149,7 +8236,6 @@ var _php_time,
   _gc_enable,
   _zend_emit_recorded_errors,
   _zend_free_recorded_errors,
-  _zend_hash_index_del,
   _zend_emit_recorded_errors_ex,
   _zend_hash_add_empty_element,
   __php_stream_stat_path,
@@ -8159,7 +8245,6 @@ var _php_time,
   _zend_map_ptr_reset,
   _realpath_cache_clean,
   _zend_register_extension,
-  _zend_llist_del_element,
   _zend_interned_strings_set_request_storage_handlers,
   _php_child_init,
   _zend_lookup_class_ex,
@@ -8199,6 +8284,56 @@ var _php_time,
   _zend_fiber_switch_block,
   _zend_fiber_switch_unblock,
   _zend_sigaction,
+  _php_pdo_get_dbh_ce,
+  _php_pdo_get_exception,
+  _zend_register_list_destructors_ex,
+  _php_pdo_register_driver,
+  _php_pdo_unregister_driver,
+  _zend_hash_str_del,
+  _php_pdo_register_driver_specific_ce,
+  _php_pdo_parse_data_source,
+  _pdo_throw_exception,
+  _zend_update_property_long,
+  _zend_update_property_str,
+  _zend_throw_exception_object,
+  _php_pdo_stmt_valid_db_obj_handle,
+  _pdo_raise_impl_error,
+  _zend_update_property_string,
+  _pdo_handle_error,
+  _php_pdo_internal_construct_driver,
+  _cfg_get_string,
+  _zend_list_close,
+  ___zend_strdup,
+  _zend_register_persistent_resource,
+  _is_numeric_str_function,
+  _pdo_get_long_param,
+  _pdo_get_bool_param,
+  _add_next_index_null,
+  _zend_set_function_arg_flags,
+  _zend_str_tolower_copy,
+  _pdo_dbh_new,
+  _zend_objects_not_comparable,
+  _zend_std_get_method,
+  _zend_string_toupper_ex,
+  _php_pdo_stmt_set_column_count,
+  _pdo_parse_params,
+  _convert_to_boolean,
+  _zend_update_property_ex,
+  _zend_parse_arg_class,
+  _convert_to_null,
+  __php_stream_memory_open,
+  _zend_argument_count_error,
+  __php_stream_printf,
+  _php_pdo_free_statement,
+  _zend_nan_coerced_to_type_warning,
+  _zend_std_cast_object_tostring,
+  _zend_object_is_true,
+  _zend_declare_class_constant_ex,
+  _sqlite3_close_v2,
+  _sqlite3_snprintf,
+  _zend_i64_to_str,
+  _sqlite3_get_autocommit,
+  _sqlite3_column_decltype,
   _php_random_bytes_ex,
   _php_random_bytes,
   _php_random_int,
@@ -8236,8 +8371,6 @@ var _php_time,
   _php_mt_rand,
   _php_mt_rand_range,
   _php_mt_rand_common,
-  _zend_objects_store_del,
-  _gc_possible_root,
   _php_array_data_shuffle,
   _php_binary_string_shuffle,
   _php_array_pick_keys,
@@ -8245,7 +8378,6 @@ var _php_time,
   _php_random_bytes_insecure_for_zend,
   _zend_reflection_class_factory,
   _zend_get_closure_method_def,
-  _zend_str_tolower_copy,
   _zend_fetch_function,
   _smart_str_append_printf,
   _zend_type_to_string,
@@ -8299,7 +8431,6 @@ var _php_time,
   _zend_illegal_container_offset,
   _zend_hash_update_ind,
   _zend_hash_iterator_del,
-  _zend_parse_arg_class,
   _php_var_serialize_init,
   _php_var_serialize,
   _php_var_serialize_destroy,
@@ -8342,10 +8473,7 @@ var _php_time,
   __php_stream_set_option,
   __php_stream_truncate_set_size,
   _zend_objects_destroy_object,
-  _zend_std_get_method,
   _var_push_dtor,
-  _zend_get_gc_buffer_create,
-  _zend_get_gc_buffer_grow,
   __safe_erealloc,
   _zend_compare,
   _zend_user_it_invalidate_current,
@@ -8363,9 +8491,6 @@ var _php_time,
   _zend_std_read_dimension,
   _zend_std_write_dimension,
   _zend_std_has_dimension,
-  _zend_nan_coerced_to_type_warning,
-  _zend_std_cast_object_tostring,
-  _zend_object_is_true,
   _zend_std_unset_dimension,
   _zend_hash_index_lookup,
   _zend_sort,
@@ -8384,7 +8509,6 @@ var _php_time,
   _zend_parse_arg_number_or_str_slow,
   __php_math_round,
   _get_active_function_arg_name,
-  _is_numeric_str_function,
   _zend_hash_to_packed,
   _zend_hash_iterators_lower_pos,
   __zend_hash_iterators_update,
@@ -8392,12 +8516,10 @@ var _php_time,
   _zend_hash_iterators_advance,
   _convert_to_array,
   _php_array_merge_recursive,
-  _add_next_index_null,
   _zend_cannot_add_element,
   _php_array_merge,
   _php_array_replace_recursive,
   _zend_hash_merge,
-  _zend_string_toupper_ex,
   _zend_hash_bucket_swap,
   _php_multisort_compare,
   _add_function,
@@ -8440,7 +8562,6 @@ var _php_time,
   _append_user_shutdown_function,
   _register_user_shutdown_function,
   _remove_user_shutdown_function,
-  _zend_hash_str_del,
   _php_get_highlight_struct,
   _zend_ini_string_ex,
   _php_output_start_default,
@@ -8462,8 +8583,6 @@ var _php_time,
   _zend_print_zval_r_to_str,
   _ntohs,
   _htons,
-  _zend_llist_init,
-  _zend_llist_add_element,
   _zend_llist_apply,
   _php_copy_file_ex,
   _zend_parse_ini_file,
@@ -8492,9 +8611,7 @@ var _php_time,
   _php_crypt,
   __emalloc_128,
   _php_info_print_css,
-  _zend_objects_not_comparable,
   _zend_list_delete,
-  _zend_list_close,
   _php_clear_stat_cache,
   _php_check_open_basedir_ex,
   _php_stream_dirent_alphasortr,
@@ -8510,7 +8627,6 @@ var _php_time,
   _php_exec,
   __php_stream_fopen_from_pipe,
   _php_escape_shell_arg,
-  _zend_register_list_destructors_ex,
   _php_stream_context_free,
   __php_stream_copy_to_stream_ex,
   _php_stream_locate_eol,
@@ -8532,16 +8648,13 @@ var _php_time,
   _realpath_cache_max_buckets,
   _php_stream_bucket_make_writeable,
   _php_strtr,
-  ___zend_strdup,
   _php_flock,
   _php_conv_fp,
-  _zend_argument_count_error,
   __php_stream_xport_create,
   _zend_try_assign_typed_ref_str,
   _zend_try_assign_typed_ref_empty_string,
   _php_stream_wrapper_log_error,
   _php_stream_context_get_option,
-  __php_stream_printf,
   _php_stream_notification_notify,
   _php_stream_context_set,
   _php_stream_xport_crypto_setup,
@@ -8549,7 +8662,6 @@ var _php_time,
   _php_stream_context_get_uri_parser,
   _php_raw_url_decode,
   __php_stream_sock_open_host,
-  __php_stream_alloc,
   _sapi_header_op,
   _php_header,
   _sapi_send_headers,
@@ -8575,7 +8687,6 @@ var _php_time,
   _php_is_image_avif,
   _php_image_type_to_mime_type,
   _php_getimagetype,
-  __php_stream_memory_open,
   _php_image_register_handler,
   _php_image_unregister_handler,
   _zend_objects_new,
@@ -8634,7 +8745,6 @@ var _php_time,
   _zend_register_resource,
   _php_quot_print_encode,
   _ValidateFormat,
-  _convert_to_null,
   _zend_try_assign_typed_ref_stringl,
   _zend_try_assign_typed_ref_double,
   _make_sha1_digest,
@@ -8683,10 +8793,7 @@ var _php_time,
   _php_syslog_str,
   _zend_zval_get_legacy_type,
   _zend_rsrc_list_get_rsrc_type,
-  _convert_to_long,
-  _convert_to_double,
   _convert_to_object,
-  _convert_to_boolean,
   _zend_try_assign_typed_ref,
   _zend_is_countable,
   _php_url_scanner_adapt_single_url,
@@ -8704,7 +8811,6 @@ var _php_time,
   _php_url_decode_ex,
   _php_raw_url_decode_ex,
   _zend_update_property_stringl,
-  _zend_update_property_long,
   _php_stream_bucket_prepend,
   _php_stream_filter_register_factory_volatile,
   _add_property_string_ex,
@@ -8753,13 +8859,10 @@ var _php_time,
   _php_uri_free,
   _php_uri_instantiate_uri,
   _zend_update_exception_properties,
-  _zend_update_property_str,
-  _zend_update_property_ex,
   _php_uri_object_create,
   _php_uri_object_handler_free,
   _php_uri_object_handler_clone,
   _php_uri_parser_register,
-  _zend_update_property_string,
   _zend_enum_get_case_cstr,
   _virtual_file_ex,
   _OnUpdateBaseDir,
@@ -8912,7 +9015,6 @@ var _php_time,
   _php_ini_has_per_host_config,
   _php_ini_activate_per_host_config,
   _cfg_get_double,
-  _cfg_get_string,
   _php_ini_get_configuration_hash,
   _php_odbc_connstr_is_quoted,
   _php_odbc_connstr_should_quote,
@@ -8920,7 +9022,6 @@ var _php_time,
   _php_odbc_connstr_quote,
   _php_open_temporary_fd,
   _php_open_temporary_file,
-  _zend_llist_clean,
   _php_remove_tick_function,
   _php_register_variable,
   _zend_hash_str_update_ind,
@@ -8974,7 +9075,6 @@ var _php_time,
   __php_stream_fopen,
   _php_stream_from_persistent_id,
   __php_stream_fopen_with_path,
-  _zend_register_persistent_resource,
   __php_stream_fill_read_buffer,
   __php_stream_putc,
   __php_stream_puts,
@@ -9154,7 +9254,6 @@ var _php_time,
   _zend_destroy_modules,
   _zend_hash_graceful_reverse_destroy,
   _zend_next_free_module,
-  _zend_set_function_arg_flags,
   _zend_unregister_functions,
   _zend_check_magic_method_implementation,
   _zend_add_magic_method,
@@ -9194,7 +9293,6 @@ var _php_time,
   _zend_declare_property_double,
   _zend_declare_property_string,
   _zend_declare_property_stringl,
-  _zend_declare_class_constant_ex,
   _zend_declare_class_constant,
   _zend_declare_class_constant_null,
   _zend_declare_class_constant_long,
@@ -9334,7 +9432,6 @@ var _php_time,
   _zend_is_graceful_exit,
   _zend_exception_save,
   __zend_observer_error_notify,
-  _zend_throw_exception_object,
   _zend_create_unwind_exit,
   _zend_create_graceful_exit,
   _zend_throw_graceful_exit,
@@ -9535,7 +9632,6 @@ var _php_time,
   _zend_multibyte_parse_encoding_list,
   _zend_multibyte_get_script_encoding,
   _zend_multibyte_set_script_encoding,
-  _zend_std_get_gc,
   _zend_std_get_debug_info,
   _zend_get_property_guard,
   _zend_std_get_closure,
@@ -9577,7 +9673,6 @@ var _php_time,
   _zend_compare_objects,
   _zend_ulong_to_str,
   _zend_u64_to_str,
-  _zend_i64_to_str,
   _zend_ptr_stack_init_ex,
   _zend_ptr_stack_n_push,
   _zend_ptr_stack_n_pop,
@@ -9634,6 +9729,193 @@ var _php_time,
   _libiconvctl,
   _libiconvlist,
   _iconv_canonicalize,
+  _sqlite3_status64,
+  _sqlite3_log,
+  _sqlite3_status,
+  _sqlite3_db_status,
+  _sqlite3_msize,
+  _sqlite3_vfs_find,
+  _sqlite3_initialize,
+  _sqlite3_config,
+  _sqlite3_os_init,
+  _sqlite3_vfs_register,
+  _sqlite3_vfs_unregister,
+  _sqlite3_release_memory,
+  _sqlite3_memory_alarm,
+  _sqlite3_soft_heap_limit64,
+  _sqlite3_memory_used,
+  _sqlite3_soft_heap_limit,
+  _sqlite3_hard_heap_limit64,
+  _sqlite3_memory_highwater,
+  _sqlite3_malloc,
+  _sqlite3_malloc64,
+  _sqlite3_realloc,
+  _sqlite3_realloc64,
+  _sqlite3_str_vappendf,
+  _sqlite3_str_append,
+  _sqlite3_str_appendf,
+  _sqlite3_str_appendchar,
+  _sqlite3_str_reset,
+  _sqlite3_str_appendall,
+  _sqlite3_str_finish,
+  _sqlite3_str_errcode,
+  _sqlite3_str_length,
+  _sqlite3_str_value,
+  _sqlite3_str_new,
+  _sqlite3_vmprintf,
+  _sqlite3_vsnprintf,
+  _sqlite3_randomness,
+  _sqlite3_stricmp,
+  _sqlite3_strnicmp,
+  _sqlite3_uri_parameter,
+  _sqlite3_uri_boolean,
+  _sqlite3_os_end,
+  _sqlite3_serialize,
+  _sqlite3_column_int,
+  _sqlite3_file_control,
+  _sqlite3_deserialize,
+  _sqlite3_database_file_object,
+  _sqlite3_enable_shared_cache,
+  _sqlite3_backup_remaining,
+  _sqlite3_backup_pagecount,
+  _sqlite3_expired,
+  _sqlite3_value_blob,
+  _sqlite3_value_bytes16,
+  _sqlite3_value_int64,
+  _sqlite3_value_subtype,
+  _sqlite3_value_pointer,
+  _sqlite3_value_text16,
+  _sqlite3_value_text16be,
+  _sqlite3_value_text16le,
+  _sqlite3_value_nochange,
+  _sqlite3_value_frombind,
+  _sqlite3_value_dup,
+  _sqlite3_value_free,
+  _sqlite3_result_blob,
+  _sqlite3_result_error_nomem,
+  _sqlite3_result_blob64,
+  _sqlite3_result_error16,
+  _sqlite3_result_int64,
+  _sqlite3_result_pointer,
+  _sqlite3_result_subtype,
+  _sqlite3_result_text64,
+  _sqlite3_result_text16,
+  _sqlite3_result_text16be,
+  _sqlite3_result_text16le,
+  _sqlite3_result_value,
+  _sqlite3_result_zeroblob,
+  _sqlite3_result_zeroblob64,
+  _sqlite3_result_error_code,
+  _sqlite3_result_error_toobig,
+  _sqlite3_context_db_handle,
+  _sqlite3_vtab_nochange,
+  _sqlite3_vtab_in_first,
+  _sqlite3_vtab_in_next,
+  _sqlite3_get_auxdata,
+  _sqlite3_set_auxdata,
+  _sqlite3_aggregate_count,
+  _sqlite3_column_bytes16,
+  _sqlite3_column_value,
+  _sqlite3_column_text16,
+  _sqlite3_column_name16,
+  _sqlite3_column_decltype16,
+  _sqlite3_bind_blob64,
+  _sqlite3_bind_int64,
+  _sqlite3_bind_pointer,
+  _sqlite3_bind_text64,
+  _sqlite3_bind_text16,
+  _sqlite3_bind_value,
+  _sqlite3_bind_zeroblob,
+  _sqlite3_bind_zeroblob64,
+  _sqlite3_bind_parameter_name,
+  _sqlite3_transfer_bindings,
+  _sqlite3_stmt_isexplain,
+  _sqlite3_next_stmt,
+  _sqlite3_stmt_status,
+  _sqlite3_value_numeric_type,
+  _sqlite3_blob_reopen,
+  _sqlite3_strglob,
+  _sqlite3_strlike,
+  _sqlite3_auto_extension,
+  _sqlite3_cancel_auto_extension,
+  _sqlite3_reset_auto_extension,
+  _sqlite3_prepare,
+  _sqlite3_prepare_v3,
+  _sqlite3_prepare16,
+  _sqlite3_prepare16_v2,
+  _sqlite3_prepare16_v3,
+  _sqlite3_get_table,
+  _sqlite3_free_table,
+  _sqlite3_create_module,
+  _sqlite3_create_module_v2,
+  _sqlite3_drop_modules,
+  _sqlite3_declare_vtab,
+  _sqlite3_vtab_on_conflict,
+  _sqlite3_vtab_config,
+  _sqlite3_vtab_collation,
+  _sqlite3_vtab_in,
+  _sqlite3_vtab_rhs_value,
+  _sqlite3_vtab_distinct,
+  _sqlite3_keyword_name,
+  _sqlite3_keyword_count,
+  _sqlite3_keyword_check,
+  _sqlite3_complete,
+  _sqlite3_complete16,
+  _sqlite3_threadsafe,
+  _sqlite3_shutdown,
+  _sqlite3_db_mutex,
+  _sqlite3_db_release_memory,
+  _sqlite3_db_cacheflush,
+  _sqlite3_set_last_insert_rowid,
+  _sqlite3_changes64,
+  _sqlite3_total_changes64,
+  _sqlite3_total_changes,
+  _sqlite3_txn_state,
+  _sqlite3_busy_handler,
+  _sqlite3_progress_handler,
+  _sqlite3_interrupt,
+  _sqlite3_create_function_v2,
+  _sqlite3_create_window_function,
+  _sqlite3_create_function16,
+  _sqlite3_overload_function,
+  _sqlite3_trace,
+  _sqlite3_trace_v2,
+  _sqlite3_profile,
+  _sqlite3_commit_hook,
+  _sqlite3_update_hook,
+  _sqlite3_rollback_hook,
+  _sqlite3_autovacuum_pages,
+  _sqlite3_wal_autocheckpoint,
+  _sqlite3_wal_hook,
+  _sqlite3_wal_checkpoint_v2,
+  _sqlite3_wal_checkpoint,
+  _sqlite3_error_offset,
+  _sqlite3_errmsg16,
+  _sqlite3_system_errno,
+  _sqlite3_limit,
+  _sqlite3_open,
+  _sqlite3_free_filename,
+  _sqlite3_open16,
+  _sqlite3_create_collation_v2,
+  _sqlite3_create_collation16,
+  _sqlite3_collation_needed,
+  _sqlite3_collation_needed16,
+  _sqlite3_global_recover,
+  _sqlite3_thread_cleanup,
+  _sqlite3_table_column_metadata,
+  _sqlite3_sleep,
+  _sqlite3_test_control,
+  _sqlite3_create_filename,
+  _sqlite3_uri_key,
+  _sqlite3_uri_int64,
+  _sqlite3_filename_database,
+  _sqlite3_filename_journal,
+  _sqlite3_filename_wal,
+  _sqlite3_db_filename,
+  _sqlite3_db_readonly,
+  _sqlite3_compileoption_used,
+  _sqlite3_compileoption_get,
+  _sqlite3_sourceid,
   __emscripten_memcpy_bulkmem,
   _emscripten_stack_get_end,
   _emscripten_stack_get_base,
@@ -9665,14 +9947,14 @@ var _php_time,
   _basic_globals,
   _pcre_globals,
   _zend_one_char_string,
-  _file_globals,
   _core_globals,
+  _zend_empty_array,
+  _file_globals,
   _php_hashcontext_ce,
   _zend_ce_value_error,
   __libiconv_version,
   _sapi_globals,
   _php_json_serializable_ce,
-  _zend_empty_array,
   _php_json_exception_ce,
   _json_globals,
   _lexbor_hash_insert_raw,
@@ -9792,6 +10074,10 @@ var _php_time,
   _zend_observer_fcall_op_array_extension,
   _zend_error_cb,
   _zend_interrupt_function,
+  _pdo_dbh_ce,
+  _spl_ce_RuntimeException,
+  _pdo_module_entry,
+  _zend_standard_class_def,
   _random_ce_Random_RandomException,
   _php_random_algo_mt19937,
   _php_random_algo_pcgoneseq128xslrr64,
@@ -9876,7 +10162,6 @@ var _php_time,
   _spl_ce_RecursiveRegexIterator,
   _spl_ce_RecursiveTreeIterator,
   _spl_ce_RegexIterator,
-  _spl_ce_RuntimeException,
   _spl_ce_SeekableIterator,
   _spl_ce_SplDoublyLinkedList,
   _spl_ce_SplFileInfo,
@@ -9912,7 +10197,6 @@ var _php_time,
   _php_load_environment_variables,
   _php_optidx,
   _zend_tolower_map,
-  _zend_standard_class_def,
   _zend_new_interned_string,
   _php_stream_stdio_ops,
   _zend_ce_request_parse_body_exception,
@@ -10013,6 +10297,10 @@ var _php_time,
   _zend_ce_weakref,
   _zend_random_bytes,
   _zend_dtrace_enabled,
+  _sqlite3_version,
+  _sqlite3_data_directory,
+  _sqlite3_temp_directory,
+  _sqlite3one,
   wasmMemory,
   wasmTable;
 
@@ -10266,13 +10554,106 @@ function assignWasmExports(wasmExports) {
   _zend_call_function = Module['_zend_call_function'] = wasmExports['zend_call_function'];
   _OnUpdateLong = Module['_OnUpdateLong'] = wasmExports['OnUpdateLong'];
   _zend_parse_parameters = Module['_zend_parse_parameters'] = wasmExports['zend_parse_parameters'];
+  _zend_throw_exception = Module['_zend_throw_exception'] = wasmExports['zend_throw_exception'];
+  _expand_filepath = Module['_expand_filepath'] = wasmExports['expand_filepath'];
+  _php_check_open_basedir = Module['_php_check_open_basedir'] = wasmExports['php_check_open_basedir'];
+  _sqlite3_open_v2 = Module['_sqlite3_open_v2'] = wasmExports['sqlite3_open_v2'];
+  _sqlite3_errmsg = Module['_sqlite3_errmsg'] = wasmExports['sqlite3_errmsg'];
+  _sqlite3_errstr = Module['_sqlite3_errstr'] = wasmExports['sqlite3_errstr'];
+  _sqlite3_close = Module['_sqlite3_close'] = wasmExports['sqlite3_close'];
+  _sqlite3_set_authorizer = Module['_sqlite3_set_authorizer'] = wasmExports['sqlite3_set_authorizer'];
+  _sqlite3_db_config = Module['_sqlite3_db_config'] = wasmExports['sqlite3_db_config'];
+  __emalloc_160 = Module['__emalloc_160'] = wasmExports['_emalloc_160'];
+  _zend_call_known_function = Module['_zend_call_known_function'] = wasmExports['zend_call_known_function'];
+  _zend_llist_clean = Module['_zend_llist_clean'] = wasmExports['zend_llist_clean'];
+  _zend_vspprintf = Module['_zend_vspprintf'] = wasmExports['zend_vspprintf'];
+  _sqlite3_exec = Module['_sqlite3_exec'] = wasmExports['sqlite3_exec'];
+  _sqlite3_free = Module['_sqlite3_free'] = wasmExports['sqlite3_free'];
+  _sqlite3_libversion = Module['_sqlite3_libversion'] = wasmExports['sqlite3_libversion'];
+  _sqlite3_libversion_number = Module['_sqlite3_libversion_number'] = wasmExports['sqlite3_libversion_number'];
+  _sqlite3_last_insert_rowid = Module['_sqlite3_last_insert_rowid'] = wasmExports['sqlite3_last_insert_rowid'];
+  _sqlite3_errcode = Module['_sqlite3_errcode'] = wasmExports['sqlite3_errcode'];
+  _sqlite3_extended_errcode = Module['_sqlite3_extended_errcode'] = wasmExports['sqlite3_extended_errcode'];
+  _sqlite3_extended_result_codes = Module['_sqlite3_extended_result_codes'] = wasmExports['sqlite3_extended_result_codes'];
+  _sqlite3_busy_timeout = Module['_sqlite3_busy_timeout'] = wasmExports['sqlite3_busy_timeout'];
+  _zend_argument_must_not_be_empty_error = Module['_zend_argument_must_not_be_empty_error'] = wasmExports['zend_argument_must_not_be_empty_error'];
+  _tsrm_realpath = Module['_tsrm_realpath'] = wasmExports['tsrm_realpath'];
+  _sqlite3_enable_load_extension = Module['_sqlite3_enable_load_extension'] = wasmExports['sqlite3_enable_load_extension'];
+  _sqlite3_load_extension = Module['_sqlite3_load_extension'] = wasmExports['sqlite3_load_extension'];
+  _sqlite3_changes = Module['_sqlite3_changes'] = wasmExports['sqlite3_changes'];
+  _sqlite3_mprintf = Module['_sqlite3_mprintf'] = wasmExports['sqlite3_mprintf'];
+  _sqlite3_prepare_v2 = Module['_sqlite3_prepare_v2'] = wasmExports['sqlite3_prepare_v2'];
+  _zend_llist_add_element = Module['_zend_llist_add_element'] = wasmExports['zend_llist_add_element'];
+  _sqlite3_step = Module['_sqlite3_step'] = wasmExports['sqlite3_step'];
+  _sqlite3_reset = Module['_sqlite3_reset'] = wasmExports['sqlite3_reset'];
+  _sqlite3_finalize = Module['_sqlite3_finalize'] = wasmExports['sqlite3_finalize'];
+  _sqlite3_data_count = Module['_sqlite3_data_count'] = wasmExports['sqlite3_data_count'];
+  _sqlite3_column_name = Module['_sqlite3_column_name'] = wasmExports['sqlite3_column_name'];
+  _sqlite3_column_type = Module['_sqlite3_column_type'] = wasmExports['sqlite3_column_type'];
+  _sqlite3_column_int64 = Module['_sqlite3_column_int64'] = wasmExports['sqlite3_column_int64'];
+  _sqlite3_column_text = Module['_sqlite3_column_text'] = wasmExports['sqlite3_column_text'];
+  _sqlite3_column_bytes = Module['_sqlite3_column_bytes'] = wasmExports['sqlite3_column_bytes'];
+  _sqlite3_column_double = Module['_sqlite3_column_double'] = wasmExports['sqlite3_column_double'];
+  _sqlite3_column_blob = Module['_sqlite3_column_blob'] = wasmExports['sqlite3_column_blob'];
+  _sqlite3_create_function = Module['_sqlite3_create_function'] = wasmExports['sqlite3_create_function'];
+  _sqlite3_user_data = Module['_sqlite3_user_data'] = wasmExports['sqlite3_user_data'];
+  _sqlite3_aggregate_context = Module['_sqlite3_aggregate_context'] = wasmExports['sqlite3_aggregate_context'];
+  _sqlite3_create_collation = Module['_sqlite3_create_collation'] = wasmExports['sqlite3_create_collation'];
+  _sqlite3_blob_open = Module['_sqlite3_blob_open'] = wasmExports['sqlite3_blob_open'];
+  _sqlite3_blob_bytes = Module['_sqlite3_blob_bytes'] = wasmExports['sqlite3_blob_bytes'];
+  __php_stream_alloc = Module['__php_stream_alloc'] = wasmExports['_php_stream_alloc'];
+  _zend_objects_store_del = Module['_zend_objects_store_del'] = wasmExports['zend_objects_store_del'];
+  _gc_possible_root = Module['_gc_possible_root'] = wasmExports['gc_possible_root'];
+  _sqlite3_backup_init = Module['_sqlite3_backup_init'] = wasmExports['sqlite3_backup_init'];
+  _sqlite3_backup_step = Module['_sqlite3_backup_step'] = wasmExports['sqlite3_backup_step'];
+  _sqlite3_backup_finish = Module['_sqlite3_backup_finish'] = wasmExports['sqlite3_backup_finish'];
+  _sqlite3_bind_parameter_count = Module['_sqlite3_bind_parameter_count'] = wasmExports['sqlite3_bind_parameter_count'];
+  _zend_llist_del_element = Module['_zend_llist_del_element'] = wasmExports['zend_llist_del_element'];
+  _sqlite3_db_handle = Module['_sqlite3_db_handle'] = wasmExports['sqlite3_db_handle'];
+  _sqlite3_clear_bindings = Module['_sqlite3_clear_bindings'] = wasmExports['sqlite3_clear_bindings'];
+  _sqlite3_stmt_readonly = Module['_sqlite3_stmt_readonly'] = wasmExports['sqlite3_stmt_readonly'];
+  _sqlite3_stmt_busy = Module['_sqlite3_stmt_busy'] = wasmExports['sqlite3_stmt_busy'];
+  _sqlite3_expanded_sql = Module['_sqlite3_expanded_sql'] = wasmExports['sqlite3_expanded_sql'];
+  _sqlite3_sql = Module['_sqlite3_sql'] = wasmExports['sqlite3_sql'];
+  _sqlite3_bind_null = Module['_sqlite3_bind_null'] = wasmExports['sqlite3_bind_null'];
+  _convert_to_long = Module['_convert_to_long'] = wasmExports['convert_to_long'];
+  _sqlite3_bind_int = Module['_sqlite3_bind_int'] = wasmExports['sqlite3_bind_int'];
+  _convert_to_double = Module['_convert_to_double'] = wasmExports['convert_to_double'];
+  _sqlite3_bind_double = Module['_sqlite3_bind_double'] = wasmExports['sqlite3_bind_double'];
+  _php_file_le_stream = Module['_php_file_le_stream'] = wasmExports['php_file_le_stream'];
+  _php_file_le_pstream = Module['_php_file_le_pstream'] = wasmExports['php_file_le_pstream'];
+  _zend_fetch_resource2_ex = Module['_zend_fetch_resource2_ex'] = wasmExports['zend_fetch_resource2_ex'];
+  __php_stream_copy_to_mem = Module['__php_stream_copy_to_mem'] = wasmExports['_php_stream_copy_to_mem'];
+  _sqlite3_bind_blob = Module['_sqlite3_bind_blob'] = wasmExports['sqlite3_bind_blob'];
+  _sqlite3_bind_text = Module['_sqlite3_bind_text'] = wasmExports['sqlite3_bind_text'];
+  _zend_parse_arg_str_or_long_slow = Module['_zend_parse_arg_str_or_long_slow'] = wasmExports['zend_parse_arg_str_or_long_slow'];
+  _sqlite3_bind_parameter_index = Module['_sqlite3_bind_parameter_index'] = wasmExports['sqlite3_bind_parameter_index'];
+  _zend_hash_index_del = Module['_zend_hash_index_del'] = wasmExports['zend_hash_index_del'];
+  _sqlite3_column_count = Module['_sqlite3_column_count'] = wasmExports['sqlite3_column_count'];
+  __zend_handle_numeric_str_ex = Module['__zend_handle_numeric_str_ex'] = wasmExports['_zend_handle_numeric_str_ex'];
+  _zend_std_get_gc = Module['_zend_std_get_gc'] = wasmExports['zend_std_get_gc'];
+  _zend_get_gc_buffer_create = Module['_zend_get_gc_buffer_create'] = wasmExports['zend_get_gc_buffer_create'];
+  _zend_get_gc_buffer_grow = Module['_zend_get_gc_buffer_grow'] = wasmExports['zend_get_gc_buffer_grow'];
+  _zend_llist_init = Module['_zend_llist_init'] = wasmExports['zend_llist_init'];
+  _sqlite3_value_type = Module['_sqlite3_value_type'] = wasmExports['sqlite3_value_type'];
+  _sqlite3_value_int = Module['_sqlite3_value_int'] = wasmExports['sqlite3_value_int'];
+  _sqlite3_value_double = Module['_sqlite3_value_double'] = wasmExports['sqlite3_value_double'];
+  _sqlite3_value_text = Module['_sqlite3_value_text'] = wasmExports['sqlite3_value_text'];
+  _sqlite3_value_bytes = Module['_sqlite3_value_bytes'] = wasmExports['sqlite3_value_bytes'];
+  _sqlite3_result_int = Module['_sqlite3_result_int'] = wasmExports['sqlite3_result_int'];
+  _sqlite3_result_null = Module['_sqlite3_result_null'] = wasmExports['sqlite3_result_null'];
+  _sqlite3_result_double = Module['_sqlite3_result_double'] = wasmExports['sqlite3_result_double'];
+  _sqlite3_result_text = Module['_sqlite3_result_text'] = wasmExports['sqlite3_result_text'];
+  _sqlite3_result_error = Module['_sqlite3_result_error'] = wasmExports['sqlite3_result_error'];
+  _sqlite3_blob_write = Module['_sqlite3_blob_write'] = wasmExports['sqlite3_blob_write'];
+  _sqlite3_blob_read = Module['_sqlite3_blob_read'] = wasmExports['sqlite3_blob_read'];
+  _sqlite3_blob_close = Module['_sqlite3_blob_close'] = wasmExports['sqlite3_blob_close'];
+  _OnUpdateBool = Module['_OnUpdateBool'] = wasmExports['OnUpdateBool'];
+  _zend_ini_boolean_displayer_cb = Module['_zend_ini_boolean_displayer_cb'] = wasmExports['zend_ini_boolean_displayer_cb'];
   _zend_value_error = Module['_zend_value_error'] = wasmExports['zend_value_error'];
   _zend_zval_type_name = Module['_zend_zval_type_name'] = wasmExports['zend_zval_type_name'];
   _finfo_objects_new = Module['_finfo_objects_new'] = wasmExports['finfo_objects_new'];
-  _php_check_open_basedir = Module['_php_check_open_basedir'] = wasmExports['php_check_open_basedir'];
   _expand_filepath_with_mode = Module['_expand_filepath_with_mode'] = wasmExports['expand_filepath_with_mode'];
-  _zend_throw_exception = Module['_zend_throw_exception'] = wasmExports['zend_throw_exception'];
-  _zend_argument_must_not_be_empty_error = Module['_zend_argument_must_not_be_empty_error'] = wasmExports['zend_argument_must_not_be_empty_error'];
   _php_le_stream_context = Module['_php_le_stream_context'] = wasmExports['php_le_stream_context'];
   _zend_fetch_resource_ex = Module['_zend_fetch_resource_ex'] = wasmExports['zend_fetch_resource_ex'];
   _php_stream_context_alloc = Module['_php_stream_context_alloc'] = wasmExports['php_stream_context_alloc'];
@@ -10280,13 +10661,9 @@ function assignWasmExports(wasmExports) {
   __php_stream_open_wrapper_ex = Module['__php_stream_open_wrapper_ex'] = wasmExports['_php_stream_open_wrapper_ex'];
   __php_stream_stat = Module['__php_stream_stat'] = wasmExports['_php_stream_stat'];
   __php_stream_free = Module['__php_stream_free'] = wasmExports['_php_stream_free'];
-  _php_file_le_stream = Module['_php_file_le_stream'] = wasmExports['php_file_le_stream'];
-  _php_file_le_pstream = Module['_php_file_le_pstream'] = wasmExports['php_file_le_pstream'];
-  _zend_fetch_resource2_ex = Module['_zend_fetch_resource2_ex'] = wasmExports['zend_fetch_resource2_ex'];
   __php_stream_tell = Module['__php_stream_tell'] = wasmExports['_php_stream_tell'];
   __php_stream_seek = Module['__php_stream_seek'] = wasmExports['_php_stream_seek'];
   _zend_zval_value_name = Module['_zend_zval_value_name'] = wasmExports['zend_zval_value_name'];
-  __emalloc_160 = Module['__emalloc_160'] = wasmExports['_emalloc_160'];
   __php_stream_write = Module['__php_stream_write'] = wasmExports['_php_stream_write'];
   __php_stream_read = Module['__php_stream_read'] = wasmExports['_php_stream_read'];
   __emalloc_huge = Module['__emalloc_huge'] = wasmExports['_emalloc_huge'];
@@ -10295,13 +10672,11 @@ function assignWasmExports(wasmExports) {
   __php_stream_readdir = Module['__php_stream_readdir'] = wasmExports['_php_stream_readdir'];
   __php_stream_get_line = Module['__php_stream_get_line'] = wasmExports['_php_stream_get_line'];
   __emalloc_large = Module['__emalloc_large'] = wasmExports['_emalloc_large'];
-  _zend_vspprintf = Module['_zend_vspprintf'] = wasmExports['zend_vspprintf'];
   __php_stream_cast = Module['__php_stream_cast'] = wasmExports['_php_stream_cast'];
   _zend_str_tolower_dup = Module['_zend_str_tolower_dup'] = wasmExports['zend_str_tolower_dup'];
   _zend_memnstr_ex = Module['_zend_memnstr_ex'] = wasmExports['zend_memnstr_ex'];
   _zend_hash_index_find = Module['_zend_hash_index_find'] = wasmExports['zend_hash_index_find'];
   _sapi_register_input_filter = Module['_sapi_register_input_filter'] = wasmExports['sapi_register_input_filter'];
-  __zend_handle_numeric_str_ex = Module['__zend_handle_numeric_str_ex'] = wasmExports['_zend_handle_numeric_str_ex'];
   _php_register_variable_ex = Module['_php_register_variable_ex'] = wasmExports['php_register_variable_ex'];
   _zend_is_auto_global = Module['_zend_is_auto_global'] = wasmExports['zend_is_auto_global'];
   __convert_to_string = Module['__convert_to_string'] = wasmExports['_convert_to_string'];
@@ -10496,7 +10871,6 @@ function assignWasmExports(wasmExports) {
   _zend_gcvt = Module['_zend_gcvt'] = wasmExports['zend_gcvt'];
   _php_next_utf8_char = Module['_php_next_utf8_char'] = wasmExports['php_next_utf8_char'];
   _zend_get_recursion_guard = Module['_zend_get_recursion_guard'] = wasmExports['zend_get_recursion_guard'];
-  _zend_call_known_function = Module['_zend_call_known_function'] = wasmExports['zend_call_known_function'];
   _rc_dtor_func = Module['_rc_dtor_func'] = wasmExports['rc_dtor_func'];
   _zend_get_properties_for = Module['_zend_get_properties_for'] = wasmExports['zend_get_properties_for'];
   _zend_read_property_ex = Module['_zend_read_property_ex'] = wasmExports['zend_read_property_ex'];
@@ -11676,7 +12050,6 @@ function assignWasmExports(wasmExports) {
   _php_mb_safe_strrchr = Module['_php_mb_safe_strrchr'] = wasmExports['php_mb_safe_strrchr'];
   _mbfl_no_language2name = Module['_mbfl_no_language2name'] = wasmExports['mbfl_no_language2name'];
   ___zend_calloc = Module['___zend_calloc'] = wasmExports['__zend_calloc'];
-  _zend_parse_arg_str_or_long_slow = Module['_zend_parse_arg_str_or_long_slow'] = wasmExports['zend_parse_arg_str_or_long_slow'];
   _mbfl_encoding_preferred_mime_name = Module['_mbfl_encoding_preferred_mime_name'] = wasmExports['mbfl_encoding_preferred_mime_name'];
   _mb_fast_convert = Module['_mb_fast_convert'] = wasmExports['mb_fast_convert'];
   _zend_memnrstr_ex = Module['_zend_memnrstr_ex'] = wasmExports['zend_memnrstr_ex'];
@@ -11705,11 +12078,9 @@ function assignWasmExports(wasmExports) {
   _mbfl_no_encoding2name = Module['_mbfl_no_encoding2name'] = wasmExports['mbfl_no_encoding2name'];
   _php_mb_mbchar_bytes = Module['_php_mb_mbchar_bytes'] = wasmExports['php_mb_mbchar_bytes'];
   _mbfl_name2no_language = Module['_mbfl_name2no_language'] = wasmExports['mbfl_name2no_language'];
-  _OnUpdateBool = Module['_OnUpdateBool'] = wasmExports['OnUpdateBool'];
   _sapi_unregister_post_entry = Module['_sapi_unregister_post_entry'] = wasmExports['sapi_unregister_post_entry'];
   _sapi_read_standard_form_data = Module['_sapi_read_standard_form_data'] = wasmExports['sapi_read_standard_form_data'];
   _rfc1867_post_handler = Module['_rfc1867_post_handler'] = wasmExports['rfc1867_post_handler'];
-  _zend_ini_boolean_displayer_cb = Module['_zend_ini_boolean_displayer_cb'] = wasmExports['zend_ini_boolean_displayer_cb'];
   _php_std_post_handler = Module['_php_std_post_handler'] = wasmExports['php_std_post_handler'];
   _php_unicode_is_prop1 = Module['_php_unicode_is_prop1'] = wasmExports['php_unicode_is_prop1'];
   _php_unicode_is_prop = Module['_php_unicode_is_prop'] = wasmExports['php_unicode_is_prop'];
@@ -11717,7 +12088,6 @@ function assignWasmExports(wasmExports) {
   _sapi_handle_post = Module['_sapi_handle_post'] = wasmExports['sapi_handle_post'];
   _php_url_decode = Module['_php_url_decode'] = wasmExports['php_url_decode'];
   _php_register_variable_safe = Module['_php_register_variable_safe'] = wasmExports['php_register_variable_safe'];
-  __php_stream_copy_to_mem = Module['__php_stream_copy_to_mem'] = wasmExports['_php_stream_copy_to_mem'];
   _add_index_stringl = Module['_add_index_stringl'] = wasmExports['add_index_stringl'];
   _add_index_bool = Module['_add_index_bool'] = wasmExports['add_index_bool'];
   _zend_make_compiled_string_description = Module['_zend_make_compiled_string_description'] = wasmExports['zend_make_compiled_string_description'];
@@ -11759,11 +12129,9 @@ function assignWasmExports(wasmExports) {
   _mbfl_string_clear = Module['_mbfl_string_clear'] = wasmExports['mbfl_string_clear'];
   _opcache_preloading = Module['_opcache_preloading'] = wasmExports['opcache_preloading'];
   _php_glob = Module['_php_glob'] = wasmExports['php_glob'];
-  _tsrm_realpath = Module['_tsrm_realpath'] = wasmExports['tsrm_realpath'];
   _zend_dirname = Module['_zend_dirname'] = wasmExports['zend_dirname'];
   _zend_strndup = Module['_zend_strndup'] = wasmExports['zend_strndup'];
   _expand_filepath_ex = Module['_expand_filepath_ex'] = wasmExports['expand_filepath_ex'];
-  _expand_filepath = Module['_expand_filepath'] = wasmExports['expand_filepath'];
   _php_globfree = Module['_php_globfree'] = wasmExports['php_globfree'];
   __zend_bailout = Module['__zend_bailout'] = wasmExports['_zend_bailout'];
   _zend_string_hash_func = Module['_zend_string_hash_func'] = wasmExports['zend_string_hash_func'];
@@ -11810,7 +12178,6 @@ function assignWasmExports(wasmExports) {
   _gc_enable = Module['_gc_enable'] = wasmExports['gc_enable'];
   _zend_emit_recorded_errors = Module['_zend_emit_recorded_errors'] = wasmExports['zend_emit_recorded_errors'];
   _zend_free_recorded_errors = Module['_zend_free_recorded_errors'] = wasmExports['zend_free_recorded_errors'];
-  _zend_hash_index_del = Module['_zend_hash_index_del'] = wasmExports['zend_hash_index_del'];
   _zend_emit_recorded_errors_ex = Module['_zend_emit_recorded_errors_ex'] = wasmExports['zend_emit_recorded_errors_ex'];
   _zend_hash_add_empty_element = Module['_zend_hash_add_empty_element'] = wasmExports['zend_hash_add_empty_element'];
   __php_stream_stat_path = Module['__php_stream_stat_path'] = wasmExports['_php_stream_stat_path'];
@@ -11820,7 +12187,6 @@ function assignWasmExports(wasmExports) {
   _zend_map_ptr_reset = Module['_zend_map_ptr_reset'] = wasmExports['zend_map_ptr_reset'];
   _realpath_cache_clean = Module['_realpath_cache_clean'] = wasmExports['realpath_cache_clean'];
   _zend_register_extension = Module['_zend_register_extension'] = wasmExports['zend_register_extension'];
-  _zend_llist_del_element = Module['_zend_llist_del_element'] = wasmExports['zend_llist_del_element'];
   _zend_interned_strings_set_request_storage_handlers = Module['_zend_interned_strings_set_request_storage_handlers'] = wasmExports['zend_interned_strings_set_request_storage_handlers'];
   _php_child_init = Module['_php_child_init'] = wasmExports['php_child_init'];
   _zend_lookup_class_ex = Module['_zend_lookup_class_ex'] = wasmExports['zend_lookup_class_ex'];
@@ -11860,6 +12226,56 @@ function assignWasmExports(wasmExports) {
   _zend_fiber_switch_block = Module['_zend_fiber_switch_block'] = wasmExports['zend_fiber_switch_block'];
   _zend_fiber_switch_unblock = Module['_zend_fiber_switch_unblock'] = wasmExports['zend_fiber_switch_unblock'];
   _zend_sigaction = Module['_zend_sigaction'] = wasmExports['zend_sigaction'];
+  _php_pdo_get_dbh_ce = Module['_php_pdo_get_dbh_ce'] = wasmExports['php_pdo_get_dbh_ce'];
+  _php_pdo_get_exception = Module['_php_pdo_get_exception'] = wasmExports['php_pdo_get_exception'];
+  _zend_register_list_destructors_ex = Module['_zend_register_list_destructors_ex'] = wasmExports['zend_register_list_destructors_ex'];
+  _php_pdo_register_driver = Module['_php_pdo_register_driver'] = wasmExports['php_pdo_register_driver'];
+  _php_pdo_unregister_driver = Module['_php_pdo_unregister_driver'] = wasmExports['php_pdo_unregister_driver'];
+  _zend_hash_str_del = Module['_zend_hash_str_del'] = wasmExports['zend_hash_str_del'];
+  _php_pdo_register_driver_specific_ce = Module['_php_pdo_register_driver_specific_ce'] = wasmExports['php_pdo_register_driver_specific_ce'];
+  _php_pdo_parse_data_source = Module['_php_pdo_parse_data_source'] = wasmExports['php_pdo_parse_data_source'];
+  _pdo_throw_exception = Module['_pdo_throw_exception'] = wasmExports['pdo_throw_exception'];
+  _zend_update_property_long = Module['_zend_update_property_long'] = wasmExports['zend_update_property_long'];
+  _zend_update_property_str = Module['_zend_update_property_str'] = wasmExports['zend_update_property_str'];
+  _zend_throw_exception_object = Module['_zend_throw_exception_object'] = wasmExports['zend_throw_exception_object'];
+  _php_pdo_stmt_valid_db_obj_handle = Module['_php_pdo_stmt_valid_db_obj_handle'] = wasmExports['php_pdo_stmt_valid_db_obj_handle'];
+  _pdo_raise_impl_error = Module['_pdo_raise_impl_error'] = wasmExports['pdo_raise_impl_error'];
+  _zend_update_property_string = Module['_zend_update_property_string'] = wasmExports['zend_update_property_string'];
+  _pdo_handle_error = Module['_pdo_handle_error'] = wasmExports['pdo_handle_error'];
+  _php_pdo_internal_construct_driver = Module['_php_pdo_internal_construct_driver'] = wasmExports['php_pdo_internal_construct_driver'];
+  _cfg_get_string = Module['_cfg_get_string'] = wasmExports['cfg_get_string'];
+  _zend_list_close = Module['_zend_list_close'] = wasmExports['zend_list_close'];
+  ___zend_strdup = Module['___zend_strdup'] = wasmExports['__zend_strdup'];
+  _zend_register_persistent_resource = Module['_zend_register_persistent_resource'] = wasmExports['zend_register_persistent_resource'];
+  _is_numeric_str_function = Module['_is_numeric_str_function'] = wasmExports['is_numeric_str_function'];
+  _pdo_get_long_param = Module['_pdo_get_long_param'] = wasmExports['pdo_get_long_param'];
+  _pdo_get_bool_param = Module['_pdo_get_bool_param'] = wasmExports['pdo_get_bool_param'];
+  _add_next_index_null = Module['_add_next_index_null'] = wasmExports['add_next_index_null'];
+  _zend_set_function_arg_flags = Module['_zend_set_function_arg_flags'] = wasmExports['zend_set_function_arg_flags'];
+  _zend_str_tolower_copy = Module['_zend_str_tolower_copy'] = wasmExports['zend_str_tolower_copy'];
+  _pdo_dbh_new = Module['_pdo_dbh_new'] = wasmExports['pdo_dbh_new'];
+  _zend_objects_not_comparable = Module['_zend_objects_not_comparable'] = wasmExports['zend_objects_not_comparable'];
+  _zend_std_get_method = Module['_zend_std_get_method'] = wasmExports['zend_std_get_method'];
+  _zend_string_toupper_ex = Module['_zend_string_toupper_ex'] = wasmExports['zend_string_toupper_ex'];
+  _php_pdo_stmt_set_column_count = Module['_php_pdo_stmt_set_column_count'] = wasmExports['php_pdo_stmt_set_column_count'];
+  _pdo_parse_params = Module['_pdo_parse_params'] = wasmExports['pdo_parse_params'];
+  _convert_to_boolean = Module['_convert_to_boolean'] = wasmExports['convert_to_boolean'];
+  _zend_update_property_ex = Module['_zend_update_property_ex'] = wasmExports['zend_update_property_ex'];
+  _zend_parse_arg_class = Module['_zend_parse_arg_class'] = wasmExports['zend_parse_arg_class'];
+  _convert_to_null = Module['_convert_to_null'] = wasmExports['convert_to_null'];
+  __php_stream_memory_open = Module['__php_stream_memory_open'] = wasmExports['_php_stream_memory_open'];
+  _zend_argument_count_error = Module['_zend_argument_count_error'] = wasmExports['zend_argument_count_error'];
+  __php_stream_printf = Module['__php_stream_printf'] = wasmExports['_php_stream_printf'];
+  _php_pdo_free_statement = Module['_php_pdo_free_statement'] = wasmExports['php_pdo_free_statement'];
+  _zend_nan_coerced_to_type_warning = Module['_zend_nan_coerced_to_type_warning'] = wasmExports['zend_nan_coerced_to_type_warning'];
+  _zend_std_cast_object_tostring = Module['_zend_std_cast_object_tostring'] = wasmExports['zend_std_cast_object_tostring'];
+  _zend_object_is_true = Module['_zend_object_is_true'] = wasmExports['zend_object_is_true'];
+  _zend_declare_class_constant_ex = Module['_zend_declare_class_constant_ex'] = wasmExports['zend_declare_class_constant_ex'];
+  _sqlite3_close_v2 = Module['_sqlite3_close_v2'] = wasmExports['sqlite3_close_v2'];
+  _sqlite3_snprintf = Module['_sqlite3_snprintf'] = wasmExports['sqlite3_snprintf'];
+  _zend_i64_to_str = Module['_zend_i64_to_str'] = wasmExports['zend_i64_to_str'];
+  _sqlite3_get_autocommit = Module['_sqlite3_get_autocommit'] = wasmExports['sqlite3_get_autocommit'];
+  _sqlite3_column_decltype = Module['_sqlite3_column_decltype'] = wasmExports['sqlite3_column_decltype'];
   _php_random_bytes_ex = Module['_php_random_bytes_ex'] = wasmExports['php_random_bytes_ex'];
   _php_random_bytes = Module['_php_random_bytes'] = wasmExports['php_random_bytes'];
   _php_random_int = Module['_php_random_int'] = wasmExports['php_random_int'];
@@ -11897,8 +12313,6 @@ function assignWasmExports(wasmExports) {
   _php_mt_rand = Module['_php_mt_rand'] = wasmExports['php_mt_rand'];
   _php_mt_rand_range = Module['_php_mt_rand_range'] = wasmExports['php_mt_rand_range'];
   _php_mt_rand_common = Module['_php_mt_rand_common'] = wasmExports['php_mt_rand_common'];
-  _zend_objects_store_del = Module['_zend_objects_store_del'] = wasmExports['zend_objects_store_del'];
-  _gc_possible_root = Module['_gc_possible_root'] = wasmExports['gc_possible_root'];
   _php_array_data_shuffle = Module['_php_array_data_shuffle'] = wasmExports['php_array_data_shuffle'];
   _php_binary_string_shuffle = Module['_php_binary_string_shuffle'] = wasmExports['php_binary_string_shuffle'];
   _php_array_pick_keys = Module['_php_array_pick_keys'] = wasmExports['php_array_pick_keys'];
@@ -11906,7 +12320,6 @@ function assignWasmExports(wasmExports) {
   _php_random_bytes_insecure_for_zend = Module['_php_random_bytes_insecure_for_zend'] = wasmExports['php_random_bytes_insecure_for_zend'];
   _zend_reflection_class_factory = Module['_zend_reflection_class_factory'] = wasmExports['zend_reflection_class_factory'];
   _zend_get_closure_method_def = Module['_zend_get_closure_method_def'] = wasmExports['zend_get_closure_method_def'];
-  _zend_str_tolower_copy = Module['_zend_str_tolower_copy'] = wasmExports['zend_str_tolower_copy'];
   _zend_fetch_function = Module['_zend_fetch_function'] = wasmExports['zend_fetch_function'];
   _smart_str_append_printf = Module['_smart_str_append_printf'] = wasmExports['smart_str_append_printf'];
   _zend_type_to_string = Module['_zend_type_to_string'] = wasmExports['zend_type_to_string'];
@@ -11960,7 +12373,6 @@ function assignWasmExports(wasmExports) {
   _zend_illegal_container_offset = Module['_zend_illegal_container_offset'] = wasmExports['zend_illegal_container_offset'];
   _zend_hash_update_ind = Module['_zend_hash_update_ind'] = wasmExports['zend_hash_update_ind'];
   _zend_hash_iterator_del = Module['_zend_hash_iterator_del'] = wasmExports['zend_hash_iterator_del'];
-  _zend_parse_arg_class = Module['_zend_parse_arg_class'] = wasmExports['zend_parse_arg_class'];
   _php_var_serialize_init = Module['_php_var_serialize_init'] = wasmExports['php_var_serialize_init'];
   _php_var_serialize = Module['_php_var_serialize'] = wasmExports['php_var_serialize'];
   _php_var_serialize_destroy = Module['_php_var_serialize_destroy'] = wasmExports['php_var_serialize_destroy'];
@@ -12003,10 +12415,7 @@ function assignWasmExports(wasmExports) {
   __php_stream_set_option = Module['__php_stream_set_option'] = wasmExports['_php_stream_set_option'];
   __php_stream_truncate_set_size = Module['__php_stream_truncate_set_size'] = wasmExports['_php_stream_truncate_set_size'];
   _zend_objects_destroy_object = Module['_zend_objects_destroy_object'] = wasmExports['zend_objects_destroy_object'];
-  _zend_std_get_method = Module['_zend_std_get_method'] = wasmExports['zend_std_get_method'];
   _var_push_dtor = Module['_var_push_dtor'] = wasmExports['var_push_dtor'];
-  _zend_get_gc_buffer_create = Module['_zend_get_gc_buffer_create'] = wasmExports['zend_get_gc_buffer_create'];
-  _zend_get_gc_buffer_grow = Module['_zend_get_gc_buffer_grow'] = wasmExports['zend_get_gc_buffer_grow'];
   __safe_erealloc = Module['__safe_erealloc'] = wasmExports['_safe_erealloc'];
   _zend_compare = Module['_zend_compare'] = wasmExports['zend_compare'];
   _zend_user_it_invalidate_current = Module['_zend_user_it_invalidate_current'] = wasmExports['zend_user_it_invalidate_current'];
@@ -12024,9 +12433,6 @@ function assignWasmExports(wasmExports) {
   _zend_std_read_dimension = Module['_zend_std_read_dimension'] = wasmExports['zend_std_read_dimension'];
   _zend_std_write_dimension = Module['_zend_std_write_dimension'] = wasmExports['zend_std_write_dimension'];
   _zend_std_has_dimension = Module['_zend_std_has_dimension'] = wasmExports['zend_std_has_dimension'];
-  _zend_nan_coerced_to_type_warning = Module['_zend_nan_coerced_to_type_warning'] = wasmExports['zend_nan_coerced_to_type_warning'];
-  _zend_std_cast_object_tostring = Module['_zend_std_cast_object_tostring'] = wasmExports['zend_std_cast_object_tostring'];
-  _zend_object_is_true = Module['_zend_object_is_true'] = wasmExports['zend_object_is_true'];
   _zend_std_unset_dimension = Module['_zend_std_unset_dimension'] = wasmExports['zend_std_unset_dimension'];
   _zend_hash_index_lookup = Module['_zend_hash_index_lookup'] = wasmExports['zend_hash_index_lookup'];
   _zend_sort = Module['_zend_sort'] = wasmExports['zend_sort'];
@@ -12045,7 +12451,6 @@ function assignWasmExports(wasmExports) {
   _zend_parse_arg_number_or_str_slow = Module['_zend_parse_arg_number_or_str_slow'] = wasmExports['zend_parse_arg_number_or_str_slow'];
   __php_math_round = Module['__php_math_round'] = wasmExports['_php_math_round'];
   _get_active_function_arg_name = Module['_get_active_function_arg_name'] = wasmExports['get_active_function_arg_name'];
-  _is_numeric_str_function = Module['_is_numeric_str_function'] = wasmExports['is_numeric_str_function'];
   _zend_hash_to_packed = Module['_zend_hash_to_packed'] = wasmExports['zend_hash_to_packed'];
   _zend_hash_iterators_lower_pos = Module['_zend_hash_iterators_lower_pos'] = wasmExports['zend_hash_iterators_lower_pos'];
   __zend_hash_iterators_update = Module['__zend_hash_iterators_update'] = wasmExports['_zend_hash_iterators_update'];
@@ -12053,12 +12458,10 @@ function assignWasmExports(wasmExports) {
   _zend_hash_iterators_advance = Module['_zend_hash_iterators_advance'] = wasmExports['zend_hash_iterators_advance'];
   _convert_to_array = Module['_convert_to_array'] = wasmExports['convert_to_array'];
   _php_array_merge_recursive = Module['_php_array_merge_recursive'] = wasmExports['php_array_merge_recursive'];
-  _add_next_index_null = Module['_add_next_index_null'] = wasmExports['add_next_index_null'];
   _zend_cannot_add_element = Module['_zend_cannot_add_element'] = wasmExports['zend_cannot_add_element'];
   _php_array_merge = Module['_php_array_merge'] = wasmExports['php_array_merge'];
   _php_array_replace_recursive = Module['_php_array_replace_recursive'] = wasmExports['php_array_replace_recursive'];
   _zend_hash_merge = Module['_zend_hash_merge'] = wasmExports['zend_hash_merge'];
-  _zend_string_toupper_ex = Module['_zend_string_toupper_ex'] = wasmExports['zend_string_toupper_ex'];
   _zend_hash_bucket_swap = Module['_zend_hash_bucket_swap'] = wasmExports['zend_hash_bucket_swap'];
   _php_multisort_compare = Module['_php_multisort_compare'] = wasmExports['php_multisort_compare'];
   _add_function = Module['_add_function'] = wasmExports['add_function'];
@@ -12101,7 +12504,6 @@ function assignWasmExports(wasmExports) {
   _append_user_shutdown_function = Module['_append_user_shutdown_function'] = wasmExports['append_user_shutdown_function'];
   _register_user_shutdown_function = Module['_register_user_shutdown_function'] = wasmExports['register_user_shutdown_function'];
   _remove_user_shutdown_function = Module['_remove_user_shutdown_function'] = wasmExports['remove_user_shutdown_function'];
-  _zend_hash_str_del = Module['_zend_hash_str_del'] = wasmExports['zend_hash_str_del'];
   _php_get_highlight_struct = Module['_php_get_highlight_struct'] = wasmExports['php_get_highlight_struct'];
   _zend_ini_string_ex = Module['_zend_ini_string_ex'] = wasmExports['zend_ini_string_ex'];
   _php_output_start_default = Module['_php_output_start_default'] = wasmExports['php_output_start_default'];
@@ -12123,8 +12525,6 @@ function assignWasmExports(wasmExports) {
   _zend_print_zval_r_to_str = Module['_zend_print_zval_r_to_str'] = wasmExports['zend_print_zval_r_to_str'];
   _ntohs = wasmExports['ntohs'];
   _htons = wasmExports['htons'];
-  _zend_llist_init = Module['_zend_llist_init'] = wasmExports['zend_llist_init'];
-  _zend_llist_add_element = Module['_zend_llist_add_element'] = wasmExports['zend_llist_add_element'];
   _zend_llist_apply = Module['_zend_llist_apply'] = wasmExports['zend_llist_apply'];
   _php_copy_file_ex = Module['_php_copy_file_ex'] = wasmExports['php_copy_file_ex'];
   _zend_parse_ini_file = Module['_zend_parse_ini_file'] = wasmExports['zend_parse_ini_file'];
@@ -12153,9 +12553,7 @@ function assignWasmExports(wasmExports) {
   _php_crypt = Module['_php_crypt'] = wasmExports['php_crypt'];
   __emalloc_128 = Module['__emalloc_128'] = wasmExports['_emalloc_128'];
   _php_info_print_css = Module['_php_info_print_css'] = wasmExports['php_info_print_css'];
-  _zend_objects_not_comparable = Module['_zend_objects_not_comparable'] = wasmExports['zend_objects_not_comparable'];
   _zend_list_delete = Module['_zend_list_delete'] = wasmExports['zend_list_delete'];
-  _zend_list_close = Module['_zend_list_close'] = wasmExports['zend_list_close'];
   _php_clear_stat_cache = Module['_php_clear_stat_cache'] = wasmExports['php_clear_stat_cache'];
   _php_check_open_basedir_ex = Module['_php_check_open_basedir_ex'] = wasmExports['php_check_open_basedir_ex'];
   _php_stream_dirent_alphasortr = Module['_php_stream_dirent_alphasortr'] = wasmExports['php_stream_dirent_alphasortr'];
@@ -12171,7 +12569,6 @@ function assignWasmExports(wasmExports) {
   _php_exec = Module['_php_exec'] = wasmExports['php_exec'];
   __php_stream_fopen_from_pipe = Module['__php_stream_fopen_from_pipe'] = wasmExports['_php_stream_fopen_from_pipe'];
   _php_escape_shell_arg = Module['_php_escape_shell_arg'] = wasmExports['php_escape_shell_arg'];
-  _zend_register_list_destructors_ex = Module['_zend_register_list_destructors_ex'] = wasmExports['zend_register_list_destructors_ex'];
   _php_stream_context_free = Module['_php_stream_context_free'] = wasmExports['php_stream_context_free'];
   __php_stream_copy_to_stream_ex = Module['__php_stream_copy_to_stream_ex'] = wasmExports['_php_stream_copy_to_stream_ex'];
   _php_stream_locate_eol = Module['_php_stream_locate_eol'] = wasmExports['php_stream_locate_eol'];
@@ -12193,16 +12590,13 @@ function assignWasmExports(wasmExports) {
   _realpath_cache_max_buckets = Module['_realpath_cache_max_buckets'] = wasmExports['realpath_cache_max_buckets'];
   _php_stream_bucket_make_writeable = Module['_php_stream_bucket_make_writeable'] = wasmExports['php_stream_bucket_make_writeable'];
   _php_strtr = Module['_php_strtr'] = wasmExports['php_strtr'];
-  ___zend_strdup = Module['___zend_strdup'] = wasmExports['__zend_strdup'];
   _php_flock = Module['_php_flock'] = wasmExports['php_flock'];
   _php_conv_fp = Module['_php_conv_fp'] = wasmExports['php_conv_fp'];
-  _zend_argument_count_error = Module['_zend_argument_count_error'] = wasmExports['zend_argument_count_error'];
   __php_stream_xport_create = Module['__php_stream_xport_create'] = wasmExports['_php_stream_xport_create'];
   _zend_try_assign_typed_ref_str = Module['_zend_try_assign_typed_ref_str'] = wasmExports['zend_try_assign_typed_ref_str'];
   _zend_try_assign_typed_ref_empty_string = Module['_zend_try_assign_typed_ref_empty_string'] = wasmExports['zend_try_assign_typed_ref_empty_string'];
   _php_stream_wrapper_log_error = Module['_php_stream_wrapper_log_error'] = wasmExports['php_stream_wrapper_log_error'];
   _php_stream_context_get_option = Module['_php_stream_context_get_option'] = wasmExports['php_stream_context_get_option'];
-  __php_stream_printf = Module['__php_stream_printf'] = wasmExports['_php_stream_printf'];
   _php_stream_notification_notify = Module['_php_stream_notification_notify'] = wasmExports['php_stream_notification_notify'];
   _php_stream_context_set = Module['_php_stream_context_set'] = wasmExports['php_stream_context_set'];
   _php_stream_xport_crypto_setup = Module['_php_stream_xport_crypto_setup'] = wasmExports['php_stream_xport_crypto_setup'];
@@ -12210,7 +12604,6 @@ function assignWasmExports(wasmExports) {
   _php_stream_context_get_uri_parser = Module['_php_stream_context_get_uri_parser'] = wasmExports['php_stream_context_get_uri_parser'];
   _php_raw_url_decode = Module['_php_raw_url_decode'] = wasmExports['php_raw_url_decode'];
   __php_stream_sock_open_host = Module['__php_stream_sock_open_host'] = wasmExports['_php_stream_sock_open_host'];
-  __php_stream_alloc = Module['__php_stream_alloc'] = wasmExports['_php_stream_alloc'];
   _sapi_header_op = Module['_sapi_header_op'] = wasmExports['sapi_header_op'];
   _php_header = Module['_php_header'] = wasmExports['php_header'];
   _sapi_send_headers = Module['_sapi_send_headers'] = wasmExports['sapi_send_headers'];
@@ -12236,7 +12629,6 @@ function assignWasmExports(wasmExports) {
   _php_is_image_avif = Module['_php_is_image_avif'] = wasmExports['php_is_image_avif'];
   _php_image_type_to_mime_type = Module['_php_image_type_to_mime_type'] = wasmExports['php_image_type_to_mime_type'];
   _php_getimagetype = Module['_php_getimagetype'] = wasmExports['php_getimagetype'];
-  __php_stream_memory_open = Module['__php_stream_memory_open'] = wasmExports['_php_stream_memory_open'];
   _php_image_register_handler = Module['_php_image_register_handler'] = wasmExports['php_image_register_handler'];
   _php_image_unregister_handler = Module['_php_image_unregister_handler'] = wasmExports['php_image_unregister_handler'];
   _zend_objects_new = Module['_zend_objects_new'] = wasmExports['zend_objects_new'];
@@ -12295,7 +12687,6 @@ function assignWasmExports(wasmExports) {
   _zend_register_resource = Module['_zend_register_resource'] = wasmExports['zend_register_resource'];
   _php_quot_print_encode = Module['_php_quot_print_encode'] = wasmExports['php_quot_print_encode'];
   _ValidateFormat = Module['_ValidateFormat'] = wasmExports['ValidateFormat'];
-  _convert_to_null = Module['_convert_to_null'] = wasmExports['convert_to_null'];
   _zend_try_assign_typed_ref_stringl = Module['_zend_try_assign_typed_ref_stringl'] = wasmExports['zend_try_assign_typed_ref_stringl'];
   _zend_try_assign_typed_ref_double = Module['_zend_try_assign_typed_ref_double'] = wasmExports['zend_try_assign_typed_ref_double'];
   _make_sha1_digest = Module['_make_sha1_digest'] = wasmExports['make_sha1_digest'];
@@ -12344,10 +12735,7 @@ function assignWasmExports(wasmExports) {
   _php_syslog_str = Module['_php_syslog_str'] = wasmExports['php_syslog_str'];
   _zend_zval_get_legacy_type = Module['_zend_zval_get_legacy_type'] = wasmExports['zend_zval_get_legacy_type'];
   _zend_rsrc_list_get_rsrc_type = Module['_zend_rsrc_list_get_rsrc_type'] = wasmExports['zend_rsrc_list_get_rsrc_type'];
-  _convert_to_long = Module['_convert_to_long'] = wasmExports['convert_to_long'];
-  _convert_to_double = Module['_convert_to_double'] = wasmExports['convert_to_double'];
   _convert_to_object = Module['_convert_to_object'] = wasmExports['convert_to_object'];
-  _convert_to_boolean = Module['_convert_to_boolean'] = wasmExports['convert_to_boolean'];
   _zend_try_assign_typed_ref = Module['_zend_try_assign_typed_ref'] = wasmExports['zend_try_assign_typed_ref'];
   _zend_is_countable = Module['_zend_is_countable'] = wasmExports['zend_is_countable'];
   _php_url_scanner_adapt_single_url = Module['_php_url_scanner_adapt_single_url'] = wasmExports['php_url_scanner_adapt_single_url'];
@@ -12365,7 +12753,6 @@ function assignWasmExports(wasmExports) {
   _php_url_decode_ex = Module['_php_url_decode_ex'] = wasmExports['php_url_decode_ex'];
   _php_raw_url_decode_ex = Module['_php_raw_url_decode_ex'] = wasmExports['php_raw_url_decode_ex'];
   _zend_update_property_stringl = Module['_zend_update_property_stringl'] = wasmExports['zend_update_property_stringl'];
-  _zend_update_property_long = Module['_zend_update_property_long'] = wasmExports['zend_update_property_long'];
   _php_stream_bucket_prepend = Module['_php_stream_bucket_prepend'] = wasmExports['php_stream_bucket_prepend'];
   _php_stream_filter_register_factory_volatile = Module['_php_stream_filter_register_factory_volatile'] = wasmExports['php_stream_filter_register_factory_volatile'];
   _add_property_string_ex = Module['_add_property_string_ex'] = wasmExports['add_property_string_ex'];
@@ -12414,13 +12801,10 @@ function assignWasmExports(wasmExports) {
   _php_uri_free = Module['_php_uri_free'] = wasmExports['php_uri_free'];
   _php_uri_instantiate_uri = Module['_php_uri_instantiate_uri'] = wasmExports['php_uri_instantiate_uri'];
   _zend_update_exception_properties = Module['_zend_update_exception_properties'] = wasmExports['zend_update_exception_properties'];
-  _zend_update_property_str = Module['_zend_update_property_str'] = wasmExports['zend_update_property_str'];
-  _zend_update_property_ex = Module['_zend_update_property_ex'] = wasmExports['zend_update_property_ex'];
   _php_uri_object_create = Module['_php_uri_object_create'] = wasmExports['php_uri_object_create'];
   _php_uri_object_handler_free = Module['_php_uri_object_handler_free'] = wasmExports['php_uri_object_handler_free'];
   _php_uri_object_handler_clone = Module['_php_uri_object_handler_clone'] = wasmExports['php_uri_object_handler_clone'];
   _php_uri_parser_register = Module['_php_uri_parser_register'] = wasmExports['php_uri_parser_register'];
-  _zend_update_property_string = Module['_zend_update_property_string'] = wasmExports['zend_update_property_string'];
   _zend_enum_get_case_cstr = Module['_zend_enum_get_case_cstr'] = wasmExports['zend_enum_get_case_cstr'];
   _virtual_file_ex = Module['_virtual_file_ex'] = wasmExports['virtual_file_ex'];
   _OnUpdateBaseDir = Module['_OnUpdateBaseDir'] = wasmExports['OnUpdateBaseDir'];
@@ -12573,7 +12957,6 @@ function assignWasmExports(wasmExports) {
   _php_ini_has_per_host_config = Module['_php_ini_has_per_host_config'] = wasmExports['php_ini_has_per_host_config'];
   _php_ini_activate_per_host_config = Module['_php_ini_activate_per_host_config'] = wasmExports['php_ini_activate_per_host_config'];
   _cfg_get_double = Module['_cfg_get_double'] = wasmExports['cfg_get_double'];
-  _cfg_get_string = Module['_cfg_get_string'] = wasmExports['cfg_get_string'];
   _php_ini_get_configuration_hash = Module['_php_ini_get_configuration_hash'] = wasmExports['php_ini_get_configuration_hash'];
   _php_odbc_connstr_is_quoted = Module['_php_odbc_connstr_is_quoted'] = wasmExports['php_odbc_connstr_is_quoted'];
   _php_odbc_connstr_should_quote = Module['_php_odbc_connstr_should_quote'] = wasmExports['php_odbc_connstr_should_quote'];
@@ -12581,7 +12964,6 @@ function assignWasmExports(wasmExports) {
   _php_odbc_connstr_quote = Module['_php_odbc_connstr_quote'] = wasmExports['php_odbc_connstr_quote'];
   _php_open_temporary_fd = Module['_php_open_temporary_fd'] = wasmExports['php_open_temporary_fd'];
   _php_open_temporary_file = Module['_php_open_temporary_file'] = wasmExports['php_open_temporary_file'];
-  _zend_llist_clean = Module['_zend_llist_clean'] = wasmExports['zend_llist_clean'];
   _php_remove_tick_function = Module['_php_remove_tick_function'] = wasmExports['php_remove_tick_function'];
   _php_register_variable = Module['_php_register_variable'] = wasmExports['php_register_variable'];
   _zend_hash_str_update_ind = Module['_zend_hash_str_update_ind'] = wasmExports['zend_hash_str_update_ind'];
@@ -12635,7 +13017,6 @@ function assignWasmExports(wasmExports) {
   __php_stream_fopen = Module['__php_stream_fopen'] = wasmExports['_php_stream_fopen'];
   _php_stream_from_persistent_id = Module['_php_stream_from_persistent_id'] = wasmExports['php_stream_from_persistent_id'];
   __php_stream_fopen_with_path = Module['__php_stream_fopen_with_path'] = wasmExports['_php_stream_fopen_with_path'];
-  _zend_register_persistent_resource = Module['_zend_register_persistent_resource'] = wasmExports['zend_register_persistent_resource'];
   __php_stream_fill_read_buffer = Module['__php_stream_fill_read_buffer'] = wasmExports['_php_stream_fill_read_buffer'];
   __php_stream_putc = Module['__php_stream_putc'] = wasmExports['_php_stream_putc'];
   __php_stream_puts = Module['__php_stream_puts'] = wasmExports['_php_stream_puts'];
@@ -12815,7 +13196,6 @@ function assignWasmExports(wasmExports) {
   _zend_destroy_modules = Module['_zend_destroy_modules'] = wasmExports['zend_destroy_modules'];
   _zend_hash_graceful_reverse_destroy = Module['_zend_hash_graceful_reverse_destroy'] = wasmExports['zend_hash_graceful_reverse_destroy'];
   _zend_next_free_module = Module['_zend_next_free_module'] = wasmExports['zend_next_free_module'];
-  _zend_set_function_arg_flags = Module['_zend_set_function_arg_flags'] = wasmExports['zend_set_function_arg_flags'];
   _zend_unregister_functions = Module['_zend_unregister_functions'] = wasmExports['zend_unregister_functions'];
   _zend_check_magic_method_implementation = Module['_zend_check_magic_method_implementation'] = wasmExports['zend_check_magic_method_implementation'];
   _zend_add_magic_method = Module['_zend_add_magic_method'] = wasmExports['zend_add_magic_method'];
@@ -12855,7 +13235,6 @@ function assignWasmExports(wasmExports) {
   _zend_declare_property_double = Module['_zend_declare_property_double'] = wasmExports['zend_declare_property_double'];
   _zend_declare_property_string = Module['_zend_declare_property_string'] = wasmExports['zend_declare_property_string'];
   _zend_declare_property_stringl = Module['_zend_declare_property_stringl'] = wasmExports['zend_declare_property_stringl'];
-  _zend_declare_class_constant_ex = Module['_zend_declare_class_constant_ex'] = wasmExports['zend_declare_class_constant_ex'];
   _zend_declare_class_constant = Module['_zend_declare_class_constant'] = wasmExports['zend_declare_class_constant'];
   _zend_declare_class_constant_null = Module['_zend_declare_class_constant_null'] = wasmExports['zend_declare_class_constant_null'];
   _zend_declare_class_constant_long = Module['_zend_declare_class_constant_long'] = wasmExports['zend_declare_class_constant_long'];
@@ -12995,7 +13374,6 @@ function assignWasmExports(wasmExports) {
   _zend_is_graceful_exit = Module['_zend_is_graceful_exit'] = wasmExports['zend_is_graceful_exit'];
   _zend_exception_save = Module['_zend_exception_save'] = wasmExports['zend_exception_save'];
   __zend_observer_error_notify = Module['__zend_observer_error_notify'] = wasmExports['_zend_observer_error_notify'];
-  _zend_throw_exception_object = Module['_zend_throw_exception_object'] = wasmExports['zend_throw_exception_object'];
   _zend_create_unwind_exit = Module['_zend_create_unwind_exit'] = wasmExports['zend_create_unwind_exit'];
   _zend_create_graceful_exit = Module['_zend_create_graceful_exit'] = wasmExports['zend_create_graceful_exit'];
   _zend_throw_graceful_exit = Module['_zend_throw_graceful_exit'] = wasmExports['zend_throw_graceful_exit'];
@@ -13196,7 +13574,6 @@ function assignWasmExports(wasmExports) {
   _zend_multibyte_parse_encoding_list = Module['_zend_multibyte_parse_encoding_list'] = wasmExports['zend_multibyte_parse_encoding_list'];
   _zend_multibyte_get_script_encoding = Module['_zend_multibyte_get_script_encoding'] = wasmExports['zend_multibyte_get_script_encoding'];
   _zend_multibyte_set_script_encoding = Module['_zend_multibyte_set_script_encoding'] = wasmExports['zend_multibyte_set_script_encoding'];
-  _zend_std_get_gc = Module['_zend_std_get_gc'] = wasmExports['zend_std_get_gc'];
   _zend_std_get_debug_info = Module['_zend_std_get_debug_info'] = wasmExports['zend_std_get_debug_info'];
   _zend_get_property_guard = Module['_zend_get_property_guard'] = wasmExports['zend_get_property_guard'];
   _zend_std_get_closure = Module['_zend_std_get_closure'] = wasmExports['zend_std_get_closure'];
@@ -13238,7 +13615,6 @@ function assignWasmExports(wasmExports) {
   _zend_compare_objects = Module['_zend_compare_objects'] = wasmExports['zend_compare_objects'];
   _zend_ulong_to_str = Module['_zend_ulong_to_str'] = wasmExports['zend_ulong_to_str'];
   _zend_u64_to_str = Module['_zend_u64_to_str'] = wasmExports['zend_u64_to_str'];
-  _zend_i64_to_str = Module['_zend_i64_to_str'] = wasmExports['zend_i64_to_str'];
   _zend_ptr_stack_init_ex = Module['_zend_ptr_stack_init_ex'] = wasmExports['zend_ptr_stack_init_ex'];
   _zend_ptr_stack_n_push = Module['_zend_ptr_stack_n_push'] = wasmExports['zend_ptr_stack_n_push'];
   _zend_ptr_stack_n_pop = Module['_zend_ptr_stack_n_pop'] = wasmExports['zend_ptr_stack_n_pop'];
@@ -13295,6 +13671,193 @@ function assignWasmExports(wasmExports) {
   _libiconvctl = Module['_libiconvctl'] = wasmExports['libiconvctl'];
   _libiconvlist = Module['_libiconvlist'] = wasmExports['libiconvlist'];
   _iconv_canonicalize = Module['_iconv_canonicalize'] = wasmExports['iconv_canonicalize'];
+  _sqlite3_status64 = Module['_sqlite3_status64'] = wasmExports['sqlite3_status64'];
+  _sqlite3_log = Module['_sqlite3_log'] = wasmExports['sqlite3_log'];
+  _sqlite3_status = Module['_sqlite3_status'] = wasmExports['sqlite3_status'];
+  _sqlite3_db_status = Module['_sqlite3_db_status'] = wasmExports['sqlite3_db_status'];
+  _sqlite3_msize = Module['_sqlite3_msize'] = wasmExports['sqlite3_msize'];
+  _sqlite3_vfs_find = Module['_sqlite3_vfs_find'] = wasmExports['sqlite3_vfs_find'];
+  _sqlite3_initialize = Module['_sqlite3_initialize'] = wasmExports['sqlite3_initialize'];
+  _sqlite3_config = Module['_sqlite3_config'] = wasmExports['sqlite3_config'];
+  _sqlite3_os_init = Module['_sqlite3_os_init'] = wasmExports['sqlite3_os_init'];
+  _sqlite3_vfs_register = Module['_sqlite3_vfs_register'] = wasmExports['sqlite3_vfs_register'];
+  _sqlite3_vfs_unregister = Module['_sqlite3_vfs_unregister'] = wasmExports['sqlite3_vfs_unregister'];
+  _sqlite3_release_memory = Module['_sqlite3_release_memory'] = wasmExports['sqlite3_release_memory'];
+  _sqlite3_memory_alarm = Module['_sqlite3_memory_alarm'] = wasmExports['sqlite3_memory_alarm'];
+  _sqlite3_soft_heap_limit64 = Module['_sqlite3_soft_heap_limit64'] = wasmExports['sqlite3_soft_heap_limit64'];
+  _sqlite3_memory_used = Module['_sqlite3_memory_used'] = wasmExports['sqlite3_memory_used'];
+  _sqlite3_soft_heap_limit = Module['_sqlite3_soft_heap_limit'] = wasmExports['sqlite3_soft_heap_limit'];
+  _sqlite3_hard_heap_limit64 = Module['_sqlite3_hard_heap_limit64'] = wasmExports['sqlite3_hard_heap_limit64'];
+  _sqlite3_memory_highwater = Module['_sqlite3_memory_highwater'] = wasmExports['sqlite3_memory_highwater'];
+  _sqlite3_malloc = Module['_sqlite3_malloc'] = wasmExports['sqlite3_malloc'];
+  _sqlite3_malloc64 = Module['_sqlite3_malloc64'] = wasmExports['sqlite3_malloc64'];
+  _sqlite3_realloc = Module['_sqlite3_realloc'] = wasmExports['sqlite3_realloc'];
+  _sqlite3_realloc64 = Module['_sqlite3_realloc64'] = wasmExports['sqlite3_realloc64'];
+  _sqlite3_str_vappendf = Module['_sqlite3_str_vappendf'] = wasmExports['sqlite3_str_vappendf'];
+  _sqlite3_str_append = Module['_sqlite3_str_append'] = wasmExports['sqlite3_str_append'];
+  _sqlite3_str_appendf = Module['_sqlite3_str_appendf'] = wasmExports['sqlite3_str_appendf'];
+  _sqlite3_str_appendchar = Module['_sqlite3_str_appendchar'] = wasmExports['sqlite3_str_appendchar'];
+  _sqlite3_str_reset = Module['_sqlite3_str_reset'] = wasmExports['sqlite3_str_reset'];
+  _sqlite3_str_appendall = Module['_sqlite3_str_appendall'] = wasmExports['sqlite3_str_appendall'];
+  _sqlite3_str_finish = Module['_sqlite3_str_finish'] = wasmExports['sqlite3_str_finish'];
+  _sqlite3_str_errcode = Module['_sqlite3_str_errcode'] = wasmExports['sqlite3_str_errcode'];
+  _sqlite3_str_length = Module['_sqlite3_str_length'] = wasmExports['sqlite3_str_length'];
+  _sqlite3_str_value = Module['_sqlite3_str_value'] = wasmExports['sqlite3_str_value'];
+  _sqlite3_str_new = Module['_sqlite3_str_new'] = wasmExports['sqlite3_str_new'];
+  _sqlite3_vmprintf = Module['_sqlite3_vmprintf'] = wasmExports['sqlite3_vmprintf'];
+  _sqlite3_vsnprintf = Module['_sqlite3_vsnprintf'] = wasmExports['sqlite3_vsnprintf'];
+  _sqlite3_randomness = Module['_sqlite3_randomness'] = wasmExports['sqlite3_randomness'];
+  _sqlite3_stricmp = Module['_sqlite3_stricmp'] = wasmExports['sqlite3_stricmp'];
+  _sqlite3_strnicmp = Module['_sqlite3_strnicmp'] = wasmExports['sqlite3_strnicmp'];
+  _sqlite3_uri_parameter = Module['_sqlite3_uri_parameter'] = wasmExports['sqlite3_uri_parameter'];
+  _sqlite3_uri_boolean = Module['_sqlite3_uri_boolean'] = wasmExports['sqlite3_uri_boolean'];
+  _sqlite3_os_end = Module['_sqlite3_os_end'] = wasmExports['sqlite3_os_end'];
+  _sqlite3_serialize = Module['_sqlite3_serialize'] = wasmExports['sqlite3_serialize'];
+  _sqlite3_column_int = Module['_sqlite3_column_int'] = wasmExports['sqlite3_column_int'];
+  _sqlite3_file_control = Module['_sqlite3_file_control'] = wasmExports['sqlite3_file_control'];
+  _sqlite3_deserialize = Module['_sqlite3_deserialize'] = wasmExports['sqlite3_deserialize'];
+  _sqlite3_database_file_object = Module['_sqlite3_database_file_object'] = wasmExports['sqlite3_database_file_object'];
+  _sqlite3_enable_shared_cache = Module['_sqlite3_enable_shared_cache'] = wasmExports['sqlite3_enable_shared_cache'];
+  _sqlite3_backup_remaining = Module['_sqlite3_backup_remaining'] = wasmExports['sqlite3_backup_remaining'];
+  _sqlite3_backup_pagecount = Module['_sqlite3_backup_pagecount'] = wasmExports['sqlite3_backup_pagecount'];
+  _sqlite3_expired = Module['_sqlite3_expired'] = wasmExports['sqlite3_expired'];
+  _sqlite3_value_blob = Module['_sqlite3_value_blob'] = wasmExports['sqlite3_value_blob'];
+  _sqlite3_value_bytes16 = Module['_sqlite3_value_bytes16'] = wasmExports['sqlite3_value_bytes16'];
+  _sqlite3_value_int64 = Module['_sqlite3_value_int64'] = wasmExports['sqlite3_value_int64'];
+  _sqlite3_value_subtype = Module['_sqlite3_value_subtype'] = wasmExports['sqlite3_value_subtype'];
+  _sqlite3_value_pointer = Module['_sqlite3_value_pointer'] = wasmExports['sqlite3_value_pointer'];
+  _sqlite3_value_text16 = Module['_sqlite3_value_text16'] = wasmExports['sqlite3_value_text16'];
+  _sqlite3_value_text16be = Module['_sqlite3_value_text16be'] = wasmExports['sqlite3_value_text16be'];
+  _sqlite3_value_text16le = Module['_sqlite3_value_text16le'] = wasmExports['sqlite3_value_text16le'];
+  _sqlite3_value_nochange = Module['_sqlite3_value_nochange'] = wasmExports['sqlite3_value_nochange'];
+  _sqlite3_value_frombind = Module['_sqlite3_value_frombind'] = wasmExports['sqlite3_value_frombind'];
+  _sqlite3_value_dup = Module['_sqlite3_value_dup'] = wasmExports['sqlite3_value_dup'];
+  _sqlite3_value_free = Module['_sqlite3_value_free'] = wasmExports['sqlite3_value_free'];
+  _sqlite3_result_blob = Module['_sqlite3_result_blob'] = wasmExports['sqlite3_result_blob'];
+  _sqlite3_result_error_nomem = Module['_sqlite3_result_error_nomem'] = wasmExports['sqlite3_result_error_nomem'];
+  _sqlite3_result_blob64 = Module['_sqlite3_result_blob64'] = wasmExports['sqlite3_result_blob64'];
+  _sqlite3_result_error16 = Module['_sqlite3_result_error16'] = wasmExports['sqlite3_result_error16'];
+  _sqlite3_result_int64 = Module['_sqlite3_result_int64'] = wasmExports['sqlite3_result_int64'];
+  _sqlite3_result_pointer = Module['_sqlite3_result_pointer'] = wasmExports['sqlite3_result_pointer'];
+  _sqlite3_result_subtype = Module['_sqlite3_result_subtype'] = wasmExports['sqlite3_result_subtype'];
+  _sqlite3_result_text64 = Module['_sqlite3_result_text64'] = wasmExports['sqlite3_result_text64'];
+  _sqlite3_result_text16 = Module['_sqlite3_result_text16'] = wasmExports['sqlite3_result_text16'];
+  _sqlite3_result_text16be = Module['_sqlite3_result_text16be'] = wasmExports['sqlite3_result_text16be'];
+  _sqlite3_result_text16le = Module['_sqlite3_result_text16le'] = wasmExports['sqlite3_result_text16le'];
+  _sqlite3_result_value = Module['_sqlite3_result_value'] = wasmExports['sqlite3_result_value'];
+  _sqlite3_result_zeroblob = Module['_sqlite3_result_zeroblob'] = wasmExports['sqlite3_result_zeroblob'];
+  _sqlite3_result_zeroblob64 = Module['_sqlite3_result_zeroblob64'] = wasmExports['sqlite3_result_zeroblob64'];
+  _sqlite3_result_error_code = Module['_sqlite3_result_error_code'] = wasmExports['sqlite3_result_error_code'];
+  _sqlite3_result_error_toobig = Module['_sqlite3_result_error_toobig'] = wasmExports['sqlite3_result_error_toobig'];
+  _sqlite3_context_db_handle = Module['_sqlite3_context_db_handle'] = wasmExports['sqlite3_context_db_handle'];
+  _sqlite3_vtab_nochange = Module['_sqlite3_vtab_nochange'] = wasmExports['sqlite3_vtab_nochange'];
+  _sqlite3_vtab_in_first = Module['_sqlite3_vtab_in_first'] = wasmExports['sqlite3_vtab_in_first'];
+  _sqlite3_vtab_in_next = Module['_sqlite3_vtab_in_next'] = wasmExports['sqlite3_vtab_in_next'];
+  _sqlite3_get_auxdata = Module['_sqlite3_get_auxdata'] = wasmExports['sqlite3_get_auxdata'];
+  _sqlite3_set_auxdata = Module['_sqlite3_set_auxdata'] = wasmExports['sqlite3_set_auxdata'];
+  _sqlite3_aggregate_count = Module['_sqlite3_aggregate_count'] = wasmExports['sqlite3_aggregate_count'];
+  _sqlite3_column_bytes16 = Module['_sqlite3_column_bytes16'] = wasmExports['sqlite3_column_bytes16'];
+  _sqlite3_column_value = Module['_sqlite3_column_value'] = wasmExports['sqlite3_column_value'];
+  _sqlite3_column_text16 = Module['_sqlite3_column_text16'] = wasmExports['sqlite3_column_text16'];
+  _sqlite3_column_name16 = Module['_sqlite3_column_name16'] = wasmExports['sqlite3_column_name16'];
+  _sqlite3_column_decltype16 = Module['_sqlite3_column_decltype16'] = wasmExports['sqlite3_column_decltype16'];
+  _sqlite3_bind_blob64 = Module['_sqlite3_bind_blob64'] = wasmExports['sqlite3_bind_blob64'];
+  _sqlite3_bind_int64 = Module['_sqlite3_bind_int64'] = wasmExports['sqlite3_bind_int64'];
+  _sqlite3_bind_pointer = Module['_sqlite3_bind_pointer'] = wasmExports['sqlite3_bind_pointer'];
+  _sqlite3_bind_text64 = Module['_sqlite3_bind_text64'] = wasmExports['sqlite3_bind_text64'];
+  _sqlite3_bind_text16 = Module['_sqlite3_bind_text16'] = wasmExports['sqlite3_bind_text16'];
+  _sqlite3_bind_value = Module['_sqlite3_bind_value'] = wasmExports['sqlite3_bind_value'];
+  _sqlite3_bind_zeroblob = Module['_sqlite3_bind_zeroblob'] = wasmExports['sqlite3_bind_zeroblob'];
+  _sqlite3_bind_zeroblob64 = Module['_sqlite3_bind_zeroblob64'] = wasmExports['sqlite3_bind_zeroblob64'];
+  _sqlite3_bind_parameter_name = Module['_sqlite3_bind_parameter_name'] = wasmExports['sqlite3_bind_parameter_name'];
+  _sqlite3_transfer_bindings = Module['_sqlite3_transfer_bindings'] = wasmExports['sqlite3_transfer_bindings'];
+  _sqlite3_stmt_isexplain = Module['_sqlite3_stmt_isexplain'] = wasmExports['sqlite3_stmt_isexplain'];
+  _sqlite3_next_stmt = Module['_sqlite3_next_stmt'] = wasmExports['sqlite3_next_stmt'];
+  _sqlite3_stmt_status = Module['_sqlite3_stmt_status'] = wasmExports['sqlite3_stmt_status'];
+  _sqlite3_value_numeric_type = Module['_sqlite3_value_numeric_type'] = wasmExports['sqlite3_value_numeric_type'];
+  _sqlite3_blob_reopen = Module['_sqlite3_blob_reopen'] = wasmExports['sqlite3_blob_reopen'];
+  _sqlite3_strglob = Module['_sqlite3_strglob'] = wasmExports['sqlite3_strglob'];
+  _sqlite3_strlike = Module['_sqlite3_strlike'] = wasmExports['sqlite3_strlike'];
+  _sqlite3_auto_extension = Module['_sqlite3_auto_extension'] = wasmExports['sqlite3_auto_extension'];
+  _sqlite3_cancel_auto_extension = Module['_sqlite3_cancel_auto_extension'] = wasmExports['sqlite3_cancel_auto_extension'];
+  _sqlite3_reset_auto_extension = Module['_sqlite3_reset_auto_extension'] = wasmExports['sqlite3_reset_auto_extension'];
+  _sqlite3_prepare = Module['_sqlite3_prepare'] = wasmExports['sqlite3_prepare'];
+  _sqlite3_prepare_v3 = Module['_sqlite3_prepare_v3'] = wasmExports['sqlite3_prepare_v3'];
+  _sqlite3_prepare16 = Module['_sqlite3_prepare16'] = wasmExports['sqlite3_prepare16'];
+  _sqlite3_prepare16_v2 = Module['_sqlite3_prepare16_v2'] = wasmExports['sqlite3_prepare16_v2'];
+  _sqlite3_prepare16_v3 = Module['_sqlite3_prepare16_v3'] = wasmExports['sqlite3_prepare16_v3'];
+  _sqlite3_get_table = Module['_sqlite3_get_table'] = wasmExports['sqlite3_get_table'];
+  _sqlite3_free_table = Module['_sqlite3_free_table'] = wasmExports['sqlite3_free_table'];
+  _sqlite3_create_module = Module['_sqlite3_create_module'] = wasmExports['sqlite3_create_module'];
+  _sqlite3_create_module_v2 = Module['_sqlite3_create_module_v2'] = wasmExports['sqlite3_create_module_v2'];
+  _sqlite3_drop_modules = Module['_sqlite3_drop_modules'] = wasmExports['sqlite3_drop_modules'];
+  _sqlite3_declare_vtab = Module['_sqlite3_declare_vtab'] = wasmExports['sqlite3_declare_vtab'];
+  _sqlite3_vtab_on_conflict = Module['_sqlite3_vtab_on_conflict'] = wasmExports['sqlite3_vtab_on_conflict'];
+  _sqlite3_vtab_config = Module['_sqlite3_vtab_config'] = wasmExports['sqlite3_vtab_config'];
+  _sqlite3_vtab_collation = Module['_sqlite3_vtab_collation'] = wasmExports['sqlite3_vtab_collation'];
+  _sqlite3_vtab_in = Module['_sqlite3_vtab_in'] = wasmExports['sqlite3_vtab_in'];
+  _sqlite3_vtab_rhs_value = Module['_sqlite3_vtab_rhs_value'] = wasmExports['sqlite3_vtab_rhs_value'];
+  _sqlite3_vtab_distinct = Module['_sqlite3_vtab_distinct'] = wasmExports['sqlite3_vtab_distinct'];
+  _sqlite3_keyword_name = Module['_sqlite3_keyword_name'] = wasmExports['sqlite3_keyword_name'];
+  _sqlite3_keyword_count = Module['_sqlite3_keyword_count'] = wasmExports['sqlite3_keyword_count'];
+  _sqlite3_keyword_check = Module['_sqlite3_keyword_check'] = wasmExports['sqlite3_keyword_check'];
+  _sqlite3_complete = Module['_sqlite3_complete'] = wasmExports['sqlite3_complete'];
+  _sqlite3_complete16 = Module['_sqlite3_complete16'] = wasmExports['sqlite3_complete16'];
+  _sqlite3_threadsafe = Module['_sqlite3_threadsafe'] = wasmExports['sqlite3_threadsafe'];
+  _sqlite3_shutdown = Module['_sqlite3_shutdown'] = wasmExports['sqlite3_shutdown'];
+  _sqlite3_db_mutex = Module['_sqlite3_db_mutex'] = wasmExports['sqlite3_db_mutex'];
+  _sqlite3_db_release_memory = Module['_sqlite3_db_release_memory'] = wasmExports['sqlite3_db_release_memory'];
+  _sqlite3_db_cacheflush = Module['_sqlite3_db_cacheflush'] = wasmExports['sqlite3_db_cacheflush'];
+  _sqlite3_set_last_insert_rowid = Module['_sqlite3_set_last_insert_rowid'] = wasmExports['sqlite3_set_last_insert_rowid'];
+  _sqlite3_changes64 = Module['_sqlite3_changes64'] = wasmExports['sqlite3_changes64'];
+  _sqlite3_total_changes64 = Module['_sqlite3_total_changes64'] = wasmExports['sqlite3_total_changes64'];
+  _sqlite3_total_changes = Module['_sqlite3_total_changes'] = wasmExports['sqlite3_total_changes'];
+  _sqlite3_txn_state = Module['_sqlite3_txn_state'] = wasmExports['sqlite3_txn_state'];
+  _sqlite3_busy_handler = Module['_sqlite3_busy_handler'] = wasmExports['sqlite3_busy_handler'];
+  _sqlite3_progress_handler = Module['_sqlite3_progress_handler'] = wasmExports['sqlite3_progress_handler'];
+  _sqlite3_interrupt = Module['_sqlite3_interrupt'] = wasmExports['sqlite3_interrupt'];
+  _sqlite3_create_function_v2 = Module['_sqlite3_create_function_v2'] = wasmExports['sqlite3_create_function_v2'];
+  _sqlite3_create_window_function = Module['_sqlite3_create_window_function'] = wasmExports['sqlite3_create_window_function'];
+  _sqlite3_create_function16 = Module['_sqlite3_create_function16'] = wasmExports['sqlite3_create_function16'];
+  _sqlite3_overload_function = Module['_sqlite3_overload_function'] = wasmExports['sqlite3_overload_function'];
+  _sqlite3_trace = Module['_sqlite3_trace'] = wasmExports['sqlite3_trace'];
+  _sqlite3_trace_v2 = Module['_sqlite3_trace_v2'] = wasmExports['sqlite3_trace_v2'];
+  _sqlite3_profile = Module['_sqlite3_profile'] = wasmExports['sqlite3_profile'];
+  _sqlite3_commit_hook = Module['_sqlite3_commit_hook'] = wasmExports['sqlite3_commit_hook'];
+  _sqlite3_update_hook = Module['_sqlite3_update_hook'] = wasmExports['sqlite3_update_hook'];
+  _sqlite3_rollback_hook = Module['_sqlite3_rollback_hook'] = wasmExports['sqlite3_rollback_hook'];
+  _sqlite3_autovacuum_pages = Module['_sqlite3_autovacuum_pages'] = wasmExports['sqlite3_autovacuum_pages'];
+  _sqlite3_wal_autocheckpoint = Module['_sqlite3_wal_autocheckpoint'] = wasmExports['sqlite3_wal_autocheckpoint'];
+  _sqlite3_wal_hook = Module['_sqlite3_wal_hook'] = wasmExports['sqlite3_wal_hook'];
+  _sqlite3_wal_checkpoint_v2 = Module['_sqlite3_wal_checkpoint_v2'] = wasmExports['sqlite3_wal_checkpoint_v2'];
+  _sqlite3_wal_checkpoint = Module['_sqlite3_wal_checkpoint'] = wasmExports['sqlite3_wal_checkpoint'];
+  _sqlite3_error_offset = Module['_sqlite3_error_offset'] = wasmExports['sqlite3_error_offset'];
+  _sqlite3_errmsg16 = Module['_sqlite3_errmsg16'] = wasmExports['sqlite3_errmsg16'];
+  _sqlite3_system_errno = Module['_sqlite3_system_errno'] = wasmExports['sqlite3_system_errno'];
+  _sqlite3_limit = Module['_sqlite3_limit'] = wasmExports['sqlite3_limit'];
+  _sqlite3_open = Module['_sqlite3_open'] = wasmExports['sqlite3_open'];
+  _sqlite3_free_filename = Module['_sqlite3_free_filename'] = wasmExports['sqlite3_free_filename'];
+  _sqlite3_open16 = Module['_sqlite3_open16'] = wasmExports['sqlite3_open16'];
+  _sqlite3_create_collation_v2 = Module['_sqlite3_create_collation_v2'] = wasmExports['sqlite3_create_collation_v2'];
+  _sqlite3_create_collation16 = Module['_sqlite3_create_collation16'] = wasmExports['sqlite3_create_collation16'];
+  _sqlite3_collation_needed = Module['_sqlite3_collation_needed'] = wasmExports['sqlite3_collation_needed'];
+  _sqlite3_collation_needed16 = Module['_sqlite3_collation_needed16'] = wasmExports['sqlite3_collation_needed16'];
+  _sqlite3_global_recover = Module['_sqlite3_global_recover'] = wasmExports['sqlite3_global_recover'];
+  _sqlite3_thread_cleanup = Module['_sqlite3_thread_cleanup'] = wasmExports['sqlite3_thread_cleanup'];
+  _sqlite3_table_column_metadata = Module['_sqlite3_table_column_metadata'] = wasmExports['sqlite3_table_column_metadata'];
+  _sqlite3_sleep = Module['_sqlite3_sleep'] = wasmExports['sqlite3_sleep'];
+  _sqlite3_test_control = Module['_sqlite3_test_control'] = wasmExports['sqlite3_test_control'];
+  _sqlite3_create_filename = Module['_sqlite3_create_filename'] = wasmExports['sqlite3_create_filename'];
+  _sqlite3_uri_key = Module['_sqlite3_uri_key'] = wasmExports['sqlite3_uri_key'];
+  _sqlite3_uri_int64 = Module['_sqlite3_uri_int64'] = wasmExports['sqlite3_uri_int64'];
+  _sqlite3_filename_database = Module['_sqlite3_filename_database'] = wasmExports['sqlite3_filename_database'];
+  _sqlite3_filename_journal = Module['_sqlite3_filename_journal'] = wasmExports['sqlite3_filename_journal'];
+  _sqlite3_filename_wal = Module['_sqlite3_filename_wal'] = wasmExports['sqlite3_filename_wal'];
+  _sqlite3_db_filename = Module['_sqlite3_db_filename'] = wasmExports['sqlite3_db_filename'];
+  _sqlite3_db_readonly = Module['_sqlite3_db_readonly'] = wasmExports['sqlite3_db_readonly'];
+  _sqlite3_compileoption_used = Module['_sqlite3_compileoption_used'] = wasmExports['sqlite3_compileoption_used'];
+  _sqlite3_compileoption_get = Module['_sqlite3_compileoption_get'] = wasmExports['sqlite3_compileoption_get'];
+  _sqlite3_sourceid = Module['_sqlite3_sourceid'] = wasmExports['sqlite3_sourceid'];
   __emscripten_memcpy_bulkmem = Module['__emscripten_memcpy_bulkmem'] = wasmExports['_emscripten_memcpy_bulkmem'];
   _emscripten_stack_get_end = Module['_emscripten_stack_get_end'] = wasmExports['emscripten_stack_get_end'];
   _emscripten_stack_get_base = Module['_emscripten_stack_get_base'] = wasmExports['emscripten_stack_get_base'];
@@ -13326,14 +13889,14 @@ function assignWasmExports(wasmExports) {
   _basic_globals = Module['_basic_globals'] = wasmExports['basic_globals'].value;
   _pcre_globals = Module['_pcre_globals'] = wasmExports['pcre_globals'].value;
   _zend_one_char_string = Module['_zend_one_char_string'] = wasmExports['zend_one_char_string'].value;
-  _file_globals = Module['_file_globals'] = wasmExports['file_globals'].value;
   _core_globals = Module['_core_globals'] = wasmExports['core_globals'].value;
+  _zend_empty_array = Module['_zend_empty_array'] = wasmExports['zend_empty_array'].value;
+  _file_globals = Module['_file_globals'] = wasmExports['file_globals'].value;
   _php_hashcontext_ce = Module['_php_hashcontext_ce'] = wasmExports['php_hashcontext_ce'].value;
   _zend_ce_value_error = Module['_zend_ce_value_error'] = wasmExports['zend_ce_value_error'].value;
   __libiconv_version = Module['__libiconv_version'] = wasmExports['_libiconv_version'].value;
   _sapi_globals = Module['_sapi_globals'] = wasmExports['sapi_globals'].value;
   _php_json_serializable_ce = Module['_php_json_serializable_ce'] = wasmExports['php_json_serializable_ce'].value;
-  _zend_empty_array = Module['_zend_empty_array'] = wasmExports['zend_empty_array'].value;
   _php_json_exception_ce = Module['_php_json_exception_ce'] = wasmExports['php_json_exception_ce'].value;
   _json_globals = Module['_json_globals'] = wasmExports['json_globals'].value;
   _lexbor_hash_insert_raw = Module['_lexbor_hash_insert_raw'] = wasmExports['lexbor_hash_insert_raw'].value;
@@ -13453,6 +14016,10 @@ function assignWasmExports(wasmExports) {
   _zend_observer_fcall_op_array_extension = Module['_zend_observer_fcall_op_array_extension'] = wasmExports['zend_observer_fcall_op_array_extension'].value;
   _zend_error_cb = Module['_zend_error_cb'] = wasmExports['zend_error_cb'].value;
   _zend_interrupt_function = Module['_zend_interrupt_function'] = wasmExports['zend_interrupt_function'].value;
+  _pdo_dbh_ce = Module['_pdo_dbh_ce'] = wasmExports['pdo_dbh_ce'].value;
+  _spl_ce_RuntimeException = Module['_spl_ce_RuntimeException'] = wasmExports['spl_ce_RuntimeException'].value;
+  _pdo_module_entry = Module['_pdo_module_entry'] = wasmExports['pdo_module_entry'].value;
+  _zend_standard_class_def = Module['_zend_standard_class_def'] = wasmExports['zend_standard_class_def'].value;
   _random_ce_Random_RandomException = Module['_random_ce_Random_RandomException'] = wasmExports['random_ce_Random_RandomException'].value;
   _php_random_algo_mt19937 = Module['_php_random_algo_mt19937'] = wasmExports['php_random_algo_mt19937'].value;
   _php_random_algo_pcgoneseq128xslrr64 = Module['_php_random_algo_pcgoneseq128xslrr64'] = wasmExports['php_random_algo_pcgoneseq128xslrr64'].value;
@@ -13537,7 +14104,6 @@ function assignWasmExports(wasmExports) {
   _spl_ce_RecursiveRegexIterator = Module['_spl_ce_RecursiveRegexIterator'] = wasmExports['spl_ce_RecursiveRegexIterator'].value;
   _spl_ce_RecursiveTreeIterator = Module['_spl_ce_RecursiveTreeIterator'] = wasmExports['spl_ce_RecursiveTreeIterator'].value;
   _spl_ce_RegexIterator = Module['_spl_ce_RegexIterator'] = wasmExports['spl_ce_RegexIterator'].value;
-  _spl_ce_RuntimeException = Module['_spl_ce_RuntimeException'] = wasmExports['spl_ce_RuntimeException'].value;
   _spl_ce_SeekableIterator = Module['_spl_ce_SeekableIterator'] = wasmExports['spl_ce_SeekableIterator'].value;
   _spl_ce_SplDoublyLinkedList = Module['_spl_ce_SplDoublyLinkedList'] = wasmExports['spl_ce_SplDoublyLinkedList'].value;
   _spl_ce_SplFileInfo = Module['_spl_ce_SplFileInfo'] = wasmExports['spl_ce_SplFileInfo'].value;
@@ -13573,7 +14139,6 @@ function assignWasmExports(wasmExports) {
   _php_load_environment_variables = Module['_php_load_environment_variables'] = wasmExports['php_load_environment_variables'].value;
   _php_optidx = Module['_php_optidx'] = wasmExports['php_optidx'].value;
   _zend_tolower_map = Module['_zend_tolower_map'] = wasmExports['zend_tolower_map'].value;
-  _zend_standard_class_def = Module['_zend_standard_class_def'] = wasmExports['zend_standard_class_def'].value;
   _zend_new_interned_string = Module['_zend_new_interned_string'] = wasmExports['zend_new_interned_string'].value;
   _php_stream_stdio_ops = Module['_php_stream_stdio_ops'] = wasmExports['php_stream_stdio_ops'].value;
   _zend_ce_request_parse_body_exception = Module['_zend_ce_request_parse_body_exception'] = wasmExports['zend_ce_request_parse_body_exception'].value;
@@ -13674,6 +14239,10 @@ function assignWasmExports(wasmExports) {
   _zend_ce_weakref = Module['_zend_ce_weakref'] = wasmExports['zend_ce_weakref'].value;
   _zend_random_bytes = Module['_zend_random_bytes'] = wasmExports['zend_random_bytes'].value;
   _zend_dtrace_enabled = Module['_zend_dtrace_enabled'] = wasmExports['zend_dtrace_enabled'].value;
+  _sqlite3_version = Module['_sqlite3_version'] = wasmExports['sqlite3_version'].value;
+  _sqlite3_data_directory = Module['_sqlite3_data_directory'] = wasmExports['sqlite3_data_directory'].value;
+  _sqlite3_temp_directory = Module['_sqlite3_temp_directory'] = wasmExports['sqlite3_temp_directory'].value;
+  _sqlite3one = Module['_sqlite3one'] = wasmExports['sqlite3one'].value;
 }
 
 var wasmImports = {
@@ -13697,6 +14266,8 @@ var wasmImports = {
   __syscall_faccessat: ___syscall_faccessat,
   /** @export */
   __syscall_fchmod: ___syscall_fchmod,
+  /** @export */
+  __syscall_fchown32: ___syscall_fchown32,
   /** @export */
   __syscall_fchownat: ___syscall_fchownat,
   /** @export */
