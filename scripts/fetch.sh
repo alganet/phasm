@@ -8,7 +8,8 @@ set -euo pipefail
 
 source "$(dirname "$0")/env.sh"
 
-mkdir -p "${ROOT_DIR}/sources"
+# Ensure sources directory exists (fetch.sh is responsible for downloads)
+mkdir -p "${SOURCES_DIR}"
 
 if [[ ! -d "${PHP_SRC_DIR}/.git" ]]; then
 	git clone --depth 1 https://github.com/php/php-src.git "${PHP_SRC_DIR}"
@@ -98,4 +99,35 @@ fetch_and_extract "libzip-${LIBZIP_VERSION}.tar.xz" "${SOURCES_DIR}/libzip-${LIB
 
 # libiconv
 fetch_and_extract "libiconv-${LIBICONV_VERSION}.tar.gz" "${SOURCES_DIR}/libiconv-${LIBICONV_VERSION}" "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-${LIBICONV_VERSION}.tar.gz"
+
+# sqlite amalgamation (zip)
+SQLITE_ZIP="sqlite-amalgamation-${SQLITE_AMALG_VERSION}.zip"
+SQLITE_URLS=(
+    "https://www.sqlite.org/${SQLITE_AMALG_YEAR}/${SQLITE_ZIP}"
+)
+if [[ ! -d "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" ]]; then
+    echo "Fetching ${SQLITE_ZIP} into ${SOURCES_DIR}..."
+    if [[ ! -f "${SOURCES_DIR}/${SQLITE_ZIP}" ]]; then
+        success=0
+        for url in "${SQLITE_URLS[@]}"; do
+            echo "  trying ${url}..."
+            if wget -O "${SOURCES_DIR}/${SQLITE_ZIP}" "${url}" >/dev/null 2>&1; then
+                if [[ -s "${SOURCES_DIR}/${SQLITE_ZIP}" ]]; then
+                    success=1
+                    break
+                fi
+            fi
+        done
+        if [[ ${success} -ne 1 ]]; then
+            echo "Failed to download ${SQLITE_ZIP}" >&2
+            exit 1
+        fi
+    fi
+    echo "Extracting ${SQLITE_ZIP} into ${SOURCES_DIR}..."
+    mkdir -p "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}"
+    unzip -q "${SOURCES_DIR}/${SQLITE_ZIP}" -d "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" || true
+    if [[ -d "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" ]]; then
+        mv "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}"/* "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}/" || true
+    fi
+fi
 

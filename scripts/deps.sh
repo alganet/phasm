@@ -20,43 +20,31 @@ fi
 SRC_DIR="${SOURCES_DIR}"
 SYSROOT_DIR="${BUILD_DIR}/sysroot"
 LIBZIP_TAR="libzip-${LIBZIP_VERSION}.tar.xz"
-LIBZIP_URL="https://libzip.org/download/${LIBZIP_TAR}"
 
 mkdir -p "${SRC_DIR}" "${SYSROOT_DIR}"
 pushd "${SRC_DIR}" >/dev/null
 
-if [[ ! -f "${LIBZIP_TAR}" ]]; then
-    echo "Downloading libzip ${LIBZIP_VERSION} into ${SRC_DIR}..."
-    if ! command -v wget >/dev/null 2>&1; then
-        echo "wget not found. Install wget or change this script to use curl." >&2
+# libzip source should be prepared by ./scripts/fetch.sh
+if [[ ! -d "${SRC_DIR}/libzip-${LIBZIP_VERSION}" ]]; then
+    if [[ -f "${SRC_DIR}/${LIBZIP_TAR}" ]]; then
+        echo "Extracting libzip into ${SRC_DIR}..."
+        tar -xf "${SRC_DIR}/${LIBZIP_TAR}" -C "${SRC_DIR}"
+    else
+        echo "libzip source not found in ${SRC_DIR}. Run ./scripts/fetch.sh to download sources." >&2
         exit 1
     fi
-    wget "${LIBZIP_URL}"
-fi
-
-if [[ ! -d "libzip-${LIBZIP_VERSION}" ]]; then
-    echo "Extracting libzip into ${SRC_DIR}..."
-    tar -xf "${LIBZIP_TAR}"
 fi
 
 # Ensure zlib (WASM) is available in sysroot since libzip requires it
-ZLIB_VERSION="1.2.11"
 ZLIB_TAR="zlib-${ZLIB_VERSION}.tar.gz"
-ZLIB_URL="https://zlib.net/fossils/${ZLIB_TAR}"
-if [[ ! -f "${SRC_DIR}/${ZLIB_TAR}" ]] || [[ ! -s "${SRC_DIR}/${ZLIB_TAR}" ]]; then
-    echo "Downloading zlib ${ZLIB_VERSION} into ${SRC_DIR}..."
-    wget -O "${SRC_DIR}/${ZLIB_TAR}" "${ZLIB_URL}" || true
-    # If file is empty/invalid, try GitHub tag tarball
-    if [[ ! -s "${SRC_DIR}/${ZLIB_TAR}" ]]; then
-        echo "Primary zlib URL failed; trying GitHub release tarball..."
-        GITHUB_URL="https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz"
-        wget -O "${SRC_DIR}/${ZLIB_TAR}" "${GITHUB_URL}"
-        # GitHub tarball may have a different top-level dir name when extracted
-    fi
-fi
 if [[ ! -d "${SRC_DIR}/zlib-${ZLIB_VERSION}" ]]; then
-    echo "Extracting zlib into ${SRC_DIR}..."
-    tar -xf "${SRC_DIR}/${ZLIB_TAR}" -C "${SRC_DIR}"
+    if [[ -f "${SRC_DIR}/${ZLIB_TAR}" && -s "${SRC_DIR}/${ZLIB_TAR}" ]]; then
+        echo "Extracting zlib into ${SRC_DIR}..."
+        tar -xf "${SRC_DIR}/${ZLIB_TAR}" -C "${SRC_DIR}"
+    else
+        echo "zlib source not found in ${SRC_DIR}. Run ./scripts/fetch.sh to download sources." >&2
+        exit 1
+    fi
 fi
 if [[ ! -f "${SYSROOT_DIR}/lib/libz.a" ]]; then
     echo "Building zlib for WASM..."
@@ -85,14 +73,14 @@ fi
 
 # libiconv (GNU libiconv)
 LIBICONV_TAR="libiconv-${LIBICONV_VERSION}.tar.gz"
-LIBICONV_URL="https://ftp.gnu.org/pub/gnu/libiconv/${LIBICONV_TAR}"
-if [[ ! -f "${SRC_DIR}/${LIBICONV_TAR}" ]]; then
-    echo "Downloading libiconv ${LIBICONV_VERSION} into ${SRC_DIR}..."
-    wget -O "${SRC_DIR}/${LIBICONV_TAR}" "${LIBICONV_URL}"
-fi
 if [[ ! -d "${SRC_DIR}/libiconv-${LIBICONV_VERSION}" ]]; then
-    echo "Extracting libiconv into ${SRC_DIR}..."
-    tar -xf "${SRC_DIR}/${LIBICONV_TAR}" -C "${SRC_DIR}"
+    if [[ -f "${SRC_DIR}/${LIBICONV_TAR}" ]]; then
+        echo "Extracting libiconv into ${SRC_DIR}..."
+        tar -xf "${SRC_DIR}/${LIBICONV_TAR}" -C "${SRC_DIR}"
+    else
+        echo "libiconv source not found in ${SRC_DIR}. Run ./scripts/fetch.sh to download sources." >&2
+        exit 1
+    fi
 fi
 if [[ ! -f "${SYSROOT_DIR}/lib/libiconv.a" ]]; then
     echo "Building libiconv for WASM..."
@@ -137,6 +125,47 @@ if [[ -d "${SRC_DIR}/oniguruma" && ! -f "${SYSROOT_DIR}/lib/libonig.a" ]]; then
         emmake make -j"$(nproc)" || true
         emmake make install || true
     fi
+    popd >/dev/null
+fi
+
+# SQLite (build amalgamation into sysroot so PHP --with-sqlite3 / --with-pdo-sqlite work)
+SQLITE_ZIP="sqlite-amalgamation-${SQLITE_AMALG_VERSION}.zip"
+if [[ ! -d "${SRC_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" ]]; then
+    if [[ -f "${SRC_DIR}/${SQLITE_ZIP}" ]]; then
+        echo "Extracting SQLite amalgamation into ${SRC_DIR}..."
+        mkdir -p "${SRC_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}"
+        unzip -q "${SRC_DIR}/${SQLITE_ZIP}" -d "${SRC_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" || true
+        # unzip may create a nested directory; normalize by moving files if needed
+        if [[ -d "${SRC_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" ]]; then
+            mv "${SRC_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}"/* "${SRC_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}/" || true
+        fi
+    else
+        echo "sqlite-amalgamation-${SQLITE_AMALG_VERSION} not found in ${SRC_DIR}. Run ./scripts/fetch.sh to download sources." >&2
+        exit 1
+    fi
+fi
+
+# Build a tiny static libsqlite3.a for WASM and install into sysroot
+if [[ ! -f "${SYSROOT_DIR}/lib/libsqlite3.a" ]]; then
+    echo "Building sqlite3 (amalgamation) for WASM..."
+    pushd "${SRC_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" >/dev/null
+
+    # Compile the amalgamation into an object and archive into static lib
+    emcc -c sqlite3.c -Os -fPIC -DSQLITE_CORE -DSQLITE_THREADSAFE=0 -o sqlite3.o || true
+    if command -v emar >/dev/null 2>&1; then
+        emar rcs libsqlite3.a sqlite3.o || true
+    else
+        ar rcs libsqlite3.a sqlite3.o || true
+    fi
+
+    mkdir -p "${SYSROOT_DIR}/lib" "${SYSROOT_DIR}/include"
+    if [[ -f libsqlite3.a ]]; then
+        cp libsqlite3.a "${SYSROOT_DIR}/lib/"
+    fi
+    if [[ -f sqlite3.h ]]; then
+        cp sqlite3.h "${SYSROOT_DIR}/include/"
+    fi
+
     popd >/dev/null
 fi
 

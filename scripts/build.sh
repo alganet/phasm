@@ -44,6 +44,9 @@ export ICONV_LIBS="-L${BUILD_DIR}/sysroot/lib -liconv"
 # Oniguruma for ext/mbstring
 export ONIG_CFLAGS="-I${BUILD_DIR}/sysroot/include"
 export ONIG_LIBS="-L${BUILD_DIR}/sysroot/lib -lonig"
+# SQLite (headers + static lib installed into sysroot by scripts/deps.sh)
+export SQLITE_CFLAGS="-I${BUILD_DIR}/sysroot/include"
+export SQLITE_LIBS="-L${BUILD_DIR}/sysroot/lib -lsqlite3"
 
 echo "LIBZIP_CFLAGS=${LIBZIP_CFLAGS}"
 echo "LIBZIP_LIBS=${LIBZIP_LIBS}"
@@ -51,6 +54,8 @@ echo "ICONV_CFLAGS=${ICONV_CFLAGS}"
 echo "ICONV_LIBS=${ICONV_LIBS}"
 echo "ONIG_CFLAGS=${ONIG_CFLAGS}"
 echo "ONIG_LIBS=${ONIG_LIBS}"
+echo "SQLITE_CFLAGS=${SQLITE_CFLAGS}"
+echo "SQLITE_LIBS=${SQLITE_LIBS}"
 
 emconfigure "${PHP_SRC_DIR}/configure" \
 	--without-pear \
@@ -70,6 +75,9 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--enable-gmp \
 	--enable-mbstring \
 	--enable-pcntl \
+	--enable-pdo \
+	--with-sqlite3 \
+	--with-pdo-sqlite \
 	--enable-static \
 	--enable-tokenizer
 
