@@ -1,0 +1,62 @@
+name: Website
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config python3 git curl zip
+
+      - run: ./scripts/setup.sh
+      - run: ./scripts/fetch.sh
+      - run: ./scripts/apply-patches.sh
+      - run: ./scripts/deps.sh
+      - run: ./scripts/build.sh
+      - run: ./scripts/package-web.sh
+
+      - name: Upload web demo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: web/**
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: web-dist
+
+      - name: List files
+        run: |
+          ls -laR web-dist
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web-dist
+          publish_branch: gh-pages
