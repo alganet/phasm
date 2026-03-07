@@ -85,84 +85,59 @@ echo 'Hello World!' . PHP_EOL;
 			statusEl.textContent = "WebAssembly unavailable";
 			outputEl.textContent = "This demo requires a WebAssembly-enabled browser.";
 		} else {
-			window.Phasm = {
-				noInitialRun: true,
-				arguments: ["main.php"],
-				stdin: () => null,
-				print: (text) => {
-					outputEl.textContent += `${text}\n`;
-				},
-				printErr: (text) => {
-					outputEl.textContent += `[err] ${text}\n`;
-				},
-				onRuntimeInitialized: async () => {
-					try {
-						const res = await fetch('assets/vendor.zip');
-						if (!res.ok) throw new Error('Failed to fetch vendor.zip: ' + res.status);
-						const zipData = await res.arrayBuffer();
-						try {
-							FS.createDataFile('/', 'vendor.zip', new Uint8Array(zipData), true, true);
-						} catch (e) {
-							outputEl.textContent += `[err] FS write failed: ${e.stack || e}`;
-							throw e;
-						}
-					} catch (err) {
-						statusEl.textContent = 'Failed to prepare vendor.zip';
-						outputEl.textContent += `[err] ${err.stack || err}`;
-						return;
-					}
+			const script = document.createElement("script");
+			script.src = "assets/php.js";
+			script.onload = async () => {
+				statusEl.textContent = "Initializing...";
+				try {
+					const php = await Phasm({
+						noInitialRun: true,
+						stdin: () => null,
+						print: (text) => {
+							outputEl.textContent += `${text}\n`;
+						},
+						printErr: (text) => {
+							outputEl.textContent += `[err] ${text}\n`;
+						},
+					});
+
+					const vendorRes = await fetch('assets/vendor.zip');
+					if (!vendorRes.ok) throw new Error('Failed to fetch vendor.zip: ' + vendorRes.status);
+					const zipData = await vendorRes.arrayBuffer();
+					php.FS.writeFile('/vendor.zip', new Uint8Array(zipData));
+
+					const mainRes = await fetch('assets/main.php');
+					if (!mainRes.ok) throw new Error('Failed to fetch main.php: ' + mainRes.status);
+					const content = await mainRes.text();
+					php.FS.writeFile('/main.php', content);
 
 					statusEl.textContent = "Ready";
-					try {
-						let content;
-						const res = await fetch('assets/main.php');
-						if (!res.ok) throw new Error('Failed to fetch main.php: ' + res.status);
-						content = await res.text();
-						try {
-							FS.createDataFile('/', 'main.php', content, true, true);
-							Phasm.FS = Phasm.FS || FS;
-						} catch (e) {
-							outputEl.textContent += `[err] FS write failed: ${e.stack || e}`;
-							throw e;
-						}
-						try {
-							callMain(Phasm.arguments);
-						} catch (callErr) {
-							outputEl.textContent += `[err] callMain failed: ${callErr.stack || callErr}`;
-							throw callErr;
-						}
-					} catch (err) {
-						statusEl.textContent = 'Failed to prepare script';
-						outputEl.textContent += `[err] ${err.stack || err}`;
-					}
+					php.callMain(["main.php"]);
 
-				// bind run button to editor (Monaco or fallback)
-				const runBtn = document.getElementById("runBtn");
-				runBtn.onclick = async () => {
-					let code;
-					if (window.monacoEditor) {
-						code = window.monacoEditor.getValue();
-					} else {
-						const ta = document.getElementById('editorText');
-						const el = document.getElementById('editor');
-						code = (ta && ta.value) || (el && el.textContent) || '';
-					}
+					// bind run button to editor (Monaco or fallback)
+					const runBtn = document.getElementById("runBtn");
+					runBtn.onclick = () => {
+						let code;
+						if (window.monacoEditor) {
+							code = window.monacoEditor.getValue();
+						} else {
+							const ta = document.getElementById('editorText');
+							const el = document.getElementById('editor');
+							code = (ta && ta.value) || (el && el.textContent) || '';
+						}
 						try {
-							FS.writeFile('/user.php', code);
-							Phasm.arguments = ['user.php'];
+							php.FS.writeFile('/user.php', code);
 							outputEl.textContent = "";
-							callMain(Phasm.arguments);
+							php.callMain(["user.php"]);
 						} catch (err) {
 							outputEl.textContent += `[err] Failed to run user code: ${err.stack || err}`;
 						}
 					};
+				} catch (err) {
+					const errorMessage = (err && (err.message || err.toString())) || "Failed to initialize";
+					statusEl.textContent = errorMessage;
+					outputEl.textContent += `[err] ${err.stack || errorMessage}`;
 				}
-			};
-
-			const script = document.createElement("script");
-			script.src = "assets/php.js";
-			script.onload = () => {
-				statusEl.textContent = "Initializing...";
 			};
 			script.onerror = () => {
 				statusEl.textContent = "Failed to load php.js";
