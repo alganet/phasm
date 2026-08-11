@@ -86,13 +86,24 @@ if [[ ! -d "${SOURCES_DIR}/oniguruma" ]]; then
 	fi
 fi
 
-if git rev-parse --verify "${PHP_GIT_REF}" >/dev/null 2>&1; then
-	git checkout "${PHP_GIT_REF}"
+# apply-patches.sh leaves the tree modified, and git refuses to switch refs over
+# local changes — so bumping PHP_VERSION used to ABORT the checkout and silently
+# keep building the previous version. Discard first; every local change here is
+# ours to regenerate.
+git reset --hard >/dev/null
+git clean -fdq
+
+if git rev-parse --verify "refs/tags/${PHP_GIT_REF}" >/dev/null 2>&1; then
+	git checkout --detach "refs/tags/${PHP_GIT_REF}"
+elif git rev-parse --verify "${PHP_GIT_REF}" >/dev/null 2>&1; then
+	git checkout --detach "${PHP_GIT_REF}"
 elif git rev-parse --verify "origin/${PHP_GIT_REF}" >/dev/null 2>&1; then
-	git checkout -b "${PHP_GIT_REF}" "origin/${PHP_GIT_REF}"
+	git checkout --detach "origin/${PHP_GIT_REF}"
 else
-	git checkout master
+	echo "PHP ref ${PHP_GIT_REF} not found — is PHP_VERSION=${PHP_VERSION} a real release?" >&2
+	exit 1
 fi
+echo "PHP source at $(git describe --tags --always)"
 
 # Ensure zlib and libzip sources are present in ${SOURCES_DIR} as subdirs
 
