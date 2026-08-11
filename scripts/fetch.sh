@@ -11,6 +11,29 @@ source "$(dirname "$0")/env.sh"
 # Ensure sources directory exists (fetch.sh is responsible for downloads)
 mkdir -p "${SOURCES_DIR}"
 
+# Verify a downloaded artifact against its pinned SHA-256 from env.sh. Every
+# tarball below comes off the public internet through a fallback URL chain, so
+# without this a mirror swap, a truncated download or a hijacked release is
+# invisible until it shows up as a mysterious compile error — or doesn't show
+# up at all. A mismatch deletes the file so a re-run cannot "succeed" from a
+# poisoned cache.
+verify_sha256() {
+	local file="$1" expected="$2" actual
+	if [[ -z "${expected}" ]]; then
+		echo "No SHA-256 pinned for $(basename "${file}") — refusing to continue." >&2
+		exit 1
+	fi
+	actual="$(sha256sum "${file}" | cut -d' ' -f1)"
+	if [[ "${actual}" != "${expected}" ]]; then
+		echo "CHECKSUM MISMATCH for $(basename "${file}")" >&2
+		echo "  expected ${expected}" >&2
+		echo "  actual   ${actual}" >&2
+		rm -f "${file}"
+		exit 1
+	fi
+	echo "  sha256 ok: $(basename "${file}")"
+}
+
 if [[ ! -d "${PHP_SRC_DIR}/.git" ]]; then
 	git clone --depth 1 https://github.com/php/php-src.git "${PHP_SRC_DIR}"
 fi
@@ -41,6 +64,11 @@ if [[ ! -d "${SOURCES_DIR}/oniguruma" ]]; then
 				fi
 			done
 		fi
+		if [[ ! -s "${SOURCES_DIR}/${ONIG_TAR}" ]]; then
+			echo "Failed to download ${ONIG_TAR} from provided URLs" >&2
+			exit 1
+		fi
+		verify_sha256 "${SOURCES_DIR}/${ONIG_TAR}" "${ONIGURUMA_SHA256}"
 		if [[ -f "${SOURCES_DIR}/${ONIG_TAR}" && ! -d "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION}" ]]; then
 			mkdir -p "${SOURCES_DIR}"
 			tar -xf "${SOURCES_DIR}/${ONIG_TAR}" -C "${SOURCES_DIR}"
@@ -65,8 +93,8 @@ fi
 # Ensure zlib and libzip sources are present in ${SOURCES_DIR} as subdirs
 
 fetch_and_extract() {
-	local tarname="$1" dir="$2"
-	shift 2
+	local tarname="$1" dir="$2" sha="$3"
+	shift 3
 	# remaining args are URLs to try in order
 	if [[ ! -d "${dir}" ]]; then
 		echo "Fetching ${tarname} into ${SOURCES_DIR}..."
@@ -86,19 +114,20 @@ fetch_and_extract() {
 				exit 1
 			fi
 		fi
+		verify_sha256 "${SOURCES_DIR}/${tarname}" "${sha}"
 		echo "Extracting ${tarname} into ${SOURCES_DIR}..."
 		tar -xf "${SOURCES_DIR}/${tarname}" -C "${SOURCES_DIR}"
 	fi
 }
 
 # zlib (with GitHub fallback)
-fetch_and_extract "zlib-${ZLIB_VERSION}.tar.gz" "${SOURCES_DIR}/zlib-${ZLIB_VERSION}" "https://zlib.net/fossils/zlib-${ZLIB_VERSION}.tar.gz" "https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz"
+fetch_and_extract "zlib-${ZLIB_VERSION}.tar.gz" "${SOURCES_DIR}/zlib-${ZLIB_VERSION}" "${ZLIB_SHA256}" "https://zlib.net/fossils/zlib-${ZLIB_VERSION}.tar.gz" "https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz"
 
 # libzip
-fetch_and_extract "libzip-${LIBZIP_VERSION}.tar.xz" "${SOURCES_DIR}/libzip-${LIBZIP_VERSION}" "https://libzip.org/download/libzip-${LIBZIP_VERSION}.tar.xz"
+fetch_and_extract "libzip-${LIBZIP_VERSION}.tar.xz" "${SOURCES_DIR}/libzip-${LIBZIP_VERSION}" "${LIBZIP_SHA256}" "https://libzip.org/download/libzip-${LIBZIP_VERSION}.tar.xz"
 
 # libiconv
-fetch_and_extract "libiconv-${LIBICONV_VERSION}.tar.gz" "${SOURCES_DIR}/libiconv-${LIBICONV_VERSION}" "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-${LIBICONV_VERSION}.tar.gz"
+fetch_and_extract "libiconv-${LIBICONV_VERSION}.tar.gz" "${SOURCES_DIR}/libiconv-${LIBICONV_VERSION}" "${LIBICONV_SHA256}" "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-${LIBICONV_VERSION}.tar.gz"
 
 # sqlite amalgamation (zip)
 SQLITE_ZIP="sqlite-amalgamation-${SQLITE_AMALG_VERSION}.zip"
@@ -123,6 +152,7 @@ if [[ ! -d "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" ]]; then
             exit 1
         fi
     fi
+    verify_sha256 "${SOURCES_DIR}/${SQLITE_ZIP}" "${SQLITE_SHA256}"
     echo "Extracting ${SQLITE_ZIP} into ${SOURCES_DIR}..."
     mkdir -p "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}"
     unzip -q "${SOURCES_DIR}/${SQLITE_ZIP}" -d "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" || true

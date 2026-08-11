@@ -19,24 +19,69 @@ apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pk
 The build is split into sequential scripts. Run them in order:
 
 ```sh
-./scripts/setup.sh           # Install the Emscripten SDK
-./scripts/fetch.sh           # Download PHP and dependency sources
+./scripts/setup.sh           # Install the pinned Emscripten SDK
+./scripts/fetch.sh           # Download and verify PHP and dependency sources
 ./scripts/apply-patches.sh   # Patch PHP for Emscripten compatibility
 ./scripts/deps.sh            # Build C libraries (zlib, libzip, iconv, oniguruma, sqlite)
 ./scripts/build.sh           # Compile PHP to WebAssembly
+npm test                     # Verify the result actually runs PHP
 ```
 
-Build output goes to `dist/` (`php.js` and `php.wasm`).
+Build output goes to `dist/` (`php.js`, `php.wasm` and `php.d.ts`).
+
+## Testing
+
+```sh
+npm test
+```
+
+`node --test` against `dist/`, so build first. The suite skips itself with a
+diagnostic rather than failing if there is no build yet.
+
+It tests the *build*, not PHP: that the interpreter runs, that every extension
+the README advertises is actually linked in, that the virtual filesystem
+round-trips (including binary content), that stdin/stdout/stderr and exit codes
+behave, and that a fatal error is loud. Those are the things a dependency bump
+or a changed `configure` flag can quietly break.
+
+Each test gets a fresh module instance. The CLI SAPI's `main()` does full init
+*and* shutdown, so state leaks across repeated `callMain()` calls on one
+instance — `test/helper.mjs` is where that changes if phasm ever grows a
+re-entrant SAPI.
+
+## Pinning and reproducibility
+
+Everything the build downloads is pinned to a version **and** a SHA-256 in
+`scripts/env.sh`, and `fetch.sh` refuses to continue on a mismatch. When you
+bump a version you must bump its hash in the same commit:
+
+```sh
+shasum -a 256 sources/<file>
+```
+
+The Emscripten SDK is pinned too (`EMSDK_VERSION`). This matters more than it
+looks: `emsdk install latest` resolves to whatever shipped most recently, and
+by the time the pin was introduced `latest` had already moved to a major
+version where this build no longer links. An unpinned toolchain means a build
+that worked last month breaks with no commit to blame.
 
 ## Running the Web Demo Locally
 
 ```sh
 composer install              # Create vendor/ for the demo's vendor.zip
-./scripts/package-web.sh      # Copy artifacts into web/assets/
-./scripts/run-local.sh        # Start a local server on port 8001
+./scripts/run-local.sh        # Package artifacts and serve on port 8001
 ```
 
 Then open `http://localhost:8001` in your browser.
+
+`run-local.sh` uses `scripts/serve.mjs` rather than `python3 -m http.server`,
+which cannot set response headers — it could not send the cross-origin
+isolation headers `SharedArrayBuffer` needs, and it served `.wasm` without the
+`application/wasm` MIME type `WebAssembly.compileStreaming` requires.
+
+Cross-origin isolation is **off** by default, matching GitHub Pages, which
+cannot send those headers either. Pass `--coi` to preview the isolated world
+and see which cross-origin assets stop loading under it.
 
 ## Project Structure
 
@@ -51,10 +96,14 @@ scripts/
   package-web.sh       # Web demo packager
   run-local.sh         # Local dev server
 
+  serve.mjs            # Static dev server (headers + correct MIME types)
+
 patches/               # Emscripten compatibility patches for PHP
+src/                   # Hand-written package sources (php.d.ts)
+test/                  # Test suite (node --test)
 sources/               # Downloaded source trees (gitignored)
 build/                 # Intermediate build artifacts (gitignored)
-dist/                  # Final npm output (php.js + php.wasm)
+dist/                  # Final npm output (php.js + php.wasm + php.d.ts)
 web/                   # Live demo website
 ```
 
@@ -65,6 +114,7 @@ See `scripts/env.sh` for the full list:
 
 | Variable               | Default                          | Description                 |
 |------------------------|----------------------------------|-----------------------------|
+| `EMSDK_VERSION`        | `5.0.2`                          | Emscripten SDK version      |
 | `PHP_VERSION`          | `8.5.0`                          | PHP version to build        |
 | `ZLIB_VERSION`         | `1.2.11`                         | zlib version                |
 | `LIBZIP_VERSION`       | `1.9.2`                          | libzip version              |

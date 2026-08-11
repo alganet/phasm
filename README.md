@@ -12,8 +12,14 @@ PHP 8.5 compiled to WebAssembly. Run PHP in the browser or in Node.js.
 
 ## Included Extensions
 
-calendar, ctype, fileinfo, filter, gmp, iconv, mbstring, pcntl, pdo,
+calendar, ctype, fileinfo, filter, iconv, mbstring, opcache, pcntl, pdo,
 pdo_sqlite, sqlite3, tokenizer, zip.
+
+Plus PHP's always-on core: Core, date, hash, json, lexbor, pcre, random,
+Reflection, SPL, standard, uri.
+
+`get_loaded_extensions()` is the authority; `npm test` asserts this list matches
+what the binary actually links, so it cannot drift again.
 
 ## Node.js
 
@@ -47,6 +53,17 @@ php.callMain(["hello.php"]);
 </script>
 ```
 
+## TypeScript
+
+Types ship with the package — `Phasm`, `PhasmOptions`, `PhasmModule` and
+`PhasmFS` are all declared, no `@types` package needed.
+
+```ts
+import Phasm, { type PhasmModule } from "@alganet/phasm";
+
+const php: PhasmModule = await Phasm({ noInitialRun: true });
+```
+
 ## Configuration
 
 `Phasm()` is a factory function that accepts standard [Emscripten Module](https://emscripten.org/docs/api_reference/module.html)
@@ -62,6 +79,10 @@ options and returns a promise that resolves to the initialized module:
 
 The resolved module exposes `callMain()` to run PHP scripts and `FS` for
 filesystem access.
+
+**One run per module.** The CLI SAPI's `main()` does full init *and* shutdown,
+so state leaks across repeated `callMain()` calls on a single instance and it
+will eventually crash. Create a fresh module per run.
 
 ## Virtual Filesystem
 

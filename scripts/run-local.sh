@@ -10,7 +10,7 @@ source "$(dirname "$0")/env.sh"
 
 "${ROOT_DIR}/scripts/package-web.sh"
 
-cd "${WEB_DIR}"
-
-echo "Serving ${WEB_DIR} at http://localhost:8001"
-python3 -m http.server 8001
+# Not `python3 -m http.server`: it cannot set the cross-origin isolation headers
+# SharedArrayBuffer needs, and it serves .wasm without the application/wasm MIME
+# type. See scripts/serve.mjs.
+exec node "${ROOT_DIR}/scripts/serve.mjs" --port 8001 "$@"

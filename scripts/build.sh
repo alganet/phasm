@@ -72,7 +72,10 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--enable-ctype \
 	--enable-filter \
 	--enable-fileinfo \
-	--enable-gmp \
+	`# gmp needs --with-gmp AND a libgmp cross-built into the sysroot. It was` \
+	`# passed as --enable-gmp, which configure only WARNS about, so the README` \
+	`# advertised an extension that was never built. Adding it for real means` \
+	`# building libgmp in deps.sh first — see the roadmap's extensions phase.` \
 	--enable-mbstring \
 	--enable-pcntl \
 	--enable-pdo \
@@ -99,5 +102,9 @@ else
 	echo "Build output not found. Expected sapi/cli/php.wasm."
 	exit 1
 fi
+
+# package.json points `types` at dist/php.d.ts; nothing used to put it there, so
+# every published release shipped a types field aimed at a missing file.
+cp "${ROOT_DIR}/src/php.d.ts" "${DIST_DIR}/php.d.ts"
 
 echo "WASM artifacts in ${DIST_DIR}"

@@ -20,13 +20,50 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
       - name: Install deps
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config python3 git curl zip
+
+      # The Emscripten SDK is ~1GB and identical for every run at a given pin,
+      # so key the cache on the pinned version alone.
+      - name: Cache Emscripten SDK
+        uses: actions/cache@v4
+        with:
+          path: build/emsdk
+          key: emsdk-${{ runner.os }}-${{ hashFiles('scripts/env.sh') }}
+
+      # The C libraries only change when their pinned versions or the build
+      # recipe do; env.sh holds the versions and hashes, deps.sh the recipe.
+      - name: Cache WASM sysroot
+        uses: actions/cache@v4
+        with:
+          path: build/sysroot
+          key: sysroot-${{ runner.os }}-${{ hashFiles('scripts/env.sh', 'scripts/deps.sh') }}
+
+      - name: Cache downloaded sources
+        uses: actions/cache@v4
+        with:
+          path: |
+            sources/*.tar.gz
+            sources/*.tar.xz
+            sources/*.zip
+          key: sources-${{ runner.os }}-${{ hashFiles('scripts/env.sh') }}
 
       - run: ./scripts/setup.sh
       - run: ./scripts/fetch.sh
       - run: ./scripts/apply-patches.sh
       - run: ./scripts/deps.sh
       - run: ./scripts/build.sh
+
+      # The point of the whole pipeline: a build nobody ran is not a build.
+      - name: Test
+        run: npm test
+
+      - name: Report artifact size
+        run: ls -l dist/ && gzip -c dist/php.wasm | wc -c | awk '{print "php.wasm gzipped: " $1 " bytes"}'

@@ -5,19 +5,30 @@
   "main": "dist/php.js",
   "module": "dist/php.js",
   "types": "dist/php.d.ts",
-  "files": ["dist/"],
+  "files": [
+    "dist/"
+  ],
   "exports": {
     ".": {
+      "types": "./dist/php.d.ts",
       "import": "./dist/php.js",
       "default": "./dist/php.js"
     },
-    "./wasm": "./dist/php.wasm"
+    "./wasm": "./dist/php.wasm",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/alganet/phasm.git"
   },
-  "keywords": ["php", "wasm", "webassembly"],
+  "keywords": [
+    "php",
+    "wasm",
+    "webassembly"
+  ],
   "author": "Alexandre Gomes Gaigalas <alganet@gmail.com>",
   "license": "ISC"
 }

@@ -45,6 +45,20 @@ jobs:
       - run: ./scripts/deps.sh
       - run: ./scripts/build.sh
 
+      # Never publish an unverified interpreter. Until this existed, a release
+      # went to npm with no check that the binary could run PHP at all.
+      - name: Test
+        run: npm test
+
+      # package.json promises dist/php.d.ts; make sure build.sh actually put it
+      # there before the tarball is cut.
+      - name: Verify package contents
+        run: |
+          for f in dist/php.js dist/php.wasm dist/php.d.ts; do
+            [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
+          done
+          npm pack --dry-run
+
       - name: Publish
         run: npm publish --access public
         env:
