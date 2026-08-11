@@ -22,23 +22,22 @@ PATCH_DIR="${ROOT_DIR}/patches/php-${PHP_VERSION}"
 # the public internet through fallback URL chains, and without this a mirror
 # swap or a hijacked release is invisible. When you bump a version you MUST bump
 # its hash in the same commit; `shasum -a 256 sources/<file>` prints it.
-ZLIB_VERSION="${ZLIB_VERSION:-1.2.11}"
-ZLIB_SHA256="${ZLIB_SHA256:-c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1}"
-LIBZIP_VERSION="${LIBZIP_VERSION:-1.9.2}"
-LIBZIP_SHA256="${LIBZIP_SHA256:-c93e9852b7b2dc931197831438fee5295976ee0ba24f8524a8907be5c2ba5937}"
-LIBICONV_VERSION="${LIBICONV_VERSION:-1.16}"
-LIBICONV_SHA256="${LIBICONV_SHA256:-e6a1b1b589654277ee790cce3734f07876ac4ccfaecbee8afa0b649cf529cc04}"
+ZLIB_VERSION="${ZLIB_VERSION:-1.3.2}"
+ZLIB_SHA256="${ZLIB_SHA256:-bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16}"
+LIBZIP_VERSION="${LIBZIP_VERSION:-1.11.4}"
+LIBZIP_SHA256="${LIBZIP_SHA256:-8a247f57d1e3e6f6d11413b12a6f28a9d388de110adc0ec608d893180ed7097b}"
+LIBICONV_VERSION="${LIBICONV_VERSION:-1.19}"
+LIBICONV_SHA256="${LIBICONV_SHA256:-88dd96a8c0464eca144fc791ae60cd31cd8ee78321e67397e25fc095c4a19aa6}"
 # SQLite amalgamation (used by ext/sqlite3 / pdo_sqlite)
-SQLITE_AMALG_VERSION="${SQLITE_AMALG_VERSION:-3380500}"
-SQLITE_AMALG_YEAR="${SQLITE_AMALG_YEAR:-2022}"
-SQLITE_SHA256="${SQLITE_SHA256:-bebb039b748441e3d25d71d11f7a4a33f5df11f318ec18fa7f343d2083755e2c}"
-# Oniguruma (used by ext/mbstring).
-# NOTE: this is the hash of GitHub's auto-generated source archive, because the
-# release-asset URL fetch.sh tries first has never worked — upstream names the
-# asset `onig-X.Y.Z.tar.gz`, not `oniguruma-X.Y.Z.tar.gz`, so that URL 404s and
-# the fallback chain silently wins. Fixed together with the version bump.
-ONIGURUMA_VERSION="${ONIGURUMA_VERSION:-6.9.4}"
-ONIGURUMA_SHA256="${ONIGURUMA_SHA256:-aea68e5843b627f5fe6d3d6b598845b7f3622910e0568408e7cc2fa6b3690b87}"
+SQLITE_AMALG_VERSION="${SQLITE_AMALG_VERSION:-3530400}"
+SQLITE_AMALG_YEAR="${SQLITE_AMALG_YEAR:-2026}"
+SQLITE_SHA256="${SQLITE_SHA256:-1e71ddf93849c6a6ecf58b827c0692073d2dd7ee40196158068f7b29f422e87d}"
+# Oniguruma (used by ext/mbstring). Upstream names its release asset
+# `onig-X.Y.Z.tar.gz`; fetch.sh used to ask for `oniguruma-X.Y.Z.tar.gz`, which
+# 404s, so it silently fell back to GitHub's auto-generated source archive —
+# whose bytes are not a stable artifact to pin a hash against.
+ONIGURUMA_VERSION="${ONIGURUMA_VERSION:-6.9.10}"
+ONIGURUMA_SHA256="${ONIGURUMA_SHA256:-2a5cfc5ae259e4e97f86b68dfffc152cdaffe94e2060b770cb827238d769fc05}"
 
 # Pin the Emscripten SDK. `emsdk install latest` moves under you: every CI run
 # and every contributor gets whatever shipped most recently, so a build that

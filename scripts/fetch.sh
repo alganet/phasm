@@ -45,8 +45,10 @@ git fetch --tags origin
 # Ensure oniguruma source is available (used by ext/mbstring)
 if [[ ! -d "${SOURCES_DIR}/oniguruma" ]]; then
 	if [[ "${ONIGURUMA_VERSION:-}" != "master" ]]; then
-		# Try to download a release tarball (contains configure/autotools generated files)
-		ONIG_TAR="oniguruma-${ONIGURUMA_VERSION}.tar.gz"
+		# The release tarball (contains configure/autotools generated files).
+		# Upstream calls it onig-X.Y.Z.tar.gz — asking for oniguruma-X.Y.Z.tar.gz
+		# always 404'd and silently fell through to the source archive below.
+		ONIG_TAR="onig-${ONIGURUMA_VERSION}.tar.gz"
 		ONIG_URLS=(
 			"https://github.com/kkos/oniguruma/releases/download/v${ONIGURUMA_VERSION}/${ONIG_TAR}"
 			"https://github.com/kkos/oniguruma/archive/refs/tags/v${ONIGURUMA_VERSION}.tar.gz"
@@ -69,15 +71,17 @@ if [[ ! -d "${SOURCES_DIR}/oniguruma" ]]; then
 			exit 1
 		fi
 		verify_sha256 "${SOURCES_DIR}/${ONIG_TAR}" "${ONIGURUMA_SHA256}"
-		if [[ -f "${SOURCES_DIR}/${ONIG_TAR}" && ! -d "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION}" ]]; then
+		if [[ -f "${SOURCES_DIR}/${ONIG_TAR}" ]]; then
 			mkdir -p "${SOURCES_DIR}"
 			tar -xf "${SOURCES_DIR}/${ONIG_TAR}" -C "${SOURCES_DIR}"
-			# normalize directory name
-			if [[ -d "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION}" ]]; then
-				mv "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION}" "${SOURCES_DIR}/oniguruma"
-			elif [[ -d "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION%.*}" ]]; then
-				mv "${SOURCES_DIR}/oniguruma-${ONIGURUMA_VERSION%.*}" "${SOURCES_DIR}/oniguruma" || true
-			fi
+			# normalize directory name (onig-X.Y.Z from the release tarball,
+			# oniguruma-X.Y.Z from a source-archive fallback)
+			for candidate in "onig-${ONIGURUMA_VERSION}" "oniguruma-${ONIGURUMA_VERSION}" "oniguruma-${ONIGURUMA_VERSION%.*}"; do
+				if [[ -d "${SOURCES_DIR}/${candidate}" ]]; then
+					mv "${SOURCES_DIR}/${candidate}" "${SOURCES_DIR}/oniguruma"
+					break
+				fi
+			done
 		fi
 	fi
 fi
