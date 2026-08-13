@@ -15,6 +15,10 @@ jobs:
     environment: release
     permissions:
       contents: read
+      # Trusted Publishing: npm authenticates by exchanging a GitHub OIDC
+      # token, so the job must be allowed to mint one. Without this the
+      # publish fails with no token to fall back on.
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,6 +28,13 @@ jobs:
         with:
           node-version: 'lts/*'
           registry-url: 'https://registry.npmjs.org'
+
+      # Trusted Publishing needs npm >= 11.5.1; the npm bundled with the LTS
+      # Node line is not guaranteed to be that new.
+      - name: Use an npm that supports Trusted Publishing
+        run: |
+          npm install -g npm@latest
+          npm --version
 
       - name: Verify tag matches package.json version
         run: |
@@ -59,7 +70,7 @@ jobs:
           done
           npm pack --dry-run
 
+      # No NODE_AUTH_TOKEN: authentication is the OIDC exchange above, and
+      # provenance is attested automatically under Trusted Publishing.
       - name: Publish
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
