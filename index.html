@@ -14,7 +14,29 @@ SPDX-License-Identifier: ISC
 	<style>
 		body {
 			font-family: system-ui, sans-serif;
-			margin: 2rem;
+			margin: 2rem auto;
+			max-width: 52rem;
+			padding: 0 1rem;
+			line-height: 1.5;
+		}
+
+		#editor {
+			width: 100%;
+			height: 300px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			box-sizing: border-box;
+		}
+
+		/* The fallback when Monaco is unavailable (offline, CDN blocked). */
+		#editor textarea.fallback {
+			width: 100%;
+			height: 100%;
+			font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+			border: 0;
+			padding: .6rem;
+			box-sizing: border-box;
+			resize: none;
 		}
 
 		#output {
@@ -23,8 +45,31 @@ SPDX-License-Identifier: ISC
 			color: #FFF;
 			padding: 1rem;
 			min-height: 200px;
+			border-radius: 4px;
+			overflow-x: auto;
+		}
+
+		#output .err {
+			color: #ff8c8c;
+		}
+
+		button {
+			font-size: 15px;
+			padding: .35rem 1.2rem;
+		}
+
+		#status {
+			color: #555;
 		}
 	</style>
+	<!--
+	  Both cross-origin assets below (analytics, and Monaco from jsDelivr) were
+	  checked against the COOP/COEP world the roadmap's service worker creates
+	  in Phase 6: both send `cross-origin-resource-policy: cross-origin`, so
+	  both keep loading under cross-origin isolation. Re-check with
+	  `./scripts/run-local.sh --coi` if either origin is ever swapped — a
+	  subresource without CORP is silently blocked there.
+	-->
 	<script async src="https://www.googletagmanager.com/gtag/js?id=G-087KLX3WP7"></script><script>window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-087KLX3WP7');</script>
 	<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.39.0/min/vs/loader.js"></script>
 </head>
@@ -32,116 +77,153 @@ SPDX-License-Identifier: ISC
 <body>
 	<h1>PHP 8.5 WASM Demo</h1>
 	<p id="status">Loading...</p>
-	<div id="editor" style="width:100%; height:300px; border:1px solid #ddd; font-family: monospace;"></div>
+	<div id="editor" aria-label="PHP source"></div>
 	<div style="margin: .5rem 0;">
-		<button id="runBtn">Run</button>
+		<button id="runBtn" disabled>Run</button>
 	</div>
 	<pre id="output"></pre>
+
 	<script>
 		const statusEl = document.getElementById("status");
 		const outputEl = document.getElementById("output");
+		const editorEl = document.getElementById("editor");
+		const runBtn = document.getElementById("runBtn");
 
 		const defaultCode = `<?php
 
 echo 'Hello World!' . PHP_EOL;
 `;
 
-		// Monaco editor (CDN) initialization
-		window.monacoReady = new Promise((resolve) => {
-			if (typeof require === 'function' && require.config) {
-				require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.39.0/min/vs' }});
-				require(['vs/editor/editor.main'], function () {
-					try {
-						window.monacoEditor = monaco.editor.create(document.getElementById('editor'), {
-							value: defaultCode,
-							language: 'php',
-							automaticLayout: true,
-							minimap: { enabled: false },
-							theme: 'vs-light'
-						});
-						resolve(window.monacoEditor);
-					} catch (e) {
-						resolve(null);
-					}
-				});
-			} else {
-				resolve(null);
-			}
+		// Monaco if the CDN is reachable, a plain textarea if it is not, behind
+		// one getSource() so the run path never has to care which it got.
+		let getSource = () => defaultCode;
+		const editorReady = new Promise((resolve) => {
+			if (typeof require !== "function" || !require.config) return resolve(null);
+			require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.39.0/min/vs" } });
+			require(["vs/editor/editor.main"], () => {
+				try {
+					const ed = monaco.editor.create(editorEl, {
+						value: defaultCode,
+						language: "php",
+						automaticLayout: true,
+						minimap: { enabled: false },
+						theme: "vs-light",
+					});
+					getSource = () => ed.getValue();
+					resolve(ed);
+				} catch { resolve(null); }
+			}, () => resolve(null));
 		});
-		window.monacoReady.then((ed) => {
-			if (!ed) {
-				// fallback to a textarea inside the editor div
-				const ta = document.createElement('textarea');
-				ta.id = 'editorText';
-				ta.style.width = '100%';
-				ta.style.height = '300px';
-				ta.style.fontFamily = 'monospace';
-				ta.value = defaultCode;
-				document.getElementById('editor').appendChild(ta);
-			}
+
+		editorReady.then((ed) => {
+			if (ed) return;
+			const ta = document.createElement("textarea");
+			ta.className = "fallback";
+			ta.spellcheck = false;
+			ta.value = defaultCode;
+			editorEl.appendChild(ta);
+			getSource = () => ta.value;
 		});
+
+		const write = (text, cls) => {
+			const span = document.createElement("span");
+			if (cls) span.className = cls;
+			span.textContent = text;
+			outputEl.appendChild(span);
+		};
+
+		// Emscripten's `print`/`printErr` options are LINE buffered: they fire
+		// only on a newline and hand back the line with it stripped. Output that
+		// does not end in one is never delivered at all — `<?php echo "hi";`
+		// printed nothing. Collect the raw byte stream instead and decode it,
+		// so what you see is exactly what PHP wrote.
+		const decoder = new TextDecoder();
+		const sink = (cls) => {
+			let buf = [];
+			return {
+				push(c) {
+					if (c === null) { this.flush(); return; }
+					buf.push(c);
+					if (c === 10) this.flush();
+				},
+				flush() {
+					if (!buf.length) return;
+					write(decoder.decode(Uint8Array.from(buf)), cls);
+					buf = [];
+				},
+			};
+		};
 
 		if (typeof WebAssembly === "undefined") {
 			statusEl.textContent = "WebAssembly unavailable";
-			outputEl.textContent = "This demo requires a WebAssembly-enabled browser.";
+			write("This demo requires a WebAssembly-enabled browser.", "err");
 		} else {
 			const script = document.createElement("script");
 			script.src = "assets/php.js";
 			script.onload = async () => {
 				statusEl.textContent = "Initializing...";
 				try {
-					const php = await Phasm({
-						noInitialRun: true,
-						stdin: () => null,
-						print: (text) => {
-							outputEl.textContent += `${text}\n`;
-						},
-						printErr: (text) => {
-							outputEl.textContent += `[err] ${text}\n`;
-						},
-					});
+					// One module instance per run: the CLI SAPI's main() does full
+					// init AND shutdown, so state leaks across callMain() calls.
+					// Booting per run keeps each one clean.
+					const boot = () => {
+						const out = sink(null), errOut = sink("err");
+						return Phasm({
+							noInitialRun: true,
+							preRun: [(m) => m.FS.init(
+								() => null,
+								(c) => out.push(c),
+								(c) => errOut.push(c),
+							)],
+						}).then((m) => {
+							// Anything PHP wrote without a trailing newline is
+							// still sitting in the buffer when it exits.
+							m.flushOutput = () => { out.flush(); errOut.flush(); };
+							return m;
+						});
+					};
+
+					const php = await boot();
 
 					const vendorRes = await fetch('assets/vendor.zip');
 					if (!vendorRes.ok) throw new Error('Failed to fetch vendor.zip: ' + vendorRes.status);
-					const zipData = await vendorRes.arrayBuffer();
-					php.FS.writeFile('/vendor.zip', new Uint8Array(zipData));
+					php.FS.writeFile('/vendor.zip', new Uint8Array(await vendorRes.arrayBuffer()));
 
 					const mainRes = await fetch('assets/main.php');
 					if (!mainRes.ok) throw new Error('Failed to fetch main.php: ' + mainRes.status);
-					const content = await mainRes.text();
-					php.FS.writeFile('/main.php', content);
+					php.FS.writeFile('/main.php', await mainRes.text());
 
 					statusEl.textContent = "Ready";
 					php.callMain(["main.php"]);
+					php.flushOutput();
 
-					// bind run button to editor (Monaco or fallback)
-					const runBtn = document.getElementById("runBtn");
-					runBtn.onclick = () => {
-						let code;
-						if (window.monacoEditor) {
-							code = window.monacoEditor.getValue();
-						} else {
-							const ta = document.getElementById('editorText');
-							const el = document.getElementById('editor');
-							code = (ta && ta.value) || (el && el.textContent) || '';
-						}
+					runBtn.disabled = false;
+					runBtn.onclick = async () => {
+						runBtn.disabled = true;
+						statusEl.textContent = "Running...";
+						outputEl.textContent = "";
 						try {
-							php.FS.writeFile('/user.php', code);
-							outputEl.textContent = "";
-							php.callMain(["user.php"]);
+							const run = await boot();
+							run.FS.writeFile('/user.php', getSource());
+							const code = run.callMain(["user.php"]);
+							run.flushOutput();
+							statusEl.textContent = `Finished (exit ${code ?? 0})`;
 						} catch (err) {
-							outputEl.textContent += `[err] Failed to run user code: ${err.stack || err}`;
+							write(`Failed to run: ${err && err.stack || err}`, "err");
+							statusEl.textContent = "Failed";
+						} finally {
+							runBtn.disabled = false;
 						}
 					};
 				} catch (err) {
-					const errorMessage = (err && (err.message || err.toString())) || "Failed to initialize";
-					statusEl.textContent = errorMessage;
-					outputEl.textContent += `[err] ${err.stack || errorMessage}`;
+					const msg = (err && (err.message || err.toString())) || "Failed to initialize";
+					statusEl.textContent = msg;
+					write(err && err.stack || msg, "err");
 				}
 			};
 			script.onerror = () => {
 				statusEl.textContent = "Failed to load php.js";
-				outputEl.textContent += "Unable to load assets/php.js";
+				write("Unable to load assets/php.js", "err");
 			};
 			document.body.appendChild(script);
 		}

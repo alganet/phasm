@@ -6446,7 +6446,6 @@ var _php_time,
   _zend_std_get_properties,
   _zend_hash_add,
   _zend_hash_str_update,
-  __emalloc_32,
   _add_index_string,
   _add_assoc_zval_ex,
   _add_assoc_bool_ex,
@@ -6481,6 +6480,7 @@ var _php_time,
   _zend_object_std_dtor,
   _zend_objects_clone_members,
   _zend_std_compare_objects,
+  _zend_std_get_debug_info,
   _zend_std_get_properties_for,
   _zend_array_dup,
   _zend_std_has_property,
@@ -6581,6 +6581,7 @@ var _php_time,
   _zend_hash_find,
   _zend_hash_apply_with_argument,
   _zend_hash_add_new,
+  __emalloc_32,
   _pcre_get_compiled_regex_cache,
   _pcre_get_compiled_regex,
   _php_pcre_create_match_data,
@@ -6589,6 +6590,7 @@ var _php_time,
   _zval_ptr_safe_dtor,
   _zend_try_assign_typed_ref_arr,
   __safe_emalloc,
+  _zend_array_destroy,
   _zend_hash_next_index_insert_new,
   _zend_hash_index_add_new,
   _zend_hash_update,
@@ -6604,7 +6606,6 @@ var _php_time,
   _zend_release_fcall_info_cache,
   _zval_try_get_string_func,
   _zend_is_callable_ex,
-  _zend_array_destroy,
   _php_pcre_split_impl,
   _php_pcre_grep_impl,
   _zend_hash_index_update,
@@ -6659,6 +6660,7 @@ var _php_time,
   _sqlite3_column_bytes,
   _sqlite3_column_double,
   _sqlite3_column_blob,
+  _sqlite3_db_handle,
   _sqlite3_create_function,
   _sqlite3_user_data,
   _sqlite3_aggregate_context,
@@ -6673,10 +6675,11 @@ var _php_time,
   _sqlite3_backup_finish,
   _sqlite3_bind_parameter_count,
   _zend_llist_del_element,
-  _sqlite3_db_handle,
   _sqlite3_clear_bindings,
   _sqlite3_stmt_readonly,
   _sqlite3_stmt_busy,
+  _sqlite3_stmt_isexplain,
+  _sqlite3_stmt_explain,
   _sqlite3_expanded_sql,
   _sqlite3_sql,
   _sqlite3_bind_null,
@@ -6911,8 +6914,11 @@ var _php_time,
   _php_output_handler_conflict,
   _php_iconv_string,
   _libiconv_open,
+  _setTempRet0,
+  _getTempRet0,
   _libiconv,
   _libiconv_close,
+  __zend_bailout,
   _php_get_internal_encoding,
   _php_base64_encode_ex,
   _php_base64_decode_ex,
@@ -7110,6 +7116,8 @@ var _php_time,
   _lexbor_str_crop_whitespace_from_begin,
   _lexbor_str_whitespace_from_begin,
   _lexbor_str_whitespace_from_end,
+  _lexbor_str_copy_to,
+  _lexbor_str_copy_to_with_null,
   _lexbor_str_data_ncasecmp_first,
   _lexbor_str_data_ncasecmp_end,
   _lexbor_str_data_ncasecmp_contain,
@@ -7128,6 +7136,72 @@ var _php_time,
   _lexbor_str_size_noi,
   _lexbor_str_data_set_noi,
   _lexbor_str_length_set_noi,
+  _lxb_css_at_rule_by_name,
+  _lxb_css_at_rule_by_id,
+  _lxb_css_at_rule_create,
+  _lxb_css_rule_at_destroy,
+  _lxb_css_at_rule_destroy,
+  _lxb_css_at_rule_convert_to_undef,
+  _lxb_css_make_data,
+  _lxb_css_at_rule__undef_create,
+  _lxb_css_at_rule_serialize,
+  _lxb_css_at_rule_serialize_str,
+  _lxb_css_serialize_str_handler,
+  _lxb_css_at_rule_serialize_name,
+  _lxb_css_at_rule__undef_serialize_name,
+  _lxb_css_at_rule__custom_serialize_name,
+  _lxb_css_at_rule_serialize_name_str,
+  _lxb_css_at_rule__undef_destroy,
+  _lxb_css_at_rule__undef_serialize,
+  _lxb_css_rule_list_serialize,
+  _lxb_css_at_rule__custom_create,
+  _lxb_css_at_rule__custom_destroy,
+  _lxb_css_at_rule__custom_serialize,
+  _lxb_css_at_rule_media_create,
+  _lxb_css_at_rule_media_destroy,
+  _lxb_css_at_rule_media_serialize,
+  _lxb_css_at_rule_namespace_create,
+  _lxb_css_at_rule_namespace_destroy,
+  _lxb_css_at_rule_namespace_serialize,
+  _lxb_css_at_rule_font_face_create,
+  _lxb_css_at_rule_font_face_destroy,
+  _lxb_css_at_rule_font_face_serialize,
+  _lxb_css_at_rule__undef_prelude_failed,
+  _lxb_css_at_rule__undef_end,
+  _lxb_css_at_rule__undef_prelude,
+  _lxb_css_at_rule__undef_prelude_end,
+  _lxb_css_at_rule__undef_block,
+  _lxb_css_at_rule__custom_prelude_failed,
+  _lxb_css_at_rule__custom_end,
+  _lxb_css_at_rule__custom_prelude,
+  _lxb_css_at_rule__custom_prelude_end,
+  _lxb_css_at_rule__custom_block,
+  _lxb_css_at_rule_font_face_prelude_failed,
+  _lxb_css_at_rule_font_face_end,
+  _lxb_css_at_rule_font_face_prelude,
+  _lxb_css_at_rule_font_face_prelude_end,
+  _lxb_css_at_rule_font_face_block,
+  _lxb_css_at_rule_media_prelude_failed,
+  _lxb_css_at_rule_media_end,
+  _lxb_css_at_rule_media_prelude,
+  _lxb_css_at_rule_media_prelude_end,
+  _lxb_css_at_rule_media_block,
+  _lxb_css_at_rule_namespace_prelude_failed,
+  _lxb_css_at_rule_namespace_end,
+  _lxb_css_at_rule_namespace_prelude,
+  _lxb_css_at_rule_namespace_prelude_end,
+  _lxb_css_at_rule_namespace_block,
+  _lxb_css_syntax_parser_consume,
+  _lxb_css_syntax_parser_token,
+  _lxb_css_parser_success,
+  _lxb_css_parser_memory_fail_status,
+  _lxb_css_parser_failed,
+  _lxb_css_blank_cb_list_rules,
+  _lxb_css_blank_cb_at_rule,
+  _lxb_css_blank_cb_qualified_rule,
+  _lxb_css_blank_cb_block,
+  _lxb_css_blank_cb_declarations,
+  _lxb_css_state_failed,
   _lxb_css_memory_create,
   _lxb_css_memory_init,
   _lxb_css_memory_destroy,
@@ -7135,9 +7209,14 @@ var _php_time,
   _lxb_css_memory_ref_inc,
   _lxb_css_memory_ref_dec,
   _lxb_css_memory_ref_dec_destroy,
-  _lxb_css_make_data,
   _lxb_css_serialize_char_handler,
-  _lxb_css_serialize_str_handler,
+  _lxb_css_declaration_create,
+  _lxb_css_property_by_name,
+  _lxb_css_property_by_id,
+  _lxb_css_rule_declaration_destroy,
+  _lxb_css_declaration_list_parse,
+  _lxb_css_state_cb_declarations,
+  _lxb_css_syntax_parse_declarations,
   _lxb_css_log_create,
   _lxb_css_log_init,
   _lxb_css_log_clean,
@@ -7155,6 +7234,11 @@ var _php_time,
   _lxb_css_parser_init,
   _lxb_css_syntax_tokenizer_create,
   _lxb_css_syntax_tokenizer_init,
+  _lxb_css_parser_selectors_init,
+  _lxb_css_selectors_create,
+  _lxb_css_selectors_init,
+  _lxb_css_selectors_destroy,
+  _lxb_css_parser_selectors_destroy,
   _lxb_css_parser_clean,
   _lxb_css_syntax_tokenizer_clean,
   _lxb_css_parser_erase,
@@ -7167,13 +7251,503 @@ var _php_time,
   _lxb_css_parser_fail,
   _lxb_css_parser_unexpected,
   _lxb_css_parser_unexpected_status,
-  _lxb_css_parser_success,
   _lxb_css_state_success,
-  _lxb_css_parser_failed,
   _lxb_css_parser_unexpected_data,
   _lxb_css_syntax_token_error,
   _lxb_css_parser_memory_fail,
   _lxb_css_parser_unexpected_data_status,
+  _lxb_css_parser_memory_fail_null,
+  _lxb_css_parser_status_noi,
+  _lxb_css_parser_memory_noi,
+  _lxb_css_parser_memory_set_noi,
+  _lxb_css_parser_selectors_noi,
+  _lxb_css_parser_selectors_set_noi,
+  _lxb_css_parser_is_running_noi,
+  _lxb_css_parser_status_is_unexpected_data_noi,
+  _lxb_css_parser_failed_set_noi,
+  _lxb_css_parser_failed_set_by_id_noi,
+  _lxb_css_parser_is_failed_noi,
+  _lxb_css_parser_set_ok_noi,
+  _lxb_css_parser_buffer_noi,
+  _lxb_css_parser_buffer_set_noi,
+  _lxb_css_parser_state_noi,
+  _lxb_css_parser_state_set_noi,
+  _lxb_css_parser_current_rule_noi,
+  _lxb_css_parser_rule_deep_noi,
+  _lxb_css_parser_states_pop_noi,
+  _lxb_css_parser_states_to_root_noi,
+  _lxb_css_parser_states_set_back_noi,
+  _lxb_css_parser_states_clean_noi,
+  _lxb_css_parser_states_current_noi,
+  _lxb_css_parser_states_set_noi,
+  _lxb_css_parser_states_up_noi,
+  _lxb_css_parser_states_down_noi,
+  _lxb_css_parser_log_noi,
+  _lxb_css_parser_token_end_noi,
+  _lxb_css_parser_set_context_noi,
+  _lxb_css_syntax_set_return_noi,
+  _lxb_css_syntax_returned_noi,
+  _lxb_css_property_initial_by_id,
+  _lxb_css_property_destroy,
+  _lxb_css_property_serialize,
+  _lxb_css_property_serialize_str,
+  _lxb_css_property_serialize_name,
+  _lxb_css_property__undef_serialize_name,
+  _lxb_css_property__custom_serialize_name,
+  _lxb_css_property_serialize_name_str,
+  _lxb_css_property__undef_create,
+  _lxb_css_property__undef_destroy,
+  _lxb_css_property__undef_serialize,
+  _lxb_css_property__undef_serialize_value,
+  _lxb_css_property__custom_create,
+  _lxb_css_property__custom_destroy,
+  _lxb_css_property__custom_serialize,
+  _lxb_css_property__custom_serialize_value,
+  _lxb_css_property_display_create,
+  _lxb_css_property_display_destroy,
+  _lxb_css_property_display_serialize,
+  _lxb_css_value_by_id,
+  _lxb_css_property_order_create,
+  _lxb_css_property_order_destroy,
+  _lxb_css_property_order_serialize,
+  _lxb_css_value_integer_type_sr,
+  _lxb_css_property_visibility_create,
+  _lxb_css_property_visibility_destroy,
+  _lxb_css_property_visibility_serialize,
+  _lxb_css_value_serialize,
+  _lxb_css_property_width_create,
+  _lxb_css_property_width_destroy,
+  _lxb_css_property_width_serialize,
+  _lxb_css_value_length_sr,
+  _lxb_css_value_percentage_sr,
+  _lxb_css_property_height_create,
+  _lxb_css_property_height_destroy,
+  _lxb_css_property_height_serialize,
+  _lxb_css_property_box_sizing_create,
+  _lxb_css_property_box_sizing_destroy,
+  _lxb_css_property_box_sizing_serialize,
+  _lxb_css_property_min_width_create,
+  _lxb_css_property_min_width_destroy,
+  _lxb_css_property_min_width_serialize,
+  _lxb_css_property_min_height_create,
+  _lxb_css_property_min_height_destroy,
+  _lxb_css_property_min_height_serialize,
+  _lxb_css_property_max_width_create,
+  _lxb_css_property_max_width_destroy,
+  _lxb_css_property_max_width_serialize,
+  _lxb_css_property_max_height_create,
+  _lxb_css_property_max_height_destroy,
+  _lxb_css_property_max_height_serialize,
+  _lxb_css_property_margin_create,
+  _lxb_css_property_margin_destroy,
+  _lxb_css_property_margin_serialize,
+  _lxb_css_value_length_percentage_sr,
+  _lxb_css_property_margin_top_create,
+  _lxb_css_property_margin_top_destroy,
+  _lxb_css_property_margin_top_serialize,
+  _lxb_css_property_margin_right_create,
+  _lxb_css_property_margin_right_destroy,
+  _lxb_css_property_margin_right_serialize,
+  _lxb_css_property_margin_bottom_create,
+  _lxb_css_property_margin_bottom_destroy,
+  _lxb_css_property_margin_bottom_serialize,
+  _lxb_css_property_margin_left_create,
+  _lxb_css_property_margin_left_destroy,
+  _lxb_css_property_margin_left_serialize,
+  _lxb_css_property_padding_create,
+  _lxb_css_property_padding_destroy,
+  _lxb_css_property_padding_serialize,
+  _lxb_css_property_padding_top_create,
+  _lxb_css_property_padding_top_destroy,
+  _lxb_css_property_padding_top_serialize,
+  _lxb_css_property_padding_right_create,
+  _lxb_css_property_padding_right_destroy,
+  _lxb_css_property_padding_right_serialize,
+  _lxb_css_property_padding_bottom_create,
+  _lxb_css_property_padding_bottom_destroy,
+  _lxb_css_property_padding_bottom_serialize,
+  _lxb_css_property_padding_left_create,
+  _lxb_css_property_padding_left_destroy,
+  _lxb_css_property_padding_left_serialize,
+  _lxb_css_property_border_create,
+  _lxb_css_property_border_destroy,
+  _lxb_css_property_border_serialize,
+  _lxb_css_value_length_type_sr,
+  _lxb_css_value_color_serialize,
+  _lxb_css_property_border_top_create,
+  _lxb_css_property_border_top_destroy,
+  _lxb_css_property_border_top_serialize,
+  _lxb_css_property_border_right_create,
+  _lxb_css_property_border_right_destroy,
+  _lxb_css_property_border_right_serialize,
+  _lxb_css_property_border_bottom_create,
+  _lxb_css_property_border_bottom_destroy,
+  _lxb_css_property_border_bottom_serialize,
+  _lxb_css_property_border_left_create,
+  _lxb_css_property_border_left_destroy,
+  _lxb_css_property_border_left_serialize,
+  _lxb_css_property_border_top_color_create,
+  _lxb_css_property_border_top_color_destroy,
+  _lxb_css_property_border_top_color_serialize,
+  _lxb_css_property_border_right_color_create,
+  _lxb_css_property_border_right_color_destroy,
+  _lxb_css_property_border_right_color_serialize,
+  _lxb_css_property_border_bottom_color_create,
+  _lxb_css_property_border_bottom_color_destroy,
+  _lxb_css_property_border_bottom_color_serialize,
+  _lxb_css_property_border_left_color_create,
+  _lxb_css_property_border_left_color_destroy,
+  _lxb_css_property_border_left_color_serialize,
+  _lxb_css_property_background_color_create,
+  _lxb_css_property_background_color_destroy,
+  _lxb_css_property_background_color_serialize,
+  _lxb_css_property_color_create,
+  _lxb_css_property_color_destroy,
+  _lxb_css_property_color_serialize,
+  _lxb_css_property_opacity_create,
+  _lxb_css_property_opacity_destroy,
+  _lxb_css_property_opacity_serialize,
+  _lxb_css_value_number_percentage_sr,
+  _lxb_css_property_position_create,
+  _lxb_css_property_position_destroy,
+  _lxb_css_property_position_serialize,
+  _lxb_css_property_top_create,
+  _lxb_css_property_top_destroy,
+  _lxb_css_property_top_serialize,
+  _lxb_css_property_right_create,
+  _lxb_css_property_right_destroy,
+  _lxb_css_property_right_serialize,
+  _lxb_css_property_bottom_create,
+  _lxb_css_property_bottom_destroy,
+  _lxb_css_property_bottom_serialize,
+  _lxb_css_property_left_create,
+  _lxb_css_property_left_destroy,
+  _lxb_css_property_left_serialize,
+  _lxb_css_property_inset_block_start_create,
+  _lxb_css_property_inset_block_start_destroy,
+  _lxb_css_property_inset_block_start_serialize,
+  _lxb_css_property_inset_inline_start_create,
+  _lxb_css_property_inset_inline_start_destroy,
+  _lxb_css_property_inset_inline_start_serialize,
+  _lxb_css_property_inset_block_end_create,
+  _lxb_css_property_inset_block_end_destroy,
+  _lxb_css_property_inset_block_end_serialize,
+  _lxb_css_property_inset_inline_end_create,
+  _lxb_css_property_inset_inline_end_destroy,
+  _lxb_css_property_inset_inline_end_serialize,
+  _lxb_css_property_text_transform_create,
+  _lxb_css_property_text_transform_destroy,
+  _lxb_css_property_text_transform_serialize,
+  _lxb_css_property_text_align_create,
+  _lxb_css_property_text_align_destroy,
+  _lxb_css_property_text_align_serialize,
+  _lxb_css_property_text_align_all_create,
+  _lxb_css_property_text_align_all_destroy,
+  _lxb_css_property_text_align_all_serialize,
+  _lxb_css_property_text_align_last_create,
+  _lxb_css_property_text_align_last_destroy,
+  _lxb_css_property_text_align_last_serialize,
+  _lxb_css_property_text_justify_create,
+  _lxb_css_property_text_justify_destroy,
+  _lxb_css_property_text_justify_serialize,
+  _lxb_css_property_text_indent_create,
+  _lxb_css_property_text_indent_destroy,
+  _lxb_css_property_text_indent_serialize,
+  _lxb_css_property_white_space_create,
+  _lxb_css_property_white_space_destroy,
+  _lxb_css_property_white_space_serialize,
+  _lxb_css_property_tab_size_create,
+  _lxb_css_property_tab_size_destroy,
+  _lxb_css_property_tab_size_serialize,
+  _lxb_css_value_number_length_sr,
+  _lxb_css_property_word_break_create,
+  _lxb_css_property_word_break_destroy,
+  _lxb_css_property_word_break_serialize,
+  _lxb_css_property_line_break_create,
+  _lxb_css_property_line_break_destroy,
+  _lxb_css_property_line_break_serialize,
+  _lxb_css_property_hyphens_create,
+  _lxb_css_property_hyphens_destroy,
+  _lxb_css_property_hyphens_serialize,
+  _lxb_css_property_overflow_wrap_create,
+  _lxb_css_property_overflow_wrap_destroy,
+  _lxb_css_property_overflow_wrap_serialize,
+  _lxb_css_property_word_wrap_create,
+  _lxb_css_property_word_wrap_destroy,
+  _lxb_css_property_word_wrap_serialize,
+  _lxb_css_property_word_spacing_create,
+  _lxb_css_property_word_spacing_destroy,
+  _lxb_css_property_word_spacing_serialize,
+  _lxb_css_property_letter_spacing_create,
+  _lxb_css_property_letter_spacing_destroy,
+  _lxb_css_property_letter_spacing_serialize,
+  _lxb_css_property_hanging_punctuation_create,
+  _lxb_css_property_hanging_punctuation_destroy,
+  _lxb_css_property_hanging_punctuation_serialize,
+  _lxb_css_property_font_family_create,
+  _lxb_css_property_font_family_destroy,
+  _lxb_css_property_font_family_serialize,
+  _lxb_css_syntax_ident_or_string_serialize,
+  _lxb_css_property_font_weight_create,
+  _lxb_css_property_font_weight_destroy,
+  _lxb_css_property_font_weight_serialize,
+  _lxb_css_value_number_type_sr,
+  _lxb_css_property_font_stretch_create,
+  _lxb_css_property_font_stretch_destroy,
+  _lxb_css_property_font_stretch_serialize,
+  _lxb_css_value_percentage_type_sr,
+  _lxb_css_property_font_style_create,
+  _lxb_css_property_font_style_destroy,
+  _lxb_css_property_font_style_serialize,
+  _lxb_css_value_angle_sr,
+  _lxb_css_property_font_size_create,
+  _lxb_css_property_font_size_destroy,
+  _lxb_css_property_font_size_serialize,
+  _lxb_css_value_length_percentage_type_sr,
+  _lxb_css_property_float_reference_create,
+  _lxb_css_property_float_reference_destroy,
+  _lxb_css_property_float_reference_serialize,
+  _lxb_css_property_float_create,
+  _lxb_css_property_float_destroy,
+  _lxb_css_property_float_serialize,
+  _lxb_css_property_clear_create,
+  _lxb_css_property_clear_destroy,
+  _lxb_css_property_clear_serialize,
+  _lxb_css_property_float_defer_create,
+  _lxb_css_property_float_defer_destroy,
+  _lxb_css_property_float_defer_serialize,
+  _lxb_css_value_integer_sr,
+  _lxb_css_property_float_offset_create,
+  _lxb_css_property_float_offset_destroy,
+  _lxb_css_property_float_offset_serialize,
+  _lxb_css_property_wrap_flow_create,
+  _lxb_css_property_wrap_flow_destroy,
+  _lxb_css_property_wrap_flow_serialize,
+  _lxb_css_property_wrap_through_create,
+  _lxb_css_property_wrap_through_destroy,
+  _lxb_css_property_wrap_through_serialize,
+  _lxb_css_property_flex_direction_create,
+  _lxb_css_property_flex_direction_destroy,
+  _lxb_css_property_flex_direction_serialize,
+  _lxb_css_property_flex_wrap_create,
+  _lxb_css_property_flex_wrap_destroy,
+  _lxb_css_property_flex_wrap_serialize,
+  _lxb_css_property_flex_flow_create,
+  _lxb_css_property_flex_flow_destroy,
+  _lxb_css_property_flex_flow_serialize,
+  _lxb_css_property_flex_create,
+  _lxb_css_property_flex_destroy,
+  _lxb_css_property_flex_serialize,
+  _lxb_css_value_number_sr,
+  _lxb_css_property_flex_basis_serialize,
+  _lxb_css_property_flex_grow_create,
+  _lxb_css_property_flex_grow_destroy,
+  _lxb_css_property_flex_grow_serialize,
+  _lxb_css_property_flex_shrink_create,
+  _lxb_css_property_flex_shrink_destroy,
+  _lxb_css_property_flex_shrink_serialize,
+  _lxb_css_property_flex_basis_create,
+  _lxb_css_property_flex_basis_destroy,
+  _lxb_css_property_justify_content_create,
+  _lxb_css_property_justify_content_destroy,
+  _lxb_css_property_justify_content_serialize,
+  _lxb_css_property_align_items_create,
+  _lxb_css_property_align_items_destroy,
+  _lxb_css_property_align_items_serialize,
+  _lxb_css_property_align_self_create,
+  _lxb_css_property_align_self_destroy,
+  _lxb_css_property_align_self_serialize,
+  _lxb_css_property_align_content_create,
+  _lxb_css_property_align_content_destroy,
+  _lxb_css_property_align_content_serialize,
+  _lxb_css_property_dominant_baseline_create,
+  _lxb_css_property_dominant_baseline_destroy,
+  _lxb_css_property_dominant_baseline_serialize,
+  _lxb_css_property_vertical_align_create,
+  _lxb_css_property_vertical_align_destroy,
+  _lxb_css_property_vertical_align_serialize,
+  _lxb_css_property_baseline_source_create,
+  _lxb_css_property_baseline_source_destroy,
+  _lxb_css_property_baseline_source_serialize,
+  _lxb_css_property_alignment_baseline_create,
+  _lxb_css_property_alignment_baseline_destroy,
+  _lxb_css_property_alignment_baseline_serialize,
+  _lxb_css_property_baseline_shift_create,
+  _lxb_css_property_baseline_shift_destroy,
+  _lxb_css_property_baseline_shift_serialize,
+  _lxb_css_property_line_height_create,
+  _lxb_css_property_line_height_destroy,
+  _lxb_css_property_line_height_serialize,
+  _lxb_css_value_number_length_percentage_type_sr,
+  _lxb_css_property_z_index_create,
+  _lxb_css_property_z_index_destroy,
+  _lxb_css_property_z_index_serialize,
+  _lxb_css_property_direction_create,
+  _lxb_css_property_direction_destroy,
+  _lxb_css_property_direction_serialize,
+  _lxb_css_property_unicode_bidi_create,
+  _lxb_css_property_unicode_bidi_destroy,
+  _lxb_css_property_unicode_bidi_serialize,
+  _lxb_css_property_writing_mode_create,
+  _lxb_css_property_writing_mode_destroy,
+  _lxb_css_property_writing_mode_serialize,
+  _lxb_css_property_text_orientation_create,
+  _lxb_css_property_text_orientation_destroy,
+  _lxb_css_property_text_orientation_serialize,
+  _lxb_css_property_text_combine_upright_create,
+  _lxb_css_property_text_combine_upright_destroy,
+  _lxb_css_property_text_combine_upright_serialize,
+  _lxb_css_property_overflow_x_create,
+  _lxb_css_property_overflow_x_destroy,
+  _lxb_css_property_overflow_x_serialize,
+  _lxb_css_property_overflow_y_create,
+  _lxb_css_property_overflow_y_destroy,
+  _lxb_css_property_overflow_y_serialize,
+  _lxb_css_property_overflow_block_create,
+  _lxb_css_property_overflow_block_destroy,
+  _lxb_css_property_overflow_block_serialize,
+  _lxb_css_property_overflow_inline_create,
+  _lxb_css_property_overflow_inline_destroy,
+  _lxb_css_property_overflow_inline_serialize,
+  _lxb_css_property_text_overflow_create,
+  _lxb_css_property_text_overflow_destroy,
+  _lxb_css_property_text_overflow_serialize,
+  _lxb_css_property_text_decoration_line_create,
+  _lxb_css_property_text_decoration_line_destroy,
+  _lxb_css_property_text_decoration_line_serialize,
+  _lxb_css_property_text_decoration_style_create,
+  _lxb_css_property_text_decoration_style_destroy,
+  _lxb_css_property_text_decoration_style_serialize,
+  _lxb_css_property_text_decoration_color_create,
+  _lxb_css_property_text_decoration_color_destroy,
+  _lxb_css_property_text_decoration_color_serialize,
+  _lxb_css_property_text_decoration_create,
+  _lxb_css_property_text_decoration_destroy,
+  _lxb_css_property_text_decoration_serialize,
+  _lxb_css_property_state__undef,
+  _lxb_css_property_state__custom,
+  _lxb_css_property_state_align_content,
+  _lxb_css_property_state_align_items,
+  _lxb_css_property_state_align_self,
+  _lxb_css_property_state_alignment_baseline,
+  _lxb_css_property_state_background_color,
+  _lxb_css_property_state_baseline_shift,
+  _lxb_css_property_state_baseline_source,
+  _lxb_css_property_state_border,
+  _lxb_css_property_state_border_bottom,
+  _lxb_css_property_state_border_bottom_color,
+  _lxb_css_property_state_border_left,
+  _lxb_css_property_state_border_left_color,
+  _lxb_css_property_state_border_right,
+  _lxb_css_property_state_border_right_color,
+  _lxb_css_property_state_border_top,
+  _lxb_css_property_state_border_top_color,
+  _lxb_css_property_state_bottom,
+  _lxb_css_property_state_box_sizing,
+  _lxb_css_property_state_clear,
+  _lxb_css_property_state_color,
+  _lxb_css_property_state_direction,
+  _lxb_css_property_state_display,
+  _lxb_css_property_state_dominant_baseline,
+  _lxb_css_property_state_flex,
+  _lxb_css_property_state_flex_basis,
+  _lxb_css_property_state_flex_direction,
+  _lxb_css_property_state_flex_flow,
+  _lxb_css_property_state_flex_grow,
+  _lxb_css_property_state_flex_shrink,
+  _lxb_css_property_state_flex_wrap,
+  _lxb_css_property_state_float,
+  _lxb_css_property_state_float_defer,
+  _lxb_css_property_state_float_offset,
+  _lxb_css_property_state_float_reference,
+  _lxb_css_property_state_font_family,
+  _lxb_css_property_state_font_size,
+  _lxb_css_property_state_font_stretch,
+  _lxb_css_property_state_font_style,
+  _lxb_css_property_state_font_weight,
+  _lxb_css_property_state_hanging_punctuation,
+  _lxb_css_property_state_height,
+  _lxb_css_property_state_hyphens,
+  _lxb_css_property_state_inset_block_end,
+  _lxb_css_property_state_inset_block_start,
+  _lxb_css_property_state_inset_inline_end,
+  _lxb_css_property_state_inset_inline_start,
+  _lxb_css_property_state_justify_content,
+  _lxb_css_property_state_left,
+  _lxb_css_property_state_letter_spacing,
+  _lxb_css_property_state_line_break,
+  _lxb_css_property_state_line_height,
+  _lxb_css_property_state_margin,
+  _lxb_css_property_state_margin_bottom,
+  _lxb_css_property_state_margin_left,
+  _lxb_css_property_state_margin_right,
+  _lxb_css_property_state_margin_top,
+  _lxb_css_property_state_max_height,
+  _lxb_css_property_state_max_width,
+  _lxb_css_property_state_min_height,
+  _lxb_css_property_state_min_width,
+  _lxb_css_property_state_opacity,
+  _lxb_css_property_state_order,
+  _lxb_css_property_state_overflow_block,
+  _lxb_css_property_state_overflow_inline,
+  _lxb_css_property_state_overflow_wrap,
+  _lxb_css_property_state_overflow_x,
+  _lxb_css_property_state_overflow_y,
+  _lxb_css_property_state_padding,
+  _lxb_css_property_state_padding_bottom,
+  _lxb_css_property_state_padding_left,
+  _lxb_css_property_state_padding_right,
+  _lxb_css_property_state_padding_top,
+  _lxb_css_property_state_position,
+  _lxb_css_property_state_right,
+  _lxb_css_property_state_tab_size,
+  _lxb_css_property_state_text_align,
+  _lxb_css_property_state_text_align_all,
+  _lxb_css_property_state_text_align_last,
+  _lxb_css_property_state_text_combine_upright,
+  _lxb_css_property_state_text_decoration,
+  _lxb_css_property_state_text_decoration_color,
+  _lxb_css_property_state_text_decoration_line,
+  _lxb_css_property_state_text_decoration_style,
+  _lxb_css_property_state_text_indent,
+  _lxb_css_property_state_text_justify,
+  _lxb_css_property_state_text_orientation,
+  _lxb_css_property_state_text_overflow,
+  _lxb_css_property_state_text_transform,
+  _lxb_css_property_state_top,
+  _lxb_css_property_state_unicode_bidi,
+  _lxb_css_property_state_vertical_align,
+  _lxb_css_property_state_visibility,
+  _lxb_css_property_state_white_space,
+  _lxb_css_property_state_width,
+  _lxb_css_property_state_word_break,
+  _lxb_css_property_state_word_spacing,
+  _lxb_css_property_state_word_wrap,
+  _lxb_css_property_state_wrap_flow,
+  _lxb_css_property_state_wrap_through,
+  _lxb_css_property_state_writing_mode,
+  _lxb_css_property_state_z_index,
+  _lxb_css_value_by_name,
+  _lxb_css_unit_absolute_relative_by_name,
+  _lxb_css_syntax_token_serialize_str,
+  _lxb_css_syntax_parser_token_wo_ws,
+  _lxb_css_unit_angle_by_name,
+  _lxb_css_rule_destroy,
+  _lxb_css_rule_list_destroy,
+  _lxb_css_selector_list_destroy,
+  _lxb_css_rule_style_destroy,
+  _lxb_css_rule_bad_style_destroy,
+  _lxb_css_rule_declaration_list_destroy,
+  _lxb_css_rule_serialize,
+  _lxb_css_rule_at_serialize,
+  _lxb_css_rule_style_serialize,
+  _lxb_css_rule_declaration_serialize,
+  _lxb_css_selector_serialize_list_chain,
+  _lxb_css_rule_bad_style_serialize,
+  _lxb_css_rule_declaration_list_serialize,
+  _lxb_css_rule_serialize_chain,
+  _lxb_css_rule_at_serialize_name,
+  _lxb_css_rule_declaration_serialize_name,
   _lxb_css_selectors_state_pseudo_class_function__undef,
   _lxb_css_selectors_state_pseudo_class_function_current,
   _lxb_css_selectors_state_complex_list,
@@ -7185,8 +7759,6 @@ var _php_time,
   _lxb_css_selectors_state_pseudo_class_function_not,
   _lxb_css_selectors_state_pseudo_class_function_nth_child,
   _lxb_css_syntax_anb_handler,
-  _lxb_css_syntax_parser_token,
-  _lxb_css_syntax_parser_consume,
   _lxb_css_syntax_token_consume,
   _lxb_css_syntax_parser_components_push,
   _lxb_css_selectors_state_pseudo_class_function_nth_col,
@@ -7196,7 +7768,7 @@ var _php_time,
   _lxb_css_selectors_state_pseudo_class_function_nth_of_type,
   _lxb_css_selectors_state_pseudo_class_function_where,
   _lxb_css_selectors_state_pseudo_element_function__undef,
-  _lxb_css_state_failed,
+  _lxb_css_selectors_state_pseudo_class_function_lexbor_contains,
   _lxb_css_selector_pseudo_class_by_name,
   _lxb_css_selector_pseudo_class_function_by_name,
   _lxb_css_selector_pseudo_class_function_by_id,
@@ -7215,7 +7787,6 @@ var _php_time,
   _lxb_css_selector_list_create,
   _lxb_css_selector_list_remove,
   _lxb_css_selector_list_selectors_remove,
-  _lxb_css_selector_list_destroy,
   _lxb_css_selector_list_destroy_chain,
   _lxb_css_selector_list_destroy_memory,
   _lxb_css_selector_serialize,
@@ -7223,17 +7794,13 @@ var _php_time,
   _lxb_css_selector_combinator,
   _lxb_css_selector_serialize_chain_char,
   _lxb_css_selector_serialize_list,
-  _lxb_css_selector_serialize_list_chain,
   _lxb_css_selector_serialize_list_chain_char,
   _lxb_css_selector_serialize_anb_of,
   _lxb_css_syntax_anb_serialize,
   _lxb_css_selector_list_append,
   _lxb_css_selector_append_next,
   _lxb_css_selector_list_append_next,
-  _lxb_css_selectors_create,
-  _lxb_css_selectors_init,
   _lxb_css_selectors_clean,
-  _lxb_css_selectors_destroy,
   _lxb_css_selectors_parse,
   _lxb_css_selectors_parse_complex_list,
   _lxb_css_syntax_parser_run,
@@ -7253,36 +7820,48 @@ var _php_time,
   _lxb_css_syntax_token,
   _lxb_css_syntax_token_next,
   _lxb_css_syntax_token_string_dup,
-  _lxb_css_syntax_parser_function_push,
+  _lxb_css_syntax_consume_function,
   _lxb_css_state_stop,
+  _lxb_css_state_blank,
+  _lxb_css_state_cb_list_rules,
+  _lxb_css_state_cb_at_rule,
+  _lxb_css_state_cb_qualified_rule,
+  _lxb_css_state_cb_block,
+  _lxb_css_stylesheet_create,
+  _lxb_css_stylesheet_destroy,
+  _lxb_css_stylesheet_parse,
+  _lxb_css_syntax_parse_list_rules,
   _lxb_css_syntax_anb_parse,
   _lxb_css_syntax_parser_pipe_push,
   _lxb_css_syntax_anb_serialize_char,
-  _lxb_css_syntax_parser_token_wo_ws,
   _lxb_css_syntax_parser_list_rules_push,
   _lxb_css_syntax_stack_expand,
   _lxb_css_syntax_parser_end,
   _lxb_css_syntax_parser_at_rule_push,
-  _lxb_css_syntax_parser_start_block,
   _lxb_css_syntax_parser_qualified_push,
-  _lxb_css_syntax_parser_declarations_push,
-  _lxb_css_syntax_tokenizer_lookup_colon,
   _lxb_css_syntax_parser_block_push,
+  _lxb_css_syntax_parser_end_consume_token,
+  _lxb_css_syntax_tokenizer_lookup_colon,
+  _lxb_css_syntax_parser_declarations_push,
+  _lxb_css_syntax_parser_function_push,
   _lxb_css_syntax_tokenizer_lookup_declaration_ws_end,
   _lxb_css_syntax_tokenizer_lookup_important,
   _lxb_css_syntax_tokenizer_error_add,
   _lxb_css_syntax_codepoint_to_ascii,
-  _lxb_css_syntax_parse_list_rules,
+  _lxb_css_syntax_consume_list_rules,
+  _lxb_css_syntax_consume_at_rule,
+  _lxb_css_syntax_consume_qualified_rule,
+  _lxb_css_syntax_consume_block,
+  _lxb_css_syntax_consume_declarations,
+  _lxb_css_syntax_consume_components,
   _lxb_css_syntax_ident_serialize,
   _lxb_css_syntax_string_serialize,
-  _lxb_css_syntax_ident_or_string_serialize,
   _lxb_css_syntax_token_string_free,
   _lxb_css_syntax_token_consume_n,
   _lxb_css_syntax_token_string_make,
   _lxb_css_syntax_token_type_name_by_id,
   _lxb_css_syntax_token_type_id_by_name,
   _lxb_css_syntax_token_serialize,
-  _lxb_css_syntax_token_serialize_str,
   _lxb_css_syntax_token_serialize_char,
   _lxb_css_syntax_token_create_noi,
   _lxb_css_syntax_token_clean_noi,
@@ -7290,6 +7869,13 @@ var _php_time,
   _lxb_css_syntax_token_type_name_noi,
   _lxb_css_syntax_token_type_noi,
   _lxb_css_syntax_tokenizer_status_noi,
+  _lxb_css_unit_absolute_by_name,
+  _lxb_css_unit_relative_by_name,
+  _lxb_css_unit_frequency_by_name,
+  _lxb_css_unit_resolution_by_name,
+  _lxb_css_unit_duration_by_name,
+  _lxb_css_unit_by_id,
+  _lxb_css_value_hue_sr,
   _lxb_dom_interface_create,
   _lxb_dom_element_interface_create,
   _lxb_dom_interface_clone,
@@ -7344,6 +7930,8 @@ var _php_time,
   _lxb_dom_comment_interface_copy,
   _lxb_dom_document_fragment_interface_create,
   _lxb_dom_document_type_interface_create,
+  _lxb_dom_document_type_create,
+  _lxb_dom_document_type_valid_name,
   _lxb_dom_document_type_name_noi,
   _lxb_dom_document_type_public_id_noi,
   _lxb_dom_document_type_system_id_noi,
@@ -7395,6 +7983,8 @@ var _php_time,
   _lxb_dom_element_attr_by_local_name_data,
   _lxb_dom_element_attr_by_id,
   _lxb_dom_element_compare,
+  _lxb_dom_element_by_id,
+  _lxb_dom_node_by_id,
   _lxb_dom_elements_by_tag_name,
   _lxb_dom_node_by_tag_name,
   _lxb_dom_elements_by_class_name,
@@ -7435,6 +8025,16 @@ var _php_time,
   _lxb_dom_node_insert_before,
   _lxb_dom_node_insert_after_wo_events,
   _lxb_dom_node_insert_after,
+  _lxb_dom_node_pre_insert_validity,
+  _lxb_dom_node_host_including_inclusive_ancestor,
+  _lxb_dom_node_pre_insert,
+  _lxb_dom_node_insert,
+  _lxb_dom_node_insert_before_spec,
+  _lxb_dom_node_append_child,
+  _lxb_dom_node_remove_child,
+  _lxb_dom_node_remove_spec,
+  _lxb_dom_node_replace_child,
+  _lxb_dom_node_replace_all_spec,
   _lxb_dom_node_remove_wo_events,
   _lxb_dom_node_replace_all,
   _lxb_dom_node_simple_walk,
@@ -7443,12 +8043,14 @@ var _php_time,
   _lxb_dom_node_text_content,
   _lxb_dom_node_text_content_set,
   _lxb_dom_node_is_empty,
+  _lxb_dom_node_adopt,
   _lxb_dom_node_tag_id_noi,
   _lxb_dom_node_next_noi,
   _lxb_dom_node_prev_noi,
   _lxb_dom_node_parent_noi,
   _lxb_dom_node_first_child_noi,
   _lxb_dom_node_last_child_noi,
+  _lxb_dom_node_type_noi,
   _lxb_dom_processing_instruction_copy,
   _lxb_dom_processing_instruction_target_noi,
   _lxb_dom_shadow_root_interface_create,
@@ -7633,9 +8235,16 @@ var _php_time,
   _lxb_encoding_encode_x_mac_cyrillic_single,
   _lxb_encoding_encode_x_user_defined_single,
   _lxb_encoding_data_by_pre_name,
+  _lxb_encoding_prescan_validate,
+  _lxb_encoding_data_prescan_validate,
+  _lxb_encoding_data,
+  _lxb_encoding_bom_sniff,
   _lxb_encoding_utf_8_skip_bom,
   _lxb_encoding_utf_16be_skip_bom,
   _lxb_encoding_utf_16le_skip_bom,
+  _lxb_encoding_data_by_name,
+  _lxb_encoding_encode_function,
+  _lxb_encoding_decode_function,
   _lxb_encoding_encode_init_noi,
   _lxb_encoding_encode_finish_noi,
   _lxb_encoding_encode_buf_noi,
@@ -7667,6 +8276,7 @@ var _php_time,
   _lxb_encoding_decode_t_sizeof,
   _lxb_html_encoding_init,
   _lxb_html_encoding_destroy,
+  _lxb_html_encoding_prescan,
   _lxb_html_encoding_determine,
   _lxb_html_encoding_content,
   _lxb_html_encoding_create_noi,
@@ -7733,7 +8343,9 @@ var _php_time,
   _lxb_html_picture_element_interface_create,
   _lxb_html_progress_element_interface_create,
   _lxb_html_script_element_interface_create,
+  _lxb_html_search_element_interface_create,
   _lxb_html_select_element_interface_create,
+  _lxb_html_selectedcontent_element_interface_create,
   _lxb_html_slot_element_interface_create,
   _lxb_html_source_element_interface_create,
   _lxb_html_span_element_interface_create,
@@ -7803,7 +8415,9 @@ var _php_time,
   _lxb_html_picture_element_interface_destroy,
   _lxb_html_progress_element_interface_destroy,
   _lxb_html_script_element_interface_destroy,
+  _lxb_html_search_element_interface_destroy,
   _lxb_html_select_element_interface_destroy,
+  _lxb_html_selectedcontent_element_interface_destroy,
   _lxb_html_slot_element_interface_destroy,
   _lxb_html_source_element_interface_destroy,
   _lxb_html_span_element_interface_destroy,
@@ -7826,11 +8440,11 @@ var _php_time,
   _lxb_html_document_parse,
   _lxb_html_parser_create,
   _lxb_html_parser_init,
-  _lxb_html_parser_destroy,
   _lxb_html_parser_clean,
   _lxb_html_parse_chunk_prepare,
   _lxb_html_parse_chunk_process,
   _lxb_html_parse_chunk_end,
+  _lxb_html_parser_destroy,
   _lxb_html_document_parse_chunk_begin,
   _lxb_html_document_parse_chunk,
   _lxb_html_document_parse_chunk_end,
@@ -7862,6 +8476,10 @@ var _php_time,
   _lxb_html_element_inner_html_set,
   _lxb_html_media_element_interface_create,
   _lxb_html_media_element_interface_destroy,
+  _lxb_html_option_maybe_clone_to_selectedcontent,
+  _lxb_html_select_get_enabled_selectedcontent,
+  _lxb_html_selectedcontent_clone_option,
+  _lxb_html_option_element_selectedness,
   _lxb_html_window_create,
   _lxb_html_window_destroy,
   _lxb_html_tokenizer_create,
@@ -7889,6 +8507,8 @@ var _php_time,
   _lxb_html_parser_state_noi,
   _lxb_html_parser_scripting_noi,
   _lxb_html_parser_scripting_set_noi,
+  _lxb_html_tag_is_category,
+  _lxb_html_tag_fixname_svg,
   _lxb_html_token_attr_create,
   _lxb_html_token_attr_clean,
   _lxb_html_token_attr_destroy,
@@ -7916,11 +8536,14 @@ var _php_time,
   _lxb_html_tokenizer_attrs_destroy,
   _lxb_html_tokenizer_tags_make,
   _lxb_html_tokenizer_attrs_make,
+  _lxb_html_tokenizer_error_add,
   _lxb_html_tokenizer_current_namespace,
   _lxb_html_tokenizer_state_plaintext_before,
   _lxb_html_tokenizer_state_rcdata_before,
   _lxb_html_tokenizer_state_rawtext_before,
   _lxb_html_tokenizer_state_script_data_before,
+  _lxb_html_tokenizer_attr_last_duplicate,
+  _lxb_html_tokenizer_validate_close_tag,
   _lxb_html_tokenizer_status_set_noi,
   _lxb_html_tokenizer_callback_token_done_set_noi,
   _lxb_html_tokenizer_callback_token_done_ctx_noi,
@@ -7928,15 +8551,18 @@ var _php_time,
   _lxb_html_tokenizer_tmp_tag_id_set_noi,
   _lxb_html_tokenizer_tree_noi,
   _lxb_html_tokenizer_tree_set_noi,
+  _lxb_html_tokenizer_input_validation_set_noi,
   _lxb_html_tokenizer_mraw_noi,
   _lxb_html_tokenizer_tags_noi,
-  _lxb_html_tokenizer_error_add,
+  _lxb_html_tokenizer_keep_duplicate_set_noi,
+  _lxb_html_tokenizer_error_to_string,
   _lxb_html_tokenizer_state_comment_before_start,
   _lxb_html_tokenizer_state_cr,
   _lxb_html_tokenizer_state_doctype_before,
   _lxb_html_tokenizer_state_before_attribute_name,
   _lxb_html_tokenizer_state_self_closing_start_tag,
   _lxb_html_tokenizer_state_char_ref,
+  _lxb_html_tokenizer_state_cdata_section_before,
   _lxb_html_tree_insertion_mode_initial,
   _lxb_html_tree_construction_dispatcher,
   _lxb_html_tree_ref,
@@ -7966,8 +8592,6 @@ var _php_time,
   _lxb_html_tree_generate_implied_end_tags,
   _lxb_html_tree_generate_all_implied_end_tags_thoroughly,
   _lxb_html_tree_insertion_mode_in_body,
-  _lxb_html_tree_insertion_mode_in_select,
-  _lxb_html_tree_insertion_mode_in_select_in_table,
   _lxb_html_tree_insertion_mode_in_cell,
   _lxb_html_tree_insertion_mode_in_row,
   _lxb_html_tree_insertion_mode_in_table_body,
@@ -7983,12 +8607,14 @@ var _php_time,
   _lxb_html_tree_element_in_scope_h123456,
   _lxb_html_tree_element_in_scope_tbody_thead_tfoot,
   _lxb_html_tree_element_in_scope_td_th,
+  _lxb_html_tree_element_in_scope_option_optgroup,
   _lxb_html_tree_check_scope_element,
   _lxb_html_tree_close_p_element,
   _lxb_html_tree_adoption_agency_algorithm,
   _lxb_html_tree_open_elements_remove_by_node,
   _lxb_html_tree_adjust_attributes_mathml,
   _lxb_html_tree_adjust_attributes_svg,
+  _lxb_html_tree_error_to_string,
   _lxb_html_tree_insertion_mode_after_after_body,
   _lxb_html_tree_insertion_mode_after_after_frameset,
   _lxb_html_tree_insertion_mode_after_body,
@@ -8197,11 +8823,8 @@ var _php_time,
   _zend_strndup,
   _expand_filepath_ex,
   _php_globfree,
-  __zend_bailout,
   _zend_string_hash_func,
   _zend_hash_str_find_ptr_lc,
-  _setTempRet0,
-  _getTempRet0,
   _zend_stream_init_filename_ex,
   _destroy_op_array,
   _zend_destroy_file_handle,
@@ -8217,6 +8840,7 @@ var _php_time,
   _zend_hash_find_known_hash,
   _zend_set_compiled_filename,
   _zend_class_redeclaration_error,
+  _zend_bind_class_in_slot,
   _zend_try_early_bind,
   __zend_observer_function_declared_notify,
   __zend_observer_class_linked_notify,
@@ -8398,6 +9022,7 @@ var _php_time,
   _zend_get_closure_invoke_method,
   _zend_get_default_from_internal_arg_info,
   _zend_separate_class_constants_table,
+  _smart_str_append_double,
   _zval_copy_ctor_func,
   _zend_update_class_constants,
   _zend_class_init_statics,
@@ -8823,6 +9448,7 @@ var _php_time,
   _add_property_zval_ex,
   _add_property_null_ex,
   _zend_call_method_if_exists,
+  _zend_update_property_null,
   _php_uuencode,
   _php_uudecode,
   _var_destroy,
@@ -8842,7 +9468,6 @@ var _php_time,
   _zend_array_count,
   _php_debug_zval_dump,
   _php_var_export_ex,
-  _smart_str_append_double,
   _php_var_export,
   _php_unserialize_with_options,
   _zend_memory_usage,
@@ -8978,8 +9603,8 @@ var _php_time,
   _php_set_sock_blocking,
   _zend_stack_init,
   _zend_stack_top,
-  _php_output_handler_dtor,
   _zend_stack_del_top,
+  _php_output_handler_dtor,
   _zend_stack_destroy,
   _zend_is_compiling,
   _zend_get_compiled_filename,
@@ -9306,7 +9931,6 @@ var _php_time,
   _zend_declare_class_constant_double,
   _zend_declare_class_constant_stringl,
   _zend_declare_class_constant_string,
-  _zend_update_property_null,
   _zend_unset_property,
   _zend_update_property_bool,
   _zend_update_property_double,
@@ -9401,7 +10025,6 @@ var _php_time,
   _zend_init_rsrc_list,
   _zend_restore_compiled_filename,
   _do_bind_function,
-  _zend_bind_class_in_slot,
   _do_bind_class,
   _zend_is_auto_global_str,
   _zend_get_compiled_variable_name,
@@ -9527,6 +10150,7 @@ var _php_time,
   _zend_hash_real_init,
   _zend_get_opcode_handler_func,
   _zend_get_halt_op,
+  _zend_get_interrupt_op,
   _zend_vm_kind,
   _zend_vm_call_opcode_handler,
   _zend_set_user_opcode_handler,
@@ -9638,7 +10262,6 @@ var _php_time,
   _zend_multibyte_parse_encoding_list,
   _zend_multibyte_get_script_encoding,
   _zend_multibyte_set_script_encoding,
-  _zend_std_get_debug_info,
   _zend_get_property_guard,
   _zend_std_get_closure,
   _zend_hooked_object_build_properties,
@@ -9731,6 +10354,7 @@ var _php_time,
   _php_cli_get_shell_callbacks,
   _sapi_cli_single_write,
   _main,
+  _locale_charset,
   _libiconv_open_into,
   _libiconvctl,
   _libiconvlist,
@@ -9738,8 +10362,9 @@ var _php_time,
   _sqlite3_status64,
   _sqlite3_log,
   _sqlite3_status,
-  _sqlite3_db_status,
+  _sqlite3_db_status64,
   _sqlite3_msize,
+  _sqlite3_db_status,
   _sqlite3_vfs_find,
   _sqlite3_initialize,
   _sqlite3_config,
@@ -9759,14 +10384,16 @@ var _php_time,
   _sqlite3_realloc64,
   _sqlite3_str_vappendf,
   _sqlite3_str_append,
-  _sqlite3_str_appendf,
   _sqlite3_str_appendchar,
+  _sqlite3_str_appendf,
   _sqlite3_str_reset,
   _sqlite3_str_appendall,
   _sqlite3_str_finish,
   _sqlite3_str_errcode,
   _sqlite3_str_length,
+  _sqlite3_str_truncate,
   _sqlite3_str_value,
+  _sqlite3_str_free,
   _sqlite3_str_new,
   _sqlite3_vmprintf,
   _sqlite3_vsnprintf,
@@ -9793,6 +10420,7 @@ var _php_time,
   _sqlite3_value_text16,
   _sqlite3_value_text16be,
   _sqlite3_value_text16le,
+  _sqlite3_value_encoding,
   _sqlite3_value_nochange,
   _sqlite3_value_frombind,
   _sqlite3_value_dup,
@@ -9809,10 +10437,10 @@ var _php_time,
   _sqlite3_result_text16be,
   _sqlite3_result_text16le,
   _sqlite3_result_value,
+  _sqlite3_result_error_toobig,
   _sqlite3_result_zeroblob,
   _sqlite3_result_zeroblob64,
   _sqlite3_result_error_code,
-  _sqlite3_result_error_toobig,
   _sqlite3_context_db_handle,
   _sqlite3_vtab_nochange,
   _sqlite3_vtab_in_first,
@@ -9835,7 +10463,6 @@ var _php_time,
   _sqlite3_bind_zeroblob64,
   _sqlite3_bind_parameter_name,
   _sqlite3_transfer_bindings,
-  _sqlite3_stmt_isexplain,
   _sqlite3_next_stmt,
   _sqlite3_stmt_status,
   _sqlite3_value_numeric_type,
@@ -9879,7 +10506,9 @@ var _php_time,
   _sqlite3_txn_state,
   _sqlite3_busy_handler,
   _sqlite3_progress_handler,
+  _sqlite3_setlk_timeout,
   _sqlite3_interrupt,
+  _sqlite3_is_interrupted,
   _sqlite3_create_function_v2,
   _sqlite3_create_window_function,
   _sqlite3_create_function16,
@@ -9895,6 +10524,7 @@ var _php_time,
   _sqlite3_wal_hook,
   _sqlite3_wal_checkpoint_v2,
   _sqlite3_wal_checkpoint,
+  _sqlite3_set_errmsg,
   _sqlite3_error_offset,
   _sqlite3_errmsg16,
   _sqlite3_system_errno,
@@ -9906,6 +10536,8 @@ var _php_time,
   _sqlite3_create_collation16,
   _sqlite3_collation_needed,
   _sqlite3_collation_needed16,
+  _sqlite3_get_clientdata,
+  _sqlite3_set_clientdata,
   _sqlite3_global_recover,
   _sqlite3_thread_cleanup,
   _sqlite3_table_column_metadata,
@@ -9917,11 +10549,62 @@ var _php_time,
   _sqlite3_filename_database,
   _sqlite3_filename_journal,
   _sqlite3_filename_wal,
+  _sqlite3_db_name,
   _sqlite3_db_filename,
   _sqlite3_db_readonly,
   _sqlite3_compileoption_used,
   _sqlite3_compileoption_get,
   _sqlite3_sourceid,
+  _crc32,
+  _zError,
+  _deflateInit2_,
+  _inflateInit2_,
+  _deflateEnd,
+  _inflateEnd,
+  _deflate,
+  _inflate,
+  _adler32_z,
+  _adler32,
+  _adler32_combine,
+  _adler32_combine64,
+  _get_crc_table,
+  _crc32_z,
+  _crc32_combine_gen64,
+  _crc32_combine_gen,
+  _crc32_combine_op,
+  _crc32_combine64,
+  _crc32_combine,
+  _deflateInit_,
+  _deflateReset,
+  _deflateResetKeep,
+  _deflateSetDictionary,
+  _deflateGetDictionary,
+  _deflateSetHeader,
+  _deflatePending,
+  _deflateUsed,
+  _deflatePrime,
+  _deflateParams,
+  _deflateTune,
+  _deflateBound_z,
+  _deflateBound,
+  _deflateCopy,
+  _inflateResetKeep,
+  _inflateReset,
+  _inflateReset2,
+  _inflateInit_,
+  _inflatePrime,
+  _inflateGetDictionary,
+  _inflateSetDictionary,
+  _inflateGetHeader,
+  _inflateSync,
+  _inflateSyncPoint,
+  _inflateCopy,
+  _inflateUndermine,
+  _inflateValidate,
+  _inflateMark,
+  _inflateCodesUsed,
+  _zlibVersion,
+  _zlibCompileFlags,
   __emscripten_memcpy_bulkmem,
   _emscripten_stack_get_end,
   _emscripten_stack_get_base,
@@ -9963,12 +10646,26 @@ var _php_time,
   _php_json_serializable_ce,
   _php_json_exception_ce,
   _json_globals,
+  _lexbor_str_res_map_lowercase,
+  _lexbor_str_res_map_uppercase,
   _lexbor_hash_insert_raw,
   _lexbor_hash_insert_lower,
   _lexbor_hash_insert_upper,
   _lexbor_hash_search_raw,
   _lexbor_hash_search_lower,
   _lexbor_hash_search_upper,
+  _lexbor_str_res_ansi_replacement_character,
+  _lexbor_str_res_map_num,
+  _lexbor_str_res_map_hex,
+  _lexbor_str_res_replacement_character,
+  _lexbor_str_res_alphanumeric_character,
+  _lexbor_str_res_alpha_character,
+  _lexbor_tokenizer_chars_map,
+  _lexbor_str_res_map_hex_to_char,
+  _lexbor_str_res_map_hex_to_char_lowercase,
+  _lexbor_str_res_char_to_two_hex_value,
+  _lexbor_str_res_char_to_two_hex_value_lowercase,
+  _lxb_css_syntax_res_name_map,
   _lxb_encoding_multi_big5_map,
   _lxb_encoding_multi_jis0208_map,
   _lxb_encoding_multi_jis0212_map,
@@ -10053,6 +10750,9 @@ var _php_time,
   _lxb_encoding_multi_jis0212_8470_8483_map,
   _lxb_encoding_multi_jis0212_19970_40870_map,
   _lxb_encoding_multi_jis0212_65374_65375_map,
+  _lxb_html_tag_res_cats,
+  _lxb_html_tag_res_fixname_svg,
+  _lxb_html_tokenizer_eof,
   _php_internal_encoding_changed,
   _mbfl_encoding_pass,
   _sapi_module,
@@ -10306,7 +11006,9 @@ var _php_time,
   _sqlite3_version,
   _sqlite3_data_directory,
   _sqlite3_temp_directory,
-  _sqlite3one,
+  _z_errmsg,
+  _deflate_copyright,
+  _inflate_copyright,
   wasmMemory,
   wasmTable;
 
@@ -10388,7 +11090,6 @@ function assignWasmExports(wasmExports) {
   _zend_std_get_properties = Module['_zend_std_get_properties'] = wasmExports['zend_std_get_properties'];
   _zend_hash_add = Module['_zend_hash_add'] = wasmExports['zend_hash_add'];
   _zend_hash_str_update = Module['_zend_hash_str_update'] = wasmExports['zend_hash_str_update'];
-  __emalloc_32 = Module['__emalloc_32'] = wasmExports['_emalloc_32'];
   _add_index_string = Module['_add_index_string'] = wasmExports['add_index_string'];
   _add_assoc_zval_ex = Module['_add_assoc_zval_ex'] = wasmExports['add_assoc_zval_ex'];
   _add_assoc_bool_ex = Module['_add_assoc_bool_ex'] = wasmExports['add_assoc_bool_ex'];
@@ -10423,6 +11124,7 @@ function assignWasmExports(wasmExports) {
   _zend_object_std_dtor = Module['_zend_object_std_dtor'] = wasmExports['zend_object_std_dtor'];
   _zend_objects_clone_members = Module['_zend_objects_clone_members'] = wasmExports['zend_objects_clone_members'];
   _zend_std_compare_objects = Module['_zend_std_compare_objects'] = wasmExports['zend_std_compare_objects'];
+  _zend_std_get_debug_info = Module['_zend_std_get_debug_info'] = wasmExports['zend_std_get_debug_info'];
   _zend_std_get_properties_for = Module['_zend_std_get_properties_for'] = wasmExports['zend_std_get_properties_for'];
   _zend_array_dup = Module['_zend_array_dup'] = wasmExports['zend_array_dup'];
   _zend_std_has_property = Module['_zend_std_has_property'] = wasmExports['zend_std_has_property'];
@@ -10523,6 +11225,7 @@ function assignWasmExports(wasmExports) {
   _zend_hash_find = Module['_zend_hash_find'] = wasmExports['zend_hash_find'];
   _zend_hash_apply_with_argument = Module['_zend_hash_apply_with_argument'] = wasmExports['zend_hash_apply_with_argument'];
   _zend_hash_add_new = Module['_zend_hash_add_new'] = wasmExports['zend_hash_add_new'];
+  __emalloc_32 = Module['__emalloc_32'] = wasmExports['_emalloc_32'];
   _pcre_get_compiled_regex_cache = Module['_pcre_get_compiled_regex_cache'] = wasmExports['pcre_get_compiled_regex_cache'];
   _pcre_get_compiled_regex = Module['_pcre_get_compiled_regex'] = wasmExports['pcre_get_compiled_regex'];
   _php_pcre_create_match_data = Module['_php_pcre_create_match_data'] = wasmExports['php_pcre_create_match_data'];
@@ -10531,6 +11234,7 @@ function assignWasmExports(wasmExports) {
   _zval_ptr_safe_dtor = Module['_zval_ptr_safe_dtor'] = wasmExports['zval_ptr_safe_dtor'];
   _zend_try_assign_typed_ref_arr = Module['_zend_try_assign_typed_ref_arr'] = wasmExports['zend_try_assign_typed_ref_arr'];
   __safe_emalloc = Module['__safe_emalloc'] = wasmExports['_safe_emalloc'];
+  _zend_array_destroy = Module['_zend_array_destroy'] = wasmExports['zend_array_destroy'];
   _zend_hash_next_index_insert_new = Module['_zend_hash_next_index_insert_new'] = wasmExports['zend_hash_next_index_insert_new'];
   _zend_hash_index_add_new = Module['_zend_hash_index_add_new'] = wasmExports['zend_hash_index_add_new'];
   _zend_hash_update = Module['_zend_hash_update'] = wasmExports['zend_hash_update'];
@@ -10546,7 +11250,6 @@ function assignWasmExports(wasmExports) {
   _zend_release_fcall_info_cache = Module['_zend_release_fcall_info_cache'] = wasmExports['zend_release_fcall_info_cache'];
   _zval_try_get_string_func = Module['_zval_try_get_string_func'] = wasmExports['zval_try_get_string_func'];
   _zend_is_callable_ex = Module['_zend_is_callable_ex'] = wasmExports['zend_is_callable_ex'];
-  _zend_array_destroy = Module['_zend_array_destroy'] = wasmExports['zend_array_destroy'];
   _php_pcre_split_impl = Module['_php_pcre_split_impl'] = wasmExports['php_pcre_split_impl'];
   _php_pcre_grep_impl = Module['_php_pcre_grep_impl'] = wasmExports['php_pcre_grep_impl'];
   _zend_hash_index_update = Module['_zend_hash_index_update'] = wasmExports['zend_hash_index_update'];
@@ -10601,6 +11304,7 @@ function assignWasmExports(wasmExports) {
   _sqlite3_column_bytes = Module['_sqlite3_column_bytes'] = wasmExports['sqlite3_column_bytes'];
   _sqlite3_column_double = Module['_sqlite3_column_double'] = wasmExports['sqlite3_column_double'];
   _sqlite3_column_blob = Module['_sqlite3_column_blob'] = wasmExports['sqlite3_column_blob'];
+  _sqlite3_db_handle = Module['_sqlite3_db_handle'] = wasmExports['sqlite3_db_handle'];
   _sqlite3_create_function = Module['_sqlite3_create_function'] = wasmExports['sqlite3_create_function'];
   _sqlite3_user_data = Module['_sqlite3_user_data'] = wasmExports['sqlite3_user_data'];
   _sqlite3_aggregate_context = Module['_sqlite3_aggregate_context'] = wasmExports['sqlite3_aggregate_context'];
@@ -10615,10 +11319,11 @@ function assignWasmExports(wasmExports) {
   _sqlite3_backup_finish = Module['_sqlite3_backup_finish'] = wasmExports['sqlite3_backup_finish'];
   _sqlite3_bind_parameter_count = Module['_sqlite3_bind_parameter_count'] = wasmExports['sqlite3_bind_parameter_count'];
   _zend_llist_del_element = Module['_zend_llist_del_element'] = wasmExports['zend_llist_del_element'];
-  _sqlite3_db_handle = Module['_sqlite3_db_handle'] = wasmExports['sqlite3_db_handle'];
   _sqlite3_clear_bindings = Module['_sqlite3_clear_bindings'] = wasmExports['sqlite3_clear_bindings'];
   _sqlite3_stmt_readonly = Module['_sqlite3_stmt_readonly'] = wasmExports['sqlite3_stmt_readonly'];
   _sqlite3_stmt_busy = Module['_sqlite3_stmt_busy'] = wasmExports['sqlite3_stmt_busy'];
+  _sqlite3_stmt_isexplain = Module['_sqlite3_stmt_isexplain'] = wasmExports['sqlite3_stmt_isexplain'];
+  _sqlite3_stmt_explain = Module['_sqlite3_stmt_explain'] = wasmExports['sqlite3_stmt_explain'];
   _sqlite3_expanded_sql = Module['_sqlite3_expanded_sql'] = wasmExports['sqlite3_expanded_sql'];
   _sqlite3_sql = Module['_sqlite3_sql'] = wasmExports['sqlite3_sql'];
   _sqlite3_bind_null = Module['_sqlite3_bind_null'] = wasmExports['sqlite3_bind_null'];
@@ -10853,8 +11558,11 @@ function assignWasmExports(wasmExports) {
   _php_output_handler_conflict = Module['_php_output_handler_conflict'] = wasmExports['php_output_handler_conflict'];
   _php_iconv_string = Module['_php_iconv_string'] = wasmExports['php_iconv_string'];
   _libiconv_open = Module['_libiconv_open'] = wasmExports['libiconv_open'];
+  _setTempRet0 = Module['_setTempRet0'] = wasmExports['setTempRet0'];
+  _getTempRet0 = Module['_getTempRet0'] = wasmExports['getTempRet0'];
   _libiconv = Module['_libiconv'] = wasmExports['libiconv'];
   _libiconv_close = Module['_libiconv_close'] = wasmExports['libiconv_close'];
+  __zend_bailout = Module['__zend_bailout'] = wasmExports['_zend_bailout'];
   _php_get_internal_encoding = Module['_php_get_internal_encoding'] = wasmExports['php_get_internal_encoding'];
   _php_base64_encode_ex = Module['_php_base64_encode_ex'] = wasmExports['php_base64_encode_ex'];
   _php_base64_decode_ex = Module['_php_base64_decode_ex'] = wasmExports['php_base64_decode_ex'];
@@ -11052,6 +11760,8 @@ function assignWasmExports(wasmExports) {
   _lexbor_str_crop_whitespace_from_begin = Module['_lexbor_str_crop_whitespace_from_begin'] = wasmExports['lexbor_str_crop_whitespace_from_begin'];
   _lexbor_str_whitespace_from_begin = Module['_lexbor_str_whitespace_from_begin'] = wasmExports['lexbor_str_whitespace_from_begin'];
   _lexbor_str_whitespace_from_end = Module['_lexbor_str_whitespace_from_end'] = wasmExports['lexbor_str_whitespace_from_end'];
+  _lexbor_str_copy_to = Module['_lexbor_str_copy_to'] = wasmExports['lexbor_str_copy_to'];
+  _lexbor_str_copy_to_with_null = Module['_lexbor_str_copy_to_with_null'] = wasmExports['lexbor_str_copy_to_with_null'];
   _lexbor_str_data_ncasecmp_first = Module['_lexbor_str_data_ncasecmp_first'] = wasmExports['lexbor_str_data_ncasecmp_first'];
   _lexbor_str_data_ncasecmp_end = Module['_lexbor_str_data_ncasecmp_end'] = wasmExports['lexbor_str_data_ncasecmp_end'];
   _lexbor_str_data_ncasecmp_contain = Module['_lexbor_str_data_ncasecmp_contain'] = wasmExports['lexbor_str_data_ncasecmp_contain'];
@@ -11070,6 +11780,72 @@ function assignWasmExports(wasmExports) {
   _lexbor_str_size_noi = Module['_lexbor_str_size_noi'] = wasmExports['lexbor_str_size_noi'];
   _lexbor_str_data_set_noi = Module['_lexbor_str_data_set_noi'] = wasmExports['lexbor_str_data_set_noi'];
   _lexbor_str_length_set_noi = Module['_lexbor_str_length_set_noi'] = wasmExports['lexbor_str_length_set_noi'];
+  _lxb_css_at_rule_by_name = Module['_lxb_css_at_rule_by_name'] = wasmExports['lxb_css_at_rule_by_name'];
+  _lxb_css_at_rule_by_id = Module['_lxb_css_at_rule_by_id'] = wasmExports['lxb_css_at_rule_by_id'];
+  _lxb_css_at_rule_create = Module['_lxb_css_at_rule_create'] = wasmExports['lxb_css_at_rule_create'];
+  _lxb_css_rule_at_destroy = Module['_lxb_css_rule_at_destroy'] = wasmExports['lxb_css_rule_at_destroy'];
+  _lxb_css_at_rule_destroy = Module['_lxb_css_at_rule_destroy'] = wasmExports['lxb_css_at_rule_destroy'];
+  _lxb_css_at_rule_convert_to_undef = Module['_lxb_css_at_rule_convert_to_undef'] = wasmExports['lxb_css_at_rule_convert_to_undef'];
+  _lxb_css_make_data = Module['_lxb_css_make_data'] = wasmExports['lxb_css_make_data'];
+  _lxb_css_at_rule__undef_create = Module['_lxb_css_at_rule__undef_create'] = wasmExports['lxb_css_at_rule__undef_create'];
+  _lxb_css_at_rule_serialize = Module['_lxb_css_at_rule_serialize'] = wasmExports['lxb_css_at_rule_serialize'];
+  _lxb_css_at_rule_serialize_str = Module['_lxb_css_at_rule_serialize_str'] = wasmExports['lxb_css_at_rule_serialize_str'];
+  _lxb_css_serialize_str_handler = Module['_lxb_css_serialize_str_handler'] = wasmExports['lxb_css_serialize_str_handler'];
+  _lxb_css_at_rule_serialize_name = Module['_lxb_css_at_rule_serialize_name'] = wasmExports['lxb_css_at_rule_serialize_name'];
+  _lxb_css_at_rule__undef_serialize_name = Module['_lxb_css_at_rule__undef_serialize_name'] = wasmExports['lxb_css_at_rule__undef_serialize_name'];
+  _lxb_css_at_rule__custom_serialize_name = Module['_lxb_css_at_rule__custom_serialize_name'] = wasmExports['lxb_css_at_rule__custom_serialize_name'];
+  _lxb_css_at_rule_serialize_name_str = Module['_lxb_css_at_rule_serialize_name_str'] = wasmExports['lxb_css_at_rule_serialize_name_str'];
+  _lxb_css_at_rule__undef_destroy = Module['_lxb_css_at_rule__undef_destroy'] = wasmExports['lxb_css_at_rule__undef_destroy'];
+  _lxb_css_at_rule__undef_serialize = Module['_lxb_css_at_rule__undef_serialize'] = wasmExports['lxb_css_at_rule__undef_serialize'];
+  _lxb_css_rule_list_serialize = Module['_lxb_css_rule_list_serialize'] = wasmExports['lxb_css_rule_list_serialize'];
+  _lxb_css_at_rule__custom_create = Module['_lxb_css_at_rule__custom_create'] = wasmExports['lxb_css_at_rule__custom_create'];
+  _lxb_css_at_rule__custom_destroy = Module['_lxb_css_at_rule__custom_destroy'] = wasmExports['lxb_css_at_rule__custom_destroy'];
+  _lxb_css_at_rule__custom_serialize = Module['_lxb_css_at_rule__custom_serialize'] = wasmExports['lxb_css_at_rule__custom_serialize'];
+  _lxb_css_at_rule_media_create = Module['_lxb_css_at_rule_media_create'] = wasmExports['lxb_css_at_rule_media_create'];
+  _lxb_css_at_rule_media_destroy = Module['_lxb_css_at_rule_media_destroy'] = wasmExports['lxb_css_at_rule_media_destroy'];
+  _lxb_css_at_rule_media_serialize = Module['_lxb_css_at_rule_media_serialize'] = wasmExports['lxb_css_at_rule_media_serialize'];
+  _lxb_css_at_rule_namespace_create = Module['_lxb_css_at_rule_namespace_create'] = wasmExports['lxb_css_at_rule_namespace_create'];
+  _lxb_css_at_rule_namespace_destroy = Module['_lxb_css_at_rule_namespace_destroy'] = wasmExports['lxb_css_at_rule_namespace_destroy'];
+  _lxb_css_at_rule_namespace_serialize = Module['_lxb_css_at_rule_namespace_serialize'] = wasmExports['lxb_css_at_rule_namespace_serialize'];
+  _lxb_css_at_rule_font_face_create = Module['_lxb_css_at_rule_font_face_create'] = wasmExports['lxb_css_at_rule_font_face_create'];
+  _lxb_css_at_rule_font_face_destroy = Module['_lxb_css_at_rule_font_face_destroy'] = wasmExports['lxb_css_at_rule_font_face_destroy'];
+  _lxb_css_at_rule_font_face_serialize = Module['_lxb_css_at_rule_font_face_serialize'] = wasmExports['lxb_css_at_rule_font_face_serialize'];
+  _lxb_css_at_rule__undef_prelude_failed = Module['_lxb_css_at_rule__undef_prelude_failed'] = wasmExports['lxb_css_at_rule__undef_prelude_failed'];
+  _lxb_css_at_rule__undef_end = Module['_lxb_css_at_rule__undef_end'] = wasmExports['lxb_css_at_rule__undef_end'];
+  _lxb_css_at_rule__undef_prelude = Module['_lxb_css_at_rule__undef_prelude'] = wasmExports['lxb_css_at_rule__undef_prelude'];
+  _lxb_css_at_rule__undef_prelude_end = Module['_lxb_css_at_rule__undef_prelude_end'] = wasmExports['lxb_css_at_rule__undef_prelude_end'];
+  _lxb_css_at_rule__undef_block = Module['_lxb_css_at_rule__undef_block'] = wasmExports['lxb_css_at_rule__undef_block'];
+  _lxb_css_at_rule__custom_prelude_failed = Module['_lxb_css_at_rule__custom_prelude_failed'] = wasmExports['lxb_css_at_rule__custom_prelude_failed'];
+  _lxb_css_at_rule__custom_end = Module['_lxb_css_at_rule__custom_end'] = wasmExports['lxb_css_at_rule__custom_end'];
+  _lxb_css_at_rule__custom_prelude = Module['_lxb_css_at_rule__custom_prelude'] = wasmExports['lxb_css_at_rule__custom_prelude'];
+  _lxb_css_at_rule__custom_prelude_end = Module['_lxb_css_at_rule__custom_prelude_end'] = wasmExports['lxb_css_at_rule__custom_prelude_end'];
+  _lxb_css_at_rule__custom_block = Module['_lxb_css_at_rule__custom_block'] = wasmExports['lxb_css_at_rule__custom_block'];
+  _lxb_css_at_rule_font_face_prelude_failed = Module['_lxb_css_at_rule_font_face_prelude_failed'] = wasmExports['lxb_css_at_rule_font_face_prelude_failed'];
+  _lxb_css_at_rule_font_face_end = Module['_lxb_css_at_rule_font_face_end'] = wasmExports['lxb_css_at_rule_font_face_end'];
+  _lxb_css_at_rule_font_face_prelude = Module['_lxb_css_at_rule_font_face_prelude'] = wasmExports['lxb_css_at_rule_font_face_prelude'];
+  _lxb_css_at_rule_font_face_prelude_end = Module['_lxb_css_at_rule_font_face_prelude_end'] = wasmExports['lxb_css_at_rule_font_face_prelude_end'];
+  _lxb_css_at_rule_font_face_block = Module['_lxb_css_at_rule_font_face_block'] = wasmExports['lxb_css_at_rule_font_face_block'];
+  _lxb_css_at_rule_media_prelude_failed = Module['_lxb_css_at_rule_media_prelude_failed'] = wasmExports['lxb_css_at_rule_media_prelude_failed'];
+  _lxb_css_at_rule_media_end = Module['_lxb_css_at_rule_media_end'] = wasmExports['lxb_css_at_rule_media_end'];
+  _lxb_css_at_rule_media_prelude = Module['_lxb_css_at_rule_media_prelude'] = wasmExports['lxb_css_at_rule_media_prelude'];
+  _lxb_css_at_rule_media_prelude_end = Module['_lxb_css_at_rule_media_prelude_end'] = wasmExports['lxb_css_at_rule_media_prelude_end'];
+  _lxb_css_at_rule_media_block = Module['_lxb_css_at_rule_media_block'] = wasmExports['lxb_css_at_rule_media_block'];
+  _lxb_css_at_rule_namespace_prelude_failed = Module['_lxb_css_at_rule_namespace_prelude_failed'] = wasmExports['lxb_css_at_rule_namespace_prelude_failed'];
+  _lxb_css_at_rule_namespace_end = Module['_lxb_css_at_rule_namespace_end'] = wasmExports['lxb_css_at_rule_namespace_end'];
+  _lxb_css_at_rule_namespace_prelude = Module['_lxb_css_at_rule_namespace_prelude'] = wasmExports['lxb_css_at_rule_namespace_prelude'];
+  _lxb_css_at_rule_namespace_prelude_end = Module['_lxb_css_at_rule_namespace_prelude_end'] = wasmExports['lxb_css_at_rule_namespace_prelude_end'];
+  _lxb_css_at_rule_namespace_block = Module['_lxb_css_at_rule_namespace_block'] = wasmExports['lxb_css_at_rule_namespace_block'];
+  _lxb_css_syntax_parser_consume = Module['_lxb_css_syntax_parser_consume'] = wasmExports['lxb_css_syntax_parser_consume'];
+  _lxb_css_syntax_parser_token = Module['_lxb_css_syntax_parser_token'] = wasmExports['lxb_css_syntax_parser_token'];
+  _lxb_css_parser_success = Module['_lxb_css_parser_success'] = wasmExports['lxb_css_parser_success'];
+  _lxb_css_parser_memory_fail_status = Module['_lxb_css_parser_memory_fail_status'] = wasmExports['lxb_css_parser_memory_fail_status'];
+  _lxb_css_parser_failed = Module['_lxb_css_parser_failed'] = wasmExports['lxb_css_parser_failed'];
+  _lxb_css_blank_cb_list_rules = Module['_lxb_css_blank_cb_list_rules'] = wasmExports['lxb_css_blank_cb_list_rules'];
+  _lxb_css_blank_cb_at_rule = Module['_lxb_css_blank_cb_at_rule'] = wasmExports['lxb_css_blank_cb_at_rule'];
+  _lxb_css_blank_cb_qualified_rule = Module['_lxb_css_blank_cb_qualified_rule'] = wasmExports['lxb_css_blank_cb_qualified_rule'];
+  _lxb_css_blank_cb_block = Module['_lxb_css_blank_cb_block'] = wasmExports['lxb_css_blank_cb_block'];
+  _lxb_css_blank_cb_declarations = Module['_lxb_css_blank_cb_declarations'] = wasmExports['lxb_css_blank_cb_declarations'];
+  _lxb_css_state_failed = Module['_lxb_css_state_failed'] = wasmExports['lxb_css_state_failed'];
   _lxb_css_memory_create = Module['_lxb_css_memory_create'] = wasmExports['lxb_css_memory_create'];
   _lxb_css_memory_init = Module['_lxb_css_memory_init'] = wasmExports['lxb_css_memory_init'];
   _lxb_css_memory_destroy = Module['_lxb_css_memory_destroy'] = wasmExports['lxb_css_memory_destroy'];
@@ -11077,9 +11853,14 @@ function assignWasmExports(wasmExports) {
   _lxb_css_memory_ref_inc = Module['_lxb_css_memory_ref_inc'] = wasmExports['lxb_css_memory_ref_inc'];
   _lxb_css_memory_ref_dec = Module['_lxb_css_memory_ref_dec'] = wasmExports['lxb_css_memory_ref_dec'];
   _lxb_css_memory_ref_dec_destroy = Module['_lxb_css_memory_ref_dec_destroy'] = wasmExports['lxb_css_memory_ref_dec_destroy'];
-  _lxb_css_make_data = Module['_lxb_css_make_data'] = wasmExports['lxb_css_make_data'];
   _lxb_css_serialize_char_handler = Module['_lxb_css_serialize_char_handler'] = wasmExports['lxb_css_serialize_char_handler'];
-  _lxb_css_serialize_str_handler = Module['_lxb_css_serialize_str_handler'] = wasmExports['lxb_css_serialize_str_handler'];
+  _lxb_css_declaration_create = Module['_lxb_css_declaration_create'] = wasmExports['lxb_css_declaration_create'];
+  _lxb_css_property_by_name = Module['_lxb_css_property_by_name'] = wasmExports['lxb_css_property_by_name'];
+  _lxb_css_property_by_id = Module['_lxb_css_property_by_id'] = wasmExports['lxb_css_property_by_id'];
+  _lxb_css_rule_declaration_destroy = Module['_lxb_css_rule_declaration_destroy'] = wasmExports['lxb_css_rule_declaration_destroy'];
+  _lxb_css_declaration_list_parse = Module['_lxb_css_declaration_list_parse'] = wasmExports['lxb_css_declaration_list_parse'];
+  _lxb_css_state_cb_declarations = Module['_lxb_css_state_cb_declarations'] = wasmExports['lxb_css_state_cb_declarations'];
+  _lxb_css_syntax_parse_declarations = Module['_lxb_css_syntax_parse_declarations'] = wasmExports['lxb_css_syntax_parse_declarations'];
   _lxb_css_log_create = Module['_lxb_css_log_create'] = wasmExports['lxb_css_log_create'];
   _lxb_css_log_init = Module['_lxb_css_log_init'] = wasmExports['lxb_css_log_init'];
   _lxb_css_log_clean = Module['_lxb_css_log_clean'] = wasmExports['lxb_css_log_clean'];
@@ -11097,6 +11878,11 @@ function assignWasmExports(wasmExports) {
   _lxb_css_parser_init = Module['_lxb_css_parser_init'] = wasmExports['lxb_css_parser_init'];
   _lxb_css_syntax_tokenizer_create = Module['_lxb_css_syntax_tokenizer_create'] = wasmExports['lxb_css_syntax_tokenizer_create'];
   _lxb_css_syntax_tokenizer_init = Module['_lxb_css_syntax_tokenizer_init'] = wasmExports['lxb_css_syntax_tokenizer_init'];
+  _lxb_css_parser_selectors_init = Module['_lxb_css_parser_selectors_init'] = wasmExports['lxb_css_parser_selectors_init'];
+  _lxb_css_selectors_create = Module['_lxb_css_selectors_create'] = wasmExports['lxb_css_selectors_create'];
+  _lxb_css_selectors_init = Module['_lxb_css_selectors_init'] = wasmExports['lxb_css_selectors_init'];
+  _lxb_css_selectors_destroy = Module['_lxb_css_selectors_destroy'] = wasmExports['lxb_css_selectors_destroy'];
+  _lxb_css_parser_selectors_destroy = Module['_lxb_css_parser_selectors_destroy'] = wasmExports['lxb_css_parser_selectors_destroy'];
   _lxb_css_parser_clean = Module['_lxb_css_parser_clean'] = wasmExports['lxb_css_parser_clean'];
   _lxb_css_syntax_tokenizer_clean = Module['_lxb_css_syntax_tokenizer_clean'] = wasmExports['lxb_css_syntax_tokenizer_clean'];
   _lxb_css_parser_erase = Module['_lxb_css_parser_erase'] = wasmExports['lxb_css_parser_erase'];
@@ -11109,13 +11895,503 @@ function assignWasmExports(wasmExports) {
   _lxb_css_parser_fail = Module['_lxb_css_parser_fail'] = wasmExports['lxb_css_parser_fail'];
   _lxb_css_parser_unexpected = Module['_lxb_css_parser_unexpected'] = wasmExports['lxb_css_parser_unexpected'];
   _lxb_css_parser_unexpected_status = Module['_lxb_css_parser_unexpected_status'] = wasmExports['lxb_css_parser_unexpected_status'];
-  _lxb_css_parser_success = Module['_lxb_css_parser_success'] = wasmExports['lxb_css_parser_success'];
   _lxb_css_state_success = Module['_lxb_css_state_success'] = wasmExports['lxb_css_state_success'];
-  _lxb_css_parser_failed = Module['_lxb_css_parser_failed'] = wasmExports['lxb_css_parser_failed'];
   _lxb_css_parser_unexpected_data = Module['_lxb_css_parser_unexpected_data'] = wasmExports['lxb_css_parser_unexpected_data'];
   _lxb_css_syntax_token_error = Module['_lxb_css_syntax_token_error'] = wasmExports['lxb_css_syntax_token_error'];
   _lxb_css_parser_memory_fail = Module['_lxb_css_parser_memory_fail'] = wasmExports['lxb_css_parser_memory_fail'];
   _lxb_css_parser_unexpected_data_status = Module['_lxb_css_parser_unexpected_data_status'] = wasmExports['lxb_css_parser_unexpected_data_status'];
+  _lxb_css_parser_memory_fail_null = Module['_lxb_css_parser_memory_fail_null'] = wasmExports['lxb_css_parser_memory_fail_null'];
+  _lxb_css_parser_status_noi = Module['_lxb_css_parser_status_noi'] = wasmExports['lxb_css_parser_status_noi'];
+  _lxb_css_parser_memory_noi = Module['_lxb_css_parser_memory_noi'] = wasmExports['lxb_css_parser_memory_noi'];
+  _lxb_css_parser_memory_set_noi = Module['_lxb_css_parser_memory_set_noi'] = wasmExports['lxb_css_parser_memory_set_noi'];
+  _lxb_css_parser_selectors_noi = Module['_lxb_css_parser_selectors_noi'] = wasmExports['lxb_css_parser_selectors_noi'];
+  _lxb_css_parser_selectors_set_noi = Module['_lxb_css_parser_selectors_set_noi'] = wasmExports['lxb_css_parser_selectors_set_noi'];
+  _lxb_css_parser_is_running_noi = Module['_lxb_css_parser_is_running_noi'] = wasmExports['lxb_css_parser_is_running_noi'];
+  _lxb_css_parser_status_is_unexpected_data_noi = Module['_lxb_css_parser_status_is_unexpected_data_noi'] = wasmExports['lxb_css_parser_status_is_unexpected_data_noi'];
+  _lxb_css_parser_failed_set_noi = Module['_lxb_css_parser_failed_set_noi'] = wasmExports['lxb_css_parser_failed_set_noi'];
+  _lxb_css_parser_failed_set_by_id_noi = Module['_lxb_css_parser_failed_set_by_id_noi'] = wasmExports['lxb_css_parser_failed_set_by_id_noi'];
+  _lxb_css_parser_is_failed_noi = Module['_lxb_css_parser_is_failed_noi'] = wasmExports['lxb_css_parser_is_failed_noi'];
+  _lxb_css_parser_set_ok_noi = Module['_lxb_css_parser_set_ok_noi'] = wasmExports['lxb_css_parser_set_ok_noi'];
+  _lxb_css_parser_buffer_noi = Module['_lxb_css_parser_buffer_noi'] = wasmExports['lxb_css_parser_buffer_noi'];
+  _lxb_css_parser_buffer_set_noi = Module['_lxb_css_parser_buffer_set_noi'] = wasmExports['lxb_css_parser_buffer_set_noi'];
+  _lxb_css_parser_state_noi = Module['_lxb_css_parser_state_noi'] = wasmExports['lxb_css_parser_state_noi'];
+  _lxb_css_parser_state_set_noi = Module['_lxb_css_parser_state_set_noi'] = wasmExports['lxb_css_parser_state_set_noi'];
+  _lxb_css_parser_current_rule_noi = Module['_lxb_css_parser_current_rule_noi'] = wasmExports['lxb_css_parser_current_rule_noi'];
+  _lxb_css_parser_rule_deep_noi = Module['_lxb_css_parser_rule_deep_noi'] = wasmExports['lxb_css_parser_rule_deep_noi'];
+  _lxb_css_parser_states_pop_noi = Module['_lxb_css_parser_states_pop_noi'] = wasmExports['lxb_css_parser_states_pop_noi'];
+  _lxb_css_parser_states_to_root_noi = Module['_lxb_css_parser_states_to_root_noi'] = wasmExports['lxb_css_parser_states_to_root_noi'];
+  _lxb_css_parser_states_set_back_noi = Module['_lxb_css_parser_states_set_back_noi'] = wasmExports['lxb_css_parser_states_set_back_noi'];
+  _lxb_css_parser_states_clean_noi = Module['_lxb_css_parser_states_clean_noi'] = wasmExports['lxb_css_parser_states_clean_noi'];
+  _lxb_css_parser_states_current_noi = Module['_lxb_css_parser_states_current_noi'] = wasmExports['lxb_css_parser_states_current_noi'];
+  _lxb_css_parser_states_set_noi = Module['_lxb_css_parser_states_set_noi'] = wasmExports['lxb_css_parser_states_set_noi'];
+  _lxb_css_parser_states_up_noi = Module['_lxb_css_parser_states_up_noi'] = wasmExports['lxb_css_parser_states_up_noi'];
+  _lxb_css_parser_states_down_noi = Module['_lxb_css_parser_states_down_noi'] = wasmExports['lxb_css_parser_states_down_noi'];
+  _lxb_css_parser_log_noi = Module['_lxb_css_parser_log_noi'] = wasmExports['lxb_css_parser_log_noi'];
+  _lxb_css_parser_token_end_noi = Module['_lxb_css_parser_token_end_noi'] = wasmExports['lxb_css_parser_token_end_noi'];
+  _lxb_css_parser_set_context_noi = Module['_lxb_css_parser_set_context_noi'] = wasmExports['lxb_css_parser_set_context_noi'];
+  _lxb_css_syntax_set_return_noi = Module['_lxb_css_syntax_set_return_noi'] = wasmExports['lxb_css_syntax_set_return_noi'];
+  _lxb_css_syntax_returned_noi = Module['_lxb_css_syntax_returned_noi'] = wasmExports['lxb_css_syntax_returned_noi'];
+  _lxb_css_property_initial_by_id = Module['_lxb_css_property_initial_by_id'] = wasmExports['lxb_css_property_initial_by_id'];
+  _lxb_css_property_destroy = Module['_lxb_css_property_destroy'] = wasmExports['lxb_css_property_destroy'];
+  _lxb_css_property_serialize = Module['_lxb_css_property_serialize'] = wasmExports['lxb_css_property_serialize'];
+  _lxb_css_property_serialize_str = Module['_lxb_css_property_serialize_str'] = wasmExports['lxb_css_property_serialize_str'];
+  _lxb_css_property_serialize_name = Module['_lxb_css_property_serialize_name'] = wasmExports['lxb_css_property_serialize_name'];
+  _lxb_css_property__undef_serialize_name = Module['_lxb_css_property__undef_serialize_name'] = wasmExports['lxb_css_property__undef_serialize_name'];
+  _lxb_css_property__custom_serialize_name = Module['_lxb_css_property__custom_serialize_name'] = wasmExports['lxb_css_property__custom_serialize_name'];
+  _lxb_css_property_serialize_name_str = Module['_lxb_css_property_serialize_name_str'] = wasmExports['lxb_css_property_serialize_name_str'];
+  _lxb_css_property__undef_create = Module['_lxb_css_property__undef_create'] = wasmExports['lxb_css_property__undef_create'];
+  _lxb_css_property__undef_destroy = Module['_lxb_css_property__undef_destroy'] = wasmExports['lxb_css_property__undef_destroy'];
+  _lxb_css_property__undef_serialize = Module['_lxb_css_property__undef_serialize'] = wasmExports['lxb_css_property__undef_serialize'];
+  _lxb_css_property__undef_serialize_value = Module['_lxb_css_property__undef_serialize_value'] = wasmExports['lxb_css_property__undef_serialize_value'];
+  _lxb_css_property__custom_create = Module['_lxb_css_property__custom_create'] = wasmExports['lxb_css_property__custom_create'];
+  _lxb_css_property__custom_destroy = Module['_lxb_css_property__custom_destroy'] = wasmExports['lxb_css_property__custom_destroy'];
+  _lxb_css_property__custom_serialize = Module['_lxb_css_property__custom_serialize'] = wasmExports['lxb_css_property__custom_serialize'];
+  _lxb_css_property__custom_serialize_value = Module['_lxb_css_property__custom_serialize_value'] = wasmExports['lxb_css_property__custom_serialize_value'];
+  _lxb_css_property_display_create = Module['_lxb_css_property_display_create'] = wasmExports['lxb_css_property_display_create'];
+  _lxb_css_property_display_destroy = Module['_lxb_css_property_display_destroy'] = wasmExports['lxb_css_property_display_destroy'];
+  _lxb_css_property_display_serialize = Module['_lxb_css_property_display_serialize'] = wasmExports['lxb_css_property_display_serialize'];
+  _lxb_css_value_by_id = Module['_lxb_css_value_by_id'] = wasmExports['lxb_css_value_by_id'];
+  _lxb_css_property_order_create = Module['_lxb_css_property_order_create'] = wasmExports['lxb_css_property_order_create'];
+  _lxb_css_property_order_destroy = Module['_lxb_css_property_order_destroy'] = wasmExports['lxb_css_property_order_destroy'];
+  _lxb_css_property_order_serialize = Module['_lxb_css_property_order_serialize'] = wasmExports['lxb_css_property_order_serialize'];
+  _lxb_css_value_integer_type_sr = Module['_lxb_css_value_integer_type_sr'] = wasmExports['lxb_css_value_integer_type_sr'];
+  _lxb_css_property_visibility_create = Module['_lxb_css_property_visibility_create'] = wasmExports['lxb_css_property_visibility_create'];
+  _lxb_css_property_visibility_destroy = Module['_lxb_css_property_visibility_destroy'] = wasmExports['lxb_css_property_visibility_destroy'];
+  _lxb_css_property_visibility_serialize = Module['_lxb_css_property_visibility_serialize'] = wasmExports['lxb_css_property_visibility_serialize'];
+  _lxb_css_value_serialize = Module['_lxb_css_value_serialize'] = wasmExports['lxb_css_value_serialize'];
+  _lxb_css_property_width_create = Module['_lxb_css_property_width_create'] = wasmExports['lxb_css_property_width_create'];
+  _lxb_css_property_width_destroy = Module['_lxb_css_property_width_destroy'] = wasmExports['lxb_css_property_width_destroy'];
+  _lxb_css_property_width_serialize = Module['_lxb_css_property_width_serialize'] = wasmExports['lxb_css_property_width_serialize'];
+  _lxb_css_value_length_sr = Module['_lxb_css_value_length_sr'] = wasmExports['lxb_css_value_length_sr'];
+  _lxb_css_value_percentage_sr = Module['_lxb_css_value_percentage_sr'] = wasmExports['lxb_css_value_percentage_sr'];
+  _lxb_css_property_height_create = Module['_lxb_css_property_height_create'] = wasmExports['lxb_css_property_height_create'];
+  _lxb_css_property_height_destroy = Module['_lxb_css_property_height_destroy'] = wasmExports['lxb_css_property_height_destroy'];
+  _lxb_css_property_height_serialize = Module['_lxb_css_property_height_serialize'] = wasmExports['lxb_css_property_height_serialize'];
+  _lxb_css_property_box_sizing_create = Module['_lxb_css_property_box_sizing_create'] = wasmExports['lxb_css_property_box_sizing_create'];
+  _lxb_css_property_box_sizing_destroy = Module['_lxb_css_property_box_sizing_destroy'] = wasmExports['lxb_css_property_box_sizing_destroy'];
+  _lxb_css_property_box_sizing_serialize = Module['_lxb_css_property_box_sizing_serialize'] = wasmExports['lxb_css_property_box_sizing_serialize'];
+  _lxb_css_property_min_width_create = Module['_lxb_css_property_min_width_create'] = wasmExports['lxb_css_property_min_width_create'];
+  _lxb_css_property_min_width_destroy = Module['_lxb_css_property_min_width_destroy'] = wasmExports['lxb_css_property_min_width_destroy'];
+  _lxb_css_property_min_width_serialize = Module['_lxb_css_property_min_width_serialize'] = wasmExports['lxb_css_property_min_width_serialize'];
+  _lxb_css_property_min_height_create = Module['_lxb_css_property_min_height_create'] = wasmExports['lxb_css_property_min_height_create'];
+  _lxb_css_property_min_height_destroy = Module['_lxb_css_property_min_height_destroy'] = wasmExports['lxb_css_property_min_height_destroy'];
+  _lxb_css_property_min_height_serialize = Module['_lxb_css_property_min_height_serialize'] = wasmExports['lxb_css_property_min_height_serialize'];
+  _lxb_css_property_max_width_create = Module['_lxb_css_property_max_width_create'] = wasmExports['lxb_css_property_max_width_create'];
+  _lxb_css_property_max_width_destroy = Module['_lxb_css_property_max_width_destroy'] = wasmExports['lxb_css_property_max_width_destroy'];
+  _lxb_css_property_max_width_serialize = Module['_lxb_css_property_max_width_serialize'] = wasmExports['lxb_css_property_max_width_serialize'];
+  _lxb_css_property_max_height_create = Module['_lxb_css_property_max_height_create'] = wasmExports['lxb_css_property_max_height_create'];
+  _lxb_css_property_max_height_destroy = Module['_lxb_css_property_max_height_destroy'] = wasmExports['lxb_css_property_max_height_destroy'];
+  _lxb_css_property_max_height_serialize = Module['_lxb_css_property_max_height_serialize'] = wasmExports['lxb_css_property_max_height_serialize'];
+  _lxb_css_property_margin_create = Module['_lxb_css_property_margin_create'] = wasmExports['lxb_css_property_margin_create'];
+  _lxb_css_property_margin_destroy = Module['_lxb_css_property_margin_destroy'] = wasmExports['lxb_css_property_margin_destroy'];
+  _lxb_css_property_margin_serialize = Module['_lxb_css_property_margin_serialize'] = wasmExports['lxb_css_property_margin_serialize'];
+  _lxb_css_value_length_percentage_sr = Module['_lxb_css_value_length_percentage_sr'] = wasmExports['lxb_css_value_length_percentage_sr'];
+  _lxb_css_property_margin_top_create = Module['_lxb_css_property_margin_top_create'] = wasmExports['lxb_css_property_margin_top_create'];
+  _lxb_css_property_margin_top_destroy = Module['_lxb_css_property_margin_top_destroy'] = wasmExports['lxb_css_property_margin_top_destroy'];
+  _lxb_css_property_margin_top_serialize = Module['_lxb_css_property_margin_top_serialize'] = wasmExports['lxb_css_property_margin_top_serialize'];
+  _lxb_css_property_margin_right_create = Module['_lxb_css_property_margin_right_create'] = wasmExports['lxb_css_property_margin_right_create'];
+  _lxb_css_property_margin_right_destroy = Module['_lxb_css_property_margin_right_destroy'] = wasmExports['lxb_css_property_margin_right_destroy'];
+  _lxb_css_property_margin_right_serialize = Module['_lxb_css_property_margin_right_serialize'] = wasmExports['lxb_css_property_margin_right_serialize'];
+  _lxb_css_property_margin_bottom_create = Module['_lxb_css_property_margin_bottom_create'] = wasmExports['lxb_css_property_margin_bottom_create'];
+  _lxb_css_property_margin_bottom_destroy = Module['_lxb_css_property_margin_bottom_destroy'] = wasmExports['lxb_css_property_margin_bottom_destroy'];
+  _lxb_css_property_margin_bottom_serialize = Module['_lxb_css_property_margin_bottom_serialize'] = wasmExports['lxb_css_property_margin_bottom_serialize'];
+  _lxb_css_property_margin_left_create = Module['_lxb_css_property_margin_left_create'] = wasmExports['lxb_css_property_margin_left_create'];
+  _lxb_css_property_margin_left_destroy = Module['_lxb_css_property_margin_left_destroy'] = wasmExports['lxb_css_property_margin_left_destroy'];
+  _lxb_css_property_margin_left_serialize = Module['_lxb_css_property_margin_left_serialize'] = wasmExports['lxb_css_property_margin_left_serialize'];
+  _lxb_css_property_padding_create = Module['_lxb_css_property_padding_create'] = wasmExports['lxb_css_property_padding_create'];
+  _lxb_css_property_padding_destroy = Module['_lxb_css_property_padding_destroy'] = wasmExports['lxb_css_property_padding_destroy'];
+  _lxb_css_property_padding_serialize = Module['_lxb_css_property_padding_serialize'] = wasmExports['lxb_css_property_padding_serialize'];
+  _lxb_css_property_padding_top_create = Module['_lxb_css_property_padding_top_create'] = wasmExports['lxb_css_property_padding_top_create'];
+  _lxb_css_property_padding_top_destroy = Module['_lxb_css_property_padding_top_destroy'] = wasmExports['lxb_css_property_padding_top_destroy'];
+  _lxb_css_property_padding_top_serialize = Module['_lxb_css_property_padding_top_serialize'] = wasmExports['lxb_css_property_padding_top_serialize'];
+  _lxb_css_property_padding_right_create = Module['_lxb_css_property_padding_right_create'] = wasmExports['lxb_css_property_padding_right_create'];
+  _lxb_css_property_padding_right_destroy = Module['_lxb_css_property_padding_right_destroy'] = wasmExports['lxb_css_property_padding_right_destroy'];
+  _lxb_css_property_padding_right_serialize = Module['_lxb_css_property_padding_right_serialize'] = wasmExports['lxb_css_property_padding_right_serialize'];
+  _lxb_css_property_padding_bottom_create = Module['_lxb_css_property_padding_bottom_create'] = wasmExports['lxb_css_property_padding_bottom_create'];
+  _lxb_css_property_padding_bottom_destroy = Module['_lxb_css_property_padding_bottom_destroy'] = wasmExports['lxb_css_property_padding_bottom_destroy'];
+  _lxb_css_property_padding_bottom_serialize = Module['_lxb_css_property_padding_bottom_serialize'] = wasmExports['lxb_css_property_padding_bottom_serialize'];
+  _lxb_css_property_padding_left_create = Module['_lxb_css_property_padding_left_create'] = wasmExports['lxb_css_property_padding_left_create'];
+  _lxb_css_property_padding_left_destroy = Module['_lxb_css_property_padding_left_destroy'] = wasmExports['lxb_css_property_padding_left_destroy'];
+  _lxb_css_property_padding_left_serialize = Module['_lxb_css_property_padding_left_serialize'] = wasmExports['lxb_css_property_padding_left_serialize'];
+  _lxb_css_property_border_create = Module['_lxb_css_property_border_create'] = wasmExports['lxb_css_property_border_create'];
+  _lxb_css_property_border_destroy = Module['_lxb_css_property_border_destroy'] = wasmExports['lxb_css_property_border_destroy'];
+  _lxb_css_property_border_serialize = Module['_lxb_css_property_border_serialize'] = wasmExports['lxb_css_property_border_serialize'];
+  _lxb_css_value_length_type_sr = Module['_lxb_css_value_length_type_sr'] = wasmExports['lxb_css_value_length_type_sr'];
+  _lxb_css_value_color_serialize = Module['_lxb_css_value_color_serialize'] = wasmExports['lxb_css_value_color_serialize'];
+  _lxb_css_property_border_top_create = Module['_lxb_css_property_border_top_create'] = wasmExports['lxb_css_property_border_top_create'];
+  _lxb_css_property_border_top_destroy = Module['_lxb_css_property_border_top_destroy'] = wasmExports['lxb_css_property_border_top_destroy'];
+  _lxb_css_property_border_top_serialize = Module['_lxb_css_property_border_top_serialize'] = wasmExports['lxb_css_property_border_top_serialize'];
+  _lxb_css_property_border_right_create = Module['_lxb_css_property_border_right_create'] = wasmExports['lxb_css_property_border_right_create'];
+  _lxb_css_property_border_right_destroy = Module['_lxb_css_property_border_right_destroy'] = wasmExports['lxb_css_property_border_right_destroy'];
+  _lxb_css_property_border_right_serialize = Module['_lxb_css_property_border_right_serialize'] = wasmExports['lxb_css_property_border_right_serialize'];
+  _lxb_css_property_border_bottom_create = Module['_lxb_css_property_border_bottom_create'] = wasmExports['lxb_css_property_border_bottom_create'];
+  _lxb_css_property_border_bottom_destroy = Module['_lxb_css_property_border_bottom_destroy'] = wasmExports['lxb_css_property_border_bottom_destroy'];
+  _lxb_css_property_border_bottom_serialize = Module['_lxb_css_property_border_bottom_serialize'] = wasmExports['lxb_css_property_border_bottom_serialize'];
+  _lxb_css_property_border_left_create = Module['_lxb_css_property_border_left_create'] = wasmExports['lxb_css_property_border_left_create'];
+  _lxb_css_property_border_left_destroy = Module['_lxb_css_property_border_left_destroy'] = wasmExports['lxb_css_property_border_left_destroy'];
+  _lxb_css_property_border_left_serialize = Module['_lxb_css_property_border_left_serialize'] = wasmExports['lxb_css_property_border_left_serialize'];
+  _lxb_css_property_border_top_color_create = Module['_lxb_css_property_border_top_color_create'] = wasmExports['lxb_css_property_border_top_color_create'];
+  _lxb_css_property_border_top_color_destroy = Module['_lxb_css_property_border_top_color_destroy'] = wasmExports['lxb_css_property_border_top_color_destroy'];
+  _lxb_css_property_border_top_color_serialize = Module['_lxb_css_property_border_top_color_serialize'] = wasmExports['lxb_css_property_border_top_color_serialize'];
+  _lxb_css_property_border_right_color_create = Module['_lxb_css_property_border_right_color_create'] = wasmExports['lxb_css_property_border_right_color_create'];
+  _lxb_css_property_border_right_color_destroy = Module['_lxb_css_property_border_right_color_destroy'] = wasmExports['lxb_css_property_border_right_color_destroy'];
+  _lxb_css_property_border_right_color_serialize = Module['_lxb_css_property_border_right_color_serialize'] = wasmExports['lxb_css_property_border_right_color_serialize'];
+  _lxb_css_property_border_bottom_color_create = Module['_lxb_css_property_border_bottom_color_create'] = wasmExports['lxb_css_property_border_bottom_color_create'];
+  _lxb_css_property_border_bottom_color_destroy = Module['_lxb_css_property_border_bottom_color_destroy'] = wasmExports['lxb_css_property_border_bottom_color_destroy'];
+  _lxb_css_property_border_bottom_color_serialize = Module['_lxb_css_property_border_bottom_color_serialize'] = wasmExports['lxb_css_property_border_bottom_color_serialize'];
+  _lxb_css_property_border_left_color_create = Module['_lxb_css_property_border_left_color_create'] = wasmExports['lxb_css_property_border_left_color_create'];
+  _lxb_css_property_border_left_color_destroy = Module['_lxb_css_property_border_left_color_destroy'] = wasmExports['lxb_css_property_border_left_color_destroy'];
+  _lxb_css_property_border_left_color_serialize = Module['_lxb_css_property_border_left_color_serialize'] = wasmExports['lxb_css_property_border_left_color_serialize'];
+  _lxb_css_property_background_color_create = Module['_lxb_css_property_background_color_create'] = wasmExports['lxb_css_property_background_color_create'];
+  _lxb_css_property_background_color_destroy = Module['_lxb_css_property_background_color_destroy'] = wasmExports['lxb_css_property_background_color_destroy'];
+  _lxb_css_property_background_color_serialize = Module['_lxb_css_property_background_color_serialize'] = wasmExports['lxb_css_property_background_color_serialize'];
+  _lxb_css_property_color_create = Module['_lxb_css_property_color_create'] = wasmExports['lxb_css_property_color_create'];
+  _lxb_css_property_color_destroy = Module['_lxb_css_property_color_destroy'] = wasmExports['lxb_css_property_color_destroy'];
+  _lxb_css_property_color_serialize = Module['_lxb_css_property_color_serialize'] = wasmExports['lxb_css_property_color_serialize'];
+  _lxb_css_property_opacity_create = Module['_lxb_css_property_opacity_create'] = wasmExports['lxb_css_property_opacity_create'];
+  _lxb_css_property_opacity_destroy = Module['_lxb_css_property_opacity_destroy'] = wasmExports['lxb_css_property_opacity_destroy'];
+  _lxb_css_property_opacity_serialize = Module['_lxb_css_property_opacity_serialize'] = wasmExports['lxb_css_property_opacity_serialize'];
+  _lxb_css_value_number_percentage_sr = Module['_lxb_css_value_number_percentage_sr'] = wasmExports['lxb_css_value_number_percentage_sr'];
+  _lxb_css_property_position_create = Module['_lxb_css_property_position_create'] = wasmExports['lxb_css_property_position_create'];
+  _lxb_css_property_position_destroy = Module['_lxb_css_property_position_destroy'] = wasmExports['lxb_css_property_position_destroy'];
+  _lxb_css_property_position_serialize = Module['_lxb_css_property_position_serialize'] = wasmExports['lxb_css_property_position_serialize'];
+  _lxb_css_property_top_create = Module['_lxb_css_property_top_create'] = wasmExports['lxb_css_property_top_create'];
+  _lxb_css_property_top_destroy = Module['_lxb_css_property_top_destroy'] = wasmExports['lxb_css_property_top_destroy'];
+  _lxb_css_property_top_serialize = Module['_lxb_css_property_top_serialize'] = wasmExports['lxb_css_property_top_serialize'];
+  _lxb_css_property_right_create = Module['_lxb_css_property_right_create'] = wasmExports['lxb_css_property_right_create'];
+  _lxb_css_property_right_destroy = Module['_lxb_css_property_right_destroy'] = wasmExports['lxb_css_property_right_destroy'];
+  _lxb_css_property_right_serialize = Module['_lxb_css_property_right_serialize'] = wasmExports['lxb_css_property_right_serialize'];
+  _lxb_css_property_bottom_create = Module['_lxb_css_property_bottom_create'] = wasmExports['lxb_css_property_bottom_create'];
+  _lxb_css_property_bottom_destroy = Module['_lxb_css_property_bottom_destroy'] = wasmExports['lxb_css_property_bottom_destroy'];
+  _lxb_css_property_bottom_serialize = Module['_lxb_css_property_bottom_serialize'] = wasmExports['lxb_css_property_bottom_serialize'];
+  _lxb_css_property_left_create = Module['_lxb_css_property_left_create'] = wasmExports['lxb_css_property_left_create'];
+  _lxb_css_property_left_destroy = Module['_lxb_css_property_left_destroy'] = wasmExports['lxb_css_property_left_destroy'];
+  _lxb_css_property_left_serialize = Module['_lxb_css_property_left_serialize'] = wasmExports['lxb_css_property_left_serialize'];
+  _lxb_css_property_inset_block_start_create = Module['_lxb_css_property_inset_block_start_create'] = wasmExports['lxb_css_property_inset_block_start_create'];
+  _lxb_css_property_inset_block_start_destroy = Module['_lxb_css_property_inset_block_start_destroy'] = wasmExports['lxb_css_property_inset_block_start_destroy'];
+  _lxb_css_property_inset_block_start_serialize = Module['_lxb_css_property_inset_block_start_serialize'] = wasmExports['lxb_css_property_inset_block_start_serialize'];
+  _lxb_css_property_inset_inline_start_create = Module['_lxb_css_property_inset_inline_start_create'] = wasmExports['lxb_css_property_inset_inline_start_create'];
+  _lxb_css_property_inset_inline_start_destroy = Module['_lxb_css_property_inset_inline_start_destroy'] = wasmExports['lxb_css_property_inset_inline_start_destroy'];
+  _lxb_css_property_inset_inline_start_serialize = Module['_lxb_css_property_inset_inline_start_serialize'] = wasmExports['lxb_css_property_inset_inline_start_serialize'];
+  _lxb_css_property_inset_block_end_create = Module['_lxb_css_property_inset_block_end_create'] = wasmExports['lxb_css_property_inset_block_end_create'];
+  _lxb_css_property_inset_block_end_destroy = Module['_lxb_css_property_inset_block_end_destroy'] = wasmExports['lxb_css_property_inset_block_end_destroy'];
+  _lxb_css_property_inset_block_end_serialize = Module['_lxb_css_property_inset_block_end_serialize'] = wasmExports['lxb_css_property_inset_block_end_serialize'];
+  _lxb_css_property_inset_inline_end_create = Module['_lxb_css_property_inset_inline_end_create'] = wasmExports['lxb_css_property_inset_inline_end_create'];
+  _lxb_css_property_inset_inline_end_destroy = Module['_lxb_css_property_inset_inline_end_destroy'] = wasmExports['lxb_css_property_inset_inline_end_destroy'];
+  _lxb_css_property_inset_inline_end_serialize = Module['_lxb_css_property_inset_inline_end_serialize'] = wasmExports['lxb_css_property_inset_inline_end_serialize'];
+  _lxb_css_property_text_transform_create = Module['_lxb_css_property_text_transform_create'] = wasmExports['lxb_css_property_text_transform_create'];
+  _lxb_css_property_text_transform_destroy = Module['_lxb_css_property_text_transform_destroy'] = wasmExports['lxb_css_property_text_transform_destroy'];
+  _lxb_css_property_text_transform_serialize = Module['_lxb_css_property_text_transform_serialize'] = wasmExports['lxb_css_property_text_transform_serialize'];
+  _lxb_css_property_text_align_create = Module['_lxb_css_property_text_align_create'] = wasmExports['lxb_css_property_text_align_create'];
+  _lxb_css_property_text_align_destroy = Module['_lxb_css_property_text_align_destroy'] = wasmExports['lxb_css_property_text_align_destroy'];
+  _lxb_css_property_text_align_serialize = Module['_lxb_css_property_text_align_serialize'] = wasmExports['lxb_css_property_text_align_serialize'];
+  _lxb_css_property_text_align_all_create = Module['_lxb_css_property_text_align_all_create'] = wasmExports['lxb_css_property_text_align_all_create'];
+  _lxb_css_property_text_align_all_destroy = Module['_lxb_css_property_text_align_all_destroy'] = wasmExports['lxb_css_property_text_align_all_destroy'];
+  _lxb_css_property_text_align_all_serialize = Module['_lxb_css_property_text_align_all_serialize'] = wasmExports['lxb_css_property_text_align_all_serialize'];
+  _lxb_css_property_text_align_last_create = Module['_lxb_css_property_text_align_last_create'] = wasmExports['lxb_css_property_text_align_last_create'];
+  _lxb_css_property_text_align_last_destroy = Module['_lxb_css_property_text_align_last_destroy'] = wasmExports['lxb_css_property_text_align_last_destroy'];
+  _lxb_css_property_text_align_last_serialize = Module['_lxb_css_property_text_align_last_serialize'] = wasmExports['lxb_css_property_text_align_last_serialize'];
+  _lxb_css_property_text_justify_create = Module['_lxb_css_property_text_justify_create'] = wasmExports['lxb_css_property_text_justify_create'];
+  _lxb_css_property_text_justify_destroy = Module['_lxb_css_property_text_justify_destroy'] = wasmExports['lxb_css_property_text_justify_destroy'];
+  _lxb_css_property_text_justify_serialize = Module['_lxb_css_property_text_justify_serialize'] = wasmExports['lxb_css_property_text_justify_serialize'];
+  _lxb_css_property_text_indent_create = Module['_lxb_css_property_text_indent_create'] = wasmExports['lxb_css_property_text_indent_create'];
+  _lxb_css_property_text_indent_destroy = Module['_lxb_css_property_text_indent_destroy'] = wasmExports['lxb_css_property_text_indent_destroy'];
+  _lxb_css_property_text_indent_serialize = Module['_lxb_css_property_text_indent_serialize'] = wasmExports['lxb_css_property_text_indent_serialize'];
+  _lxb_css_property_white_space_create = Module['_lxb_css_property_white_space_create'] = wasmExports['lxb_css_property_white_space_create'];
+  _lxb_css_property_white_space_destroy = Module['_lxb_css_property_white_space_destroy'] = wasmExports['lxb_css_property_white_space_destroy'];
+  _lxb_css_property_white_space_serialize = Module['_lxb_css_property_white_space_serialize'] = wasmExports['lxb_css_property_white_space_serialize'];
+  _lxb_css_property_tab_size_create = Module['_lxb_css_property_tab_size_create'] = wasmExports['lxb_css_property_tab_size_create'];
+  _lxb_css_property_tab_size_destroy = Module['_lxb_css_property_tab_size_destroy'] = wasmExports['lxb_css_property_tab_size_destroy'];
+  _lxb_css_property_tab_size_serialize = Module['_lxb_css_property_tab_size_serialize'] = wasmExports['lxb_css_property_tab_size_serialize'];
+  _lxb_css_value_number_length_sr = Module['_lxb_css_value_number_length_sr'] = wasmExports['lxb_css_value_number_length_sr'];
+  _lxb_css_property_word_break_create = Module['_lxb_css_property_word_break_create'] = wasmExports['lxb_css_property_word_break_create'];
+  _lxb_css_property_word_break_destroy = Module['_lxb_css_property_word_break_destroy'] = wasmExports['lxb_css_property_word_break_destroy'];
+  _lxb_css_property_word_break_serialize = Module['_lxb_css_property_word_break_serialize'] = wasmExports['lxb_css_property_word_break_serialize'];
+  _lxb_css_property_line_break_create = Module['_lxb_css_property_line_break_create'] = wasmExports['lxb_css_property_line_break_create'];
+  _lxb_css_property_line_break_destroy = Module['_lxb_css_property_line_break_destroy'] = wasmExports['lxb_css_property_line_break_destroy'];
+  _lxb_css_property_line_break_serialize = Module['_lxb_css_property_line_break_serialize'] = wasmExports['lxb_css_property_line_break_serialize'];
+  _lxb_css_property_hyphens_create = Module['_lxb_css_property_hyphens_create'] = wasmExports['lxb_css_property_hyphens_create'];
+  _lxb_css_property_hyphens_destroy = Module['_lxb_css_property_hyphens_destroy'] = wasmExports['lxb_css_property_hyphens_destroy'];
+  _lxb_css_property_hyphens_serialize = Module['_lxb_css_property_hyphens_serialize'] = wasmExports['lxb_css_property_hyphens_serialize'];
+  _lxb_css_property_overflow_wrap_create = Module['_lxb_css_property_overflow_wrap_create'] = wasmExports['lxb_css_property_overflow_wrap_create'];
+  _lxb_css_property_overflow_wrap_destroy = Module['_lxb_css_property_overflow_wrap_destroy'] = wasmExports['lxb_css_property_overflow_wrap_destroy'];
+  _lxb_css_property_overflow_wrap_serialize = Module['_lxb_css_property_overflow_wrap_serialize'] = wasmExports['lxb_css_property_overflow_wrap_serialize'];
+  _lxb_css_property_word_wrap_create = Module['_lxb_css_property_word_wrap_create'] = wasmExports['lxb_css_property_word_wrap_create'];
+  _lxb_css_property_word_wrap_destroy = Module['_lxb_css_property_word_wrap_destroy'] = wasmExports['lxb_css_property_word_wrap_destroy'];
+  _lxb_css_property_word_wrap_serialize = Module['_lxb_css_property_word_wrap_serialize'] = wasmExports['lxb_css_property_word_wrap_serialize'];
+  _lxb_css_property_word_spacing_create = Module['_lxb_css_property_word_spacing_create'] = wasmExports['lxb_css_property_word_spacing_create'];
+  _lxb_css_property_word_spacing_destroy = Module['_lxb_css_property_word_spacing_destroy'] = wasmExports['lxb_css_property_word_spacing_destroy'];
+  _lxb_css_property_word_spacing_serialize = Module['_lxb_css_property_word_spacing_serialize'] = wasmExports['lxb_css_property_word_spacing_serialize'];
+  _lxb_css_property_letter_spacing_create = Module['_lxb_css_property_letter_spacing_create'] = wasmExports['lxb_css_property_letter_spacing_create'];
+  _lxb_css_property_letter_spacing_destroy = Module['_lxb_css_property_letter_spacing_destroy'] = wasmExports['lxb_css_property_letter_spacing_destroy'];
+  _lxb_css_property_letter_spacing_serialize = Module['_lxb_css_property_letter_spacing_serialize'] = wasmExports['lxb_css_property_letter_spacing_serialize'];
+  _lxb_css_property_hanging_punctuation_create = Module['_lxb_css_property_hanging_punctuation_create'] = wasmExports['lxb_css_property_hanging_punctuation_create'];
+  _lxb_css_property_hanging_punctuation_destroy = Module['_lxb_css_property_hanging_punctuation_destroy'] = wasmExports['lxb_css_property_hanging_punctuation_destroy'];
+  _lxb_css_property_hanging_punctuation_serialize = Module['_lxb_css_property_hanging_punctuation_serialize'] = wasmExports['lxb_css_property_hanging_punctuation_serialize'];
+  _lxb_css_property_font_family_create = Module['_lxb_css_property_font_family_create'] = wasmExports['lxb_css_property_font_family_create'];
+  _lxb_css_property_font_family_destroy = Module['_lxb_css_property_font_family_destroy'] = wasmExports['lxb_css_property_font_family_destroy'];
+  _lxb_css_property_font_family_serialize = Module['_lxb_css_property_font_family_serialize'] = wasmExports['lxb_css_property_font_family_serialize'];
+  _lxb_css_syntax_ident_or_string_serialize = Module['_lxb_css_syntax_ident_or_string_serialize'] = wasmExports['lxb_css_syntax_ident_or_string_serialize'];
+  _lxb_css_property_font_weight_create = Module['_lxb_css_property_font_weight_create'] = wasmExports['lxb_css_property_font_weight_create'];
+  _lxb_css_property_font_weight_destroy = Module['_lxb_css_property_font_weight_destroy'] = wasmExports['lxb_css_property_font_weight_destroy'];
+  _lxb_css_property_font_weight_serialize = Module['_lxb_css_property_font_weight_serialize'] = wasmExports['lxb_css_property_font_weight_serialize'];
+  _lxb_css_value_number_type_sr = Module['_lxb_css_value_number_type_sr'] = wasmExports['lxb_css_value_number_type_sr'];
+  _lxb_css_property_font_stretch_create = Module['_lxb_css_property_font_stretch_create'] = wasmExports['lxb_css_property_font_stretch_create'];
+  _lxb_css_property_font_stretch_destroy = Module['_lxb_css_property_font_stretch_destroy'] = wasmExports['lxb_css_property_font_stretch_destroy'];
+  _lxb_css_property_font_stretch_serialize = Module['_lxb_css_property_font_stretch_serialize'] = wasmExports['lxb_css_property_font_stretch_serialize'];
+  _lxb_css_value_percentage_type_sr = Module['_lxb_css_value_percentage_type_sr'] = wasmExports['lxb_css_value_percentage_type_sr'];
+  _lxb_css_property_font_style_create = Module['_lxb_css_property_font_style_create'] = wasmExports['lxb_css_property_font_style_create'];
+  _lxb_css_property_font_style_destroy = Module['_lxb_css_property_font_style_destroy'] = wasmExports['lxb_css_property_font_style_destroy'];
+  _lxb_css_property_font_style_serialize = Module['_lxb_css_property_font_style_serialize'] = wasmExports['lxb_css_property_font_style_serialize'];
+  _lxb_css_value_angle_sr = Module['_lxb_css_value_angle_sr'] = wasmExports['lxb_css_value_angle_sr'];
+  _lxb_css_property_font_size_create = Module['_lxb_css_property_font_size_create'] = wasmExports['lxb_css_property_font_size_create'];
+  _lxb_css_property_font_size_destroy = Module['_lxb_css_property_font_size_destroy'] = wasmExports['lxb_css_property_font_size_destroy'];
+  _lxb_css_property_font_size_serialize = Module['_lxb_css_property_font_size_serialize'] = wasmExports['lxb_css_property_font_size_serialize'];
+  _lxb_css_value_length_percentage_type_sr = Module['_lxb_css_value_length_percentage_type_sr'] = wasmExports['lxb_css_value_length_percentage_type_sr'];
+  _lxb_css_property_float_reference_create = Module['_lxb_css_property_float_reference_create'] = wasmExports['lxb_css_property_float_reference_create'];
+  _lxb_css_property_float_reference_destroy = Module['_lxb_css_property_float_reference_destroy'] = wasmExports['lxb_css_property_float_reference_destroy'];
+  _lxb_css_property_float_reference_serialize = Module['_lxb_css_property_float_reference_serialize'] = wasmExports['lxb_css_property_float_reference_serialize'];
+  _lxb_css_property_float_create = Module['_lxb_css_property_float_create'] = wasmExports['lxb_css_property_float_create'];
+  _lxb_css_property_float_destroy = Module['_lxb_css_property_float_destroy'] = wasmExports['lxb_css_property_float_destroy'];
+  _lxb_css_property_float_serialize = Module['_lxb_css_property_float_serialize'] = wasmExports['lxb_css_property_float_serialize'];
+  _lxb_css_property_clear_create = Module['_lxb_css_property_clear_create'] = wasmExports['lxb_css_property_clear_create'];
+  _lxb_css_property_clear_destroy = Module['_lxb_css_property_clear_destroy'] = wasmExports['lxb_css_property_clear_destroy'];
+  _lxb_css_property_clear_serialize = Module['_lxb_css_property_clear_serialize'] = wasmExports['lxb_css_property_clear_serialize'];
+  _lxb_css_property_float_defer_create = Module['_lxb_css_property_float_defer_create'] = wasmExports['lxb_css_property_float_defer_create'];
+  _lxb_css_property_float_defer_destroy = Module['_lxb_css_property_float_defer_destroy'] = wasmExports['lxb_css_property_float_defer_destroy'];
+  _lxb_css_property_float_defer_serialize = Module['_lxb_css_property_float_defer_serialize'] = wasmExports['lxb_css_property_float_defer_serialize'];
+  _lxb_css_value_integer_sr = Module['_lxb_css_value_integer_sr'] = wasmExports['lxb_css_value_integer_sr'];
+  _lxb_css_property_float_offset_create = Module['_lxb_css_property_float_offset_create'] = wasmExports['lxb_css_property_float_offset_create'];
+  _lxb_css_property_float_offset_destroy = Module['_lxb_css_property_float_offset_destroy'] = wasmExports['lxb_css_property_float_offset_destroy'];
+  _lxb_css_property_float_offset_serialize = Module['_lxb_css_property_float_offset_serialize'] = wasmExports['lxb_css_property_float_offset_serialize'];
+  _lxb_css_property_wrap_flow_create = Module['_lxb_css_property_wrap_flow_create'] = wasmExports['lxb_css_property_wrap_flow_create'];
+  _lxb_css_property_wrap_flow_destroy = Module['_lxb_css_property_wrap_flow_destroy'] = wasmExports['lxb_css_property_wrap_flow_destroy'];
+  _lxb_css_property_wrap_flow_serialize = Module['_lxb_css_property_wrap_flow_serialize'] = wasmExports['lxb_css_property_wrap_flow_serialize'];
+  _lxb_css_property_wrap_through_create = Module['_lxb_css_property_wrap_through_create'] = wasmExports['lxb_css_property_wrap_through_create'];
+  _lxb_css_property_wrap_through_destroy = Module['_lxb_css_property_wrap_through_destroy'] = wasmExports['lxb_css_property_wrap_through_destroy'];
+  _lxb_css_property_wrap_through_serialize = Module['_lxb_css_property_wrap_through_serialize'] = wasmExports['lxb_css_property_wrap_through_serialize'];
+  _lxb_css_property_flex_direction_create = Module['_lxb_css_property_flex_direction_create'] = wasmExports['lxb_css_property_flex_direction_create'];
+  _lxb_css_property_flex_direction_destroy = Module['_lxb_css_property_flex_direction_destroy'] = wasmExports['lxb_css_property_flex_direction_destroy'];
+  _lxb_css_property_flex_direction_serialize = Module['_lxb_css_property_flex_direction_serialize'] = wasmExports['lxb_css_property_flex_direction_serialize'];
+  _lxb_css_property_flex_wrap_create = Module['_lxb_css_property_flex_wrap_create'] = wasmExports['lxb_css_property_flex_wrap_create'];
+  _lxb_css_property_flex_wrap_destroy = Module['_lxb_css_property_flex_wrap_destroy'] = wasmExports['lxb_css_property_flex_wrap_destroy'];
+  _lxb_css_property_flex_wrap_serialize = Module['_lxb_css_property_flex_wrap_serialize'] = wasmExports['lxb_css_property_flex_wrap_serialize'];
+  _lxb_css_property_flex_flow_create = Module['_lxb_css_property_flex_flow_create'] = wasmExports['lxb_css_property_flex_flow_create'];
+  _lxb_css_property_flex_flow_destroy = Module['_lxb_css_property_flex_flow_destroy'] = wasmExports['lxb_css_property_flex_flow_destroy'];
+  _lxb_css_property_flex_flow_serialize = Module['_lxb_css_property_flex_flow_serialize'] = wasmExports['lxb_css_property_flex_flow_serialize'];
+  _lxb_css_property_flex_create = Module['_lxb_css_property_flex_create'] = wasmExports['lxb_css_property_flex_create'];
+  _lxb_css_property_flex_destroy = Module['_lxb_css_property_flex_destroy'] = wasmExports['lxb_css_property_flex_destroy'];
+  _lxb_css_property_flex_serialize = Module['_lxb_css_property_flex_serialize'] = wasmExports['lxb_css_property_flex_serialize'];
+  _lxb_css_value_number_sr = Module['_lxb_css_value_number_sr'] = wasmExports['lxb_css_value_number_sr'];
+  _lxb_css_property_flex_basis_serialize = Module['_lxb_css_property_flex_basis_serialize'] = wasmExports['lxb_css_property_flex_basis_serialize'];
+  _lxb_css_property_flex_grow_create = Module['_lxb_css_property_flex_grow_create'] = wasmExports['lxb_css_property_flex_grow_create'];
+  _lxb_css_property_flex_grow_destroy = Module['_lxb_css_property_flex_grow_destroy'] = wasmExports['lxb_css_property_flex_grow_destroy'];
+  _lxb_css_property_flex_grow_serialize = Module['_lxb_css_property_flex_grow_serialize'] = wasmExports['lxb_css_property_flex_grow_serialize'];
+  _lxb_css_property_flex_shrink_create = Module['_lxb_css_property_flex_shrink_create'] = wasmExports['lxb_css_property_flex_shrink_create'];
+  _lxb_css_property_flex_shrink_destroy = Module['_lxb_css_property_flex_shrink_destroy'] = wasmExports['lxb_css_property_flex_shrink_destroy'];
+  _lxb_css_property_flex_shrink_serialize = Module['_lxb_css_property_flex_shrink_serialize'] = wasmExports['lxb_css_property_flex_shrink_serialize'];
+  _lxb_css_property_flex_basis_create = Module['_lxb_css_property_flex_basis_create'] = wasmExports['lxb_css_property_flex_basis_create'];
+  _lxb_css_property_flex_basis_destroy = Module['_lxb_css_property_flex_basis_destroy'] = wasmExports['lxb_css_property_flex_basis_destroy'];
+  _lxb_css_property_justify_content_create = Module['_lxb_css_property_justify_content_create'] = wasmExports['lxb_css_property_justify_content_create'];
+  _lxb_css_property_justify_content_destroy = Module['_lxb_css_property_justify_content_destroy'] = wasmExports['lxb_css_property_justify_content_destroy'];
+  _lxb_css_property_justify_content_serialize = Module['_lxb_css_property_justify_content_serialize'] = wasmExports['lxb_css_property_justify_content_serialize'];
+  _lxb_css_property_align_items_create = Module['_lxb_css_property_align_items_create'] = wasmExports['lxb_css_property_align_items_create'];
+  _lxb_css_property_align_items_destroy = Module['_lxb_css_property_align_items_destroy'] = wasmExports['lxb_css_property_align_items_destroy'];
+  _lxb_css_property_align_items_serialize = Module['_lxb_css_property_align_items_serialize'] = wasmExports['lxb_css_property_align_items_serialize'];
+  _lxb_css_property_align_self_create = Module['_lxb_css_property_align_self_create'] = wasmExports['lxb_css_property_align_self_create'];
+  _lxb_css_property_align_self_destroy = Module['_lxb_css_property_align_self_destroy'] = wasmExports['lxb_css_property_align_self_destroy'];
+  _lxb_css_property_align_self_serialize = Module['_lxb_css_property_align_self_serialize'] = wasmExports['lxb_css_property_align_self_serialize'];
+  _lxb_css_property_align_content_create = Module['_lxb_css_property_align_content_create'] = wasmExports['lxb_css_property_align_content_create'];
+  _lxb_css_property_align_content_destroy = Module['_lxb_css_property_align_content_destroy'] = wasmExports['lxb_css_property_align_content_destroy'];
+  _lxb_css_property_align_content_serialize = Module['_lxb_css_property_align_content_serialize'] = wasmExports['lxb_css_property_align_content_serialize'];
+  _lxb_css_property_dominant_baseline_create = Module['_lxb_css_property_dominant_baseline_create'] = wasmExports['lxb_css_property_dominant_baseline_create'];
+  _lxb_css_property_dominant_baseline_destroy = Module['_lxb_css_property_dominant_baseline_destroy'] = wasmExports['lxb_css_property_dominant_baseline_destroy'];
+  _lxb_css_property_dominant_baseline_serialize = Module['_lxb_css_property_dominant_baseline_serialize'] = wasmExports['lxb_css_property_dominant_baseline_serialize'];
+  _lxb_css_property_vertical_align_create = Module['_lxb_css_property_vertical_align_create'] = wasmExports['lxb_css_property_vertical_align_create'];
+  _lxb_css_property_vertical_align_destroy = Module['_lxb_css_property_vertical_align_destroy'] = wasmExports['lxb_css_property_vertical_align_destroy'];
+  _lxb_css_property_vertical_align_serialize = Module['_lxb_css_property_vertical_align_serialize'] = wasmExports['lxb_css_property_vertical_align_serialize'];
+  _lxb_css_property_baseline_source_create = Module['_lxb_css_property_baseline_source_create'] = wasmExports['lxb_css_property_baseline_source_create'];
+  _lxb_css_property_baseline_source_destroy = Module['_lxb_css_property_baseline_source_destroy'] = wasmExports['lxb_css_property_baseline_source_destroy'];
+  _lxb_css_property_baseline_source_serialize = Module['_lxb_css_property_baseline_source_serialize'] = wasmExports['lxb_css_property_baseline_source_serialize'];
+  _lxb_css_property_alignment_baseline_create = Module['_lxb_css_property_alignment_baseline_create'] = wasmExports['lxb_css_property_alignment_baseline_create'];
+  _lxb_css_property_alignment_baseline_destroy = Module['_lxb_css_property_alignment_baseline_destroy'] = wasmExports['lxb_css_property_alignment_baseline_destroy'];
+  _lxb_css_property_alignment_baseline_serialize = Module['_lxb_css_property_alignment_baseline_serialize'] = wasmExports['lxb_css_property_alignment_baseline_serialize'];
+  _lxb_css_property_baseline_shift_create = Module['_lxb_css_property_baseline_shift_create'] = wasmExports['lxb_css_property_baseline_shift_create'];
+  _lxb_css_property_baseline_shift_destroy = Module['_lxb_css_property_baseline_shift_destroy'] = wasmExports['lxb_css_property_baseline_shift_destroy'];
+  _lxb_css_property_baseline_shift_serialize = Module['_lxb_css_property_baseline_shift_serialize'] = wasmExports['lxb_css_property_baseline_shift_serialize'];
+  _lxb_css_property_line_height_create = Module['_lxb_css_property_line_height_create'] = wasmExports['lxb_css_property_line_height_create'];
+  _lxb_css_property_line_height_destroy = Module['_lxb_css_property_line_height_destroy'] = wasmExports['lxb_css_property_line_height_destroy'];
+  _lxb_css_property_line_height_serialize = Module['_lxb_css_property_line_height_serialize'] = wasmExports['lxb_css_property_line_height_serialize'];
+  _lxb_css_value_number_length_percentage_type_sr = Module['_lxb_css_value_number_length_percentage_type_sr'] = wasmExports['lxb_css_value_number_length_percentage_type_sr'];
+  _lxb_css_property_z_index_create = Module['_lxb_css_property_z_index_create'] = wasmExports['lxb_css_property_z_index_create'];
+  _lxb_css_property_z_index_destroy = Module['_lxb_css_property_z_index_destroy'] = wasmExports['lxb_css_property_z_index_destroy'];
+  _lxb_css_property_z_index_serialize = Module['_lxb_css_property_z_index_serialize'] = wasmExports['lxb_css_property_z_index_serialize'];
+  _lxb_css_property_direction_create = Module['_lxb_css_property_direction_create'] = wasmExports['lxb_css_property_direction_create'];
+  _lxb_css_property_direction_destroy = Module['_lxb_css_property_direction_destroy'] = wasmExports['lxb_css_property_direction_destroy'];
+  _lxb_css_property_direction_serialize = Module['_lxb_css_property_direction_serialize'] = wasmExports['lxb_css_property_direction_serialize'];
+  _lxb_css_property_unicode_bidi_create = Module['_lxb_css_property_unicode_bidi_create'] = wasmExports['lxb_css_property_unicode_bidi_create'];
+  _lxb_css_property_unicode_bidi_destroy = Module['_lxb_css_property_unicode_bidi_destroy'] = wasmExports['lxb_css_property_unicode_bidi_destroy'];
+  _lxb_css_property_unicode_bidi_serialize = Module['_lxb_css_property_unicode_bidi_serialize'] = wasmExports['lxb_css_property_unicode_bidi_serialize'];
+  _lxb_css_property_writing_mode_create = Module['_lxb_css_property_writing_mode_create'] = wasmExports['lxb_css_property_writing_mode_create'];
+  _lxb_css_property_writing_mode_destroy = Module['_lxb_css_property_writing_mode_destroy'] = wasmExports['lxb_css_property_writing_mode_destroy'];
+  _lxb_css_property_writing_mode_serialize = Module['_lxb_css_property_writing_mode_serialize'] = wasmExports['lxb_css_property_writing_mode_serialize'];
+  _lxb_css_property_text_orientation_create = Module['_lxb_css_property_text_orientation_create'] = wasmExports['lxb_css_property_text_orientation_create'];
+  _lxb_css_property_text_orientation_destroy = Module['_lxb_css_property_text_orientation_destroy'] = wasmExports['lxb_css_property_text_orientation_destroy'];
+  _lxb_css_property_text_orientation_serialize = Module['_lxb_css_property_text_orientation_serialize'] = wasmExports['lxb_css_property_text_orientation_serialize'];
+  _lxb_css_property_text_combine_upright_create = Module['_lxb_css_property_text_combine_upright_create'] = wasmExports['lxb_css_property_text_combine_upright_create'];
+  _lxb_css_property_text_combine_upright_destroy = Module['_lxb_css_property_text_combine_upright_destroy'] = wasmExports['lxb_css_property_text_combine_upright_destroy'];
+  _lxb_css_property_text_combine_upright_serialize = Module['_lxb_css_property_text_combine_upright_serialize'] = wasmExports['lxb_css_property_text_combine_upright_serialize'];
+  _lxb_css_property_overflow_x_create = Module['_lxb_css_property_overflow_x_create'] = wasmExports['lxb_css_property_overflow_x_create'];
+  _lxb_css_property_overflow_x_destroy = Module['_lxb_css_property_overflow_x_destroy'] = wasmExports['lxb_css_property_overflow_x_destroy'];
+  _lxb_css_property_overflow_x_serialize = Module['_lxb_css_property_overflow_x_serialize'] = wasmExports['lxb_css_property_overflow_x_serialize'];
+  _lxb_css_property_overflow_y_create = Module['_lxb_css_property_overflow_y_create'] = wasmExports['lxb_css_property_overflow_y_create'];
+  _lxb_css_property_overflow_y_destroy = Module['_lxb_css_property_overflow_y_destroy'] = wasmExports['lxb_css_property_overflow_y_destroy'];
+  _lxb_css_property_overflow_y_serialize = Module['_lxb_css_property_overflow_y_serialize'] = wasmExports['lxb_css_property_overflow_y_serialize'];
+  _lxb_css_property_overflow_block_create = Module['_lxb_css_property_overflow_block_create'] = wasmExports['lxb_css_property_overflow_block_create'];
+  _lxb_css_property_overflow_block_destroy = Module['_lxb_css_property_overflow_block_destroy'] = wasmExports['lxb_css_property_overflow_block_destroy'];
+  _lxb_css_property_overflow_block_serialize = Module['_lxb_css_property_overflow_block_serialize'] = wasmExports['lxb_css_property_overflow_block_serialize'];
+  _lxb_css_property_overflow_inline_create = Module['_lxb_css_property_overflow_inline_create'] = wasmExports['lxb_css_property_overflow_inline_create'];
+  _lxb_css_property_overflow_inline_destroy = Module['_lxb_css_property_overflow_inline_destroy'] = wasmExports['lxb_css_property_overflow_inline_destroy'];
+  _lxb_css_property_overflow_inline_serialize = Module['_lxb_css_property_overflow_inline_serialize'] = wasmExports['lxb_css_property_overflow_inline_serialize'];
+  _lxb_css_property_text_overflow_create = Module['_lxb_css_property_text_overflow_create'] = wasmExports['lxb_css_property_text_overflow_create'];
+  _lxb_css_property_text_overflow_destroy = Module['_lxb_css_property_text_overflow_destroy'] = wasmExports['lxb_css_property_text_overflow_destroy'];
+  _lxb_css_property_text_overflow_serialize = Module['_lxb_css_property_text_overflow_serialize'] = wasmExports['lxb_css_property_text_overflow_serialize'];
+  _lxb_css_property_text_decoration_line_create = Module['_lxb_css_property_text_decoration_line_create'] = wasmExports['lxb_css_property_text_decoration_line_create'];
+  _lxb_css_property_text_decoration_line_destroy = Module['_lxb_css_property_text_decoration_line_destroy'] = wasmExports['lxb_css_property_text_decoration_line_destroy'];
+  _lxb_css_property_text_decoration_line_serialize = Module['_lxb_css_property_text_decoration_line_serialize'] = wasmExports['lxb_css_property_text_decoration_line_serialize'];
+  _lxb_css_property_text_decoration_style_create = Module['_lxb_css_property_text_decoration_style_create'] = wasmExports['lxb_css_property_text_decoration_style_create'];
+  _lxb_css_property_text_decoration_style_destroy = Module['_lxb_css_property_text_decoration_style_destroy'] = wasmExports['lxb_css_property_text_decoration_style_destroy'];
+  _lxb_css_property_text_decoration_style_serialize = Module['_lxb_css_property_text_decoration_style_serialize'] = wasmExports['lxb_css_property_text_decoration_style_serialize'];
+  _lxb_css_property_text_decoration_color_create = Module['_lxb_css_property_text_decoration_color_create'] = wasmExports['lxb_css_property_text_decoration_color_create'];
+  _lxb_css_property_text_decoration_color_destroy = Module['_lxb_css_property_text_decoration_color_destroy'] = wasmExports['lxb_css_property_text_decoration_color_destroy'];
+  _lxb_css_property_text_decoration_color_serialize = Module['_lxb_css_property_text_decoration_color_serialize'] = wasmExports['lxb_css_property_text_decoration_color_serialize'];
+  _lxb_css_property_text_decoration_create = Module['_lxb_css_property_text_decoration_create'] = wasmExports['lxb_css_property_text_decoration_create'];
+  _lxb_css_property_text_decoration_destroy = Module['_lxb_css_property_text_decoration_destroy'] = wasmExports['lxb_css_property_text_decoration_destroy'];
+  _lxb_css_property_text_decoration_serialize = Module['_lxb_css_property_text_decoration_serialize'] = wasmExports['lxb_css_property_text_decoration_serialize'];
+  _lxb_css_property_state__undef = Module['_lxb_css_property_state__undef'] = wasmExports['lxb_css_property_state__undef'];
+  _lxb_css_property_state__custom = Module['_lxb_css_property_state__custom'] = wasmExports['lxb_css_property_state__custom'];
+  _lxb_css_property_state_align_content = Module['_lxb_css_property_state_align_content'] = wasmExports['lxb_css_property_state_align_content'];
+  _lxb_css_property_state_align_items = Module['_lxb_css_property_state_align_items'] = wasmExports['lxb_css_property_state_align_items'];
+  _lxb_css_property_state_align_self = Module['_lxb_css_property_state_align_self'] = wasmExports['lxb_css_property_state_align_self'];
+  _lxb_css_property_state_alignment_baseline = Module['_lxb_css_property_state_alignment_baseline'] = wasmExports['lxb_css_property_state_alignment_baseline'];
+  _lxb_css_property_state_background_color = Module['_lxb_css_property_state_background_color'] = wasmExports['lxb_css_property_state_background_color'];
+  _lxb_css_property_state_baseline_shift = Module['_lxb_css_property_state_baseline_shift'] = wasmExports['lxb_css_property_state_baseline_shift'];
+  _lxb_css_property_state_baseline_source = Module['_lxb_css_property_state_baseline_source'] = wasmExports['lxb_css_property_state_baseline_source'];
+  _lxb_css_property_state_border = Module['_lxb_css_property_state_border'] = wasmExports['lxb_css_property_state_border'];
+  _lxb_css_property_state_border_bottom = Module['_lxb_css_property_state_border_bottom'] = wasmExports['lxb_css_property_state_border_bottom'];
+  _lxb_css_property_state_border_bottom_color = Module['_lxb_css_property_state_border_bottom_color'] = wasmExports['lxb_css_property_state_border_bottom_color'];
+  _lxb_css_property_state_border_left = Module['_lxb_css_property_state_border_left'] = wasmExports['lxb_css_property_state_border_left'];
+  _lxb_css_property_state_border_left_color = Module['_lxb_css_property_state_border_left_color'] = wasmExports['lxb_css_property_state_border_left_color'];
+  _lxb_css_property_state_border_right = Module['_lxb_css_property_state_border_right'] = wasmExports['lxb_css_property_state_border_right'];
+  _lxb_css_property_state_border_right_color = Module['_lxb_css_property_state_border_right_color'] = wasmExports['lxb_css_property_state_border_right_color'];
+  _lxb_css_property_state_border_top = Module['_lxb_css_property_state_border_top'] = wasmExports['lxb_css_property_state_border_top'];
+  _lxb_css_property_state_border_top_color = Module['_lxb_css_property_state_border_top_color'] = wasmExports['lxb_css_property_state_border_top_color'];
+  _lxb_css_property_state_bottom = Module['_lxb_css_property_state_bottom'] = wasmExports['lxb_css_property_state_bottom'];
+  _lxb_css_property_state_box_sizing = Module['_lxb_css_property_state_box_sizing'] = wasmExports['lxb_css_property_state_box_sizing'];
+  _lxb_css_property_state_clear = Module['_lxb_css_property_state_clear'] = wasmExports['lxb_css_property_state_clear'];
+  _lxb_css_property_state_color = Module['_lxb_css_property_state_color'] = wasmExports['lxb_css_property_state_color'];
+  _lxb_css_property_state_direction = Module['_lxb_css_property_state_direction'] = wasmExports['lxb_css_property_state_direction'];
+  _lxb_css_property_state_display = Module['_lxb_css_property_state_display'] = wasmExports['lxb_css_property_state_display'];
+  _lxb_css_property_state_dominant_baseline = Module['_lxb_css_property_state_dominant_baseline'] = wasmExports['lxb_css_property_state_dominant_baseline'];
+  _lxb_css_property_state_flex = Module['_lxb_css_property_state_flex'] = wasmExports['lxb_css_property_state_flex'];
+  _lxb_css_property_state_flex_basis = Module['_lxb_css_property_state_flex_basis'] = wasmExports['lxb_css_property_state_flex_basis'];
+  _lxb_css_property_state_flex_direction = Module['_lxb_css_property_state_flex_direction'] = wasmExports['lxb_css_property_state_flex_direction'];
+  _lxb_css_property_state_flex_flow = Module['_lxb_css_property_state_flex_flow'] = wasmExports['lxb_css_property_state_flex_flow'];
+  _lxb_css_property_state_flex_grow = Module['_lxb_css_property_state_flex_grow'] = wasmExports['lxb_css_property_state_flex_grow'];
+  _lxb_css_property_state_flex_shrink = Module['_lxb_css_property_state_flex_shrink'] = wasmExports['lxb_css_property_state_flex_shrink'];
+  _lxb_css_property_state_flex_wrap = Module['_lxb_css_property_state_flex_wrap'] = wasmExports['lxb_css_property_state_flex_wrap'];
+  _lxb_css_property_state_float = Module['_lxb_css_property_state_float'] = wasmExports['lxb_css_property_state_float'];
+  _lxb_css_property_state_float_defer = Module['_lxb_css_property_state_float_defer'] = wasmExports['lxb_css_property_state_float_defer'];
+  _lxb_css_property_state_float_offset = Module['_lxb_css_property_state_float_offset'] = wasmExports['lxb_css_property_state_float_offset'];
+  _lxb_css_property_state_float_reference = Module['_lxb_css_property_state_float_reference'] = wasmExports['lxb_css_property_state_float_reference'];
+  _lxb_css_property_state_font_family = Module['_lxb_css_property_state_font_family'] = wasmExports['lxb_css_property_state_font_family'];
+  _lxb_css_property_state_font_size = Module['_lxb_css_property_state_font_size'] = wasmExports['lxb_css_property_state_font_size'];
+  _lxb_css_property_state_font_stretch = Module['_lxb_css_property_state_font_stretch'] = wasmExports['lxb_css_property_state_font_stretch'];
+  _lxb_css_property_state_font_style = Module['_lxb_css_property_state_font_style'] = wasmExports['lxb_css_property_state_font_style'];
+  _lxb_css_property_state_font_weight = Module['_lxb_css_property_state_font_weight'] = wasmExports['lxb_css_property_state_font_weight'];
+  _lxb_css_property_state_hanging_punctuation = Module['_lxb_css_property_state_hanging_punctuation'] = wasmExports['lxb_css_property_state_hanging_punctuation'];
+  _lxb_css_property_state_height = Module['_lxb_css_property_state_height'] = wasmExports['lxb_css_property_state_height'];
+  _lxb_css_property_state_hyphens = Module['_lxb_css_property_state_hyphens'] = wasmExports['lxb_css_property_state_hyphens'];
+  _lxb_css_property_state_inset_block_end = Module['_lxb_css_property_state_inset_block_end'] = wasmExports['lxb_css_property_state_inset_block_end'];
+  _lxb_css_property_state_inset_block_start = Module['_lxb_css_property_state_inset_block_start'] = wasmExports['lxb_css_property_state_inset_block_start'];
+  _lxb_css_property_state_inset_inline_end = Module['_lxb_css_property_state_inset_inline_end'] = wasmExports['lxb_css_property_state_inset_inline_end'];
+  _lxb_css_property_state_inset_inline_start = Module['_lxb_css_property_state_inset_inline_start'] = wasmExports['lxb_css_property_state_inset_inline_start'];
+  _lxb_css_property_state_justify_content = Module['_lxb_css_property_state_justify_content'] = wasmExports['lxb_css_property_state_justify_content'];
+  _lxb_css_property_state_left = Module['_lxb_css_property_state_left'] = wasmExports['lxb_css_property_state_left'];
+  _lxb_css_property_state_letter_spacing = Module['_lxb_css_property_state_letter_spacing'] = wasmExports['lxb_css_property_state_letter_spacing'];
+  _lxb_css_property_state_line_break = Module['_lxb_css_property_state_line_break'] = wasmExports['lxb_css_property_state_line_break'];
+  _lxb_css_property_state_line_height = Module['_lxb_css_property_state_line_height'] = wasmExports['lxb_css_property_state_line_height'];
+  _lxb_css_property_state_margin = Module['_lxb_css_property_state_margin'] = wasmExports['lxb_css_property_state_margin'];
+  _lxb_css_property_state_margin_bottom = Module['_lxb_css_property_state_margin_bottom'] = wasmExports['lxb_css_property_state_margin_bottom'];
+  _lxb_css_property_state_margin_left = Module['_lxb_css_property_state_margin_left'] = wasmExports['lxb_css_property_state_margin_left'];
+  _lxb_css_property_state_margin_right = Module['_lxb_css_property_state_margin_right'] = wasmExports['lxb_css_property_state_margin_right'];
+  _lxb_css_property_state_margin_top = Module['_lxb_css_property_state_margin_top'] = wasmExports['lxb_css_property_state_margin_top'];
+  _lxb_css_property_state_max_height = Module['_lxb_css_property_state_max_height'] = wasmExports['lxb_css_property_state_max_height'];
+  _lxb_css_property_state_max_width = Module['_lxb_css_property_state_max_width'] = wasmExports['lxb_css_property_state_max_width'];
+  _lxb_css_property_state_min_height = Module['_lxb_css_property_state_min_height'] = wasmExports['lxb_css_property_state_min_height'];
+  _lxb_css_property_state_min_width = Module['_lxb_css_property_state_min_width'] = wasmExports['lxb_css_property_state_min_width'];
+  _lxb_css_property_state_opacity = Module['_lxb_css_property_state_opacity'] = wasmExports['lxb_css_property_state_opacity'];
+  _lxb_css_property_state_order = Module['_lxb_css_property_state_order'] = wasmExports['lxb_css_property_state_order'];
+  _lxb_css_property_state_overflow_block = Module['_lxb_css_property_state_overflow_block'] = wasmExports['lxb_css_property_state_overflow_block'];
+  _lxb_css_property_state_overflow_inline = Module['_lxb_css_property_state_overflow_inline'] = wasmExports['lxb_css_property_state_overflow_inline'];
+  _lxb_css_property_state_overflow_wrap = Module['_lxb_css_property_state_overflow_wrap'] = wasmExports['lxb_css_property_state_overflow_wrap'];
+  _lxb_css_property_state_overflow_x = Module['_lxb_css_property_state_overflow_x'] = wasmExports['lxb_css_property_state_overflow_x'];
+  _lxb_css_property_state_overflow_y = Module['_lxb_css_property_state_overflow_y'] = wasmExports['lxb_css_property_state_overflow_y'];
+  _lxb_css_property_state_padding = Module['_lxb_css_property_state_padding'] = wasmExports['lxb_css_property_state_padding'];
+  _lxb_css_property_state_padding_bottom = Module['_lxb_css_property_state_padding_bottom'] = wasmExports['lxb_css_property_state_padding_bottom'];
+  _lxb_css_property_state_padding_left = Module['_lxb_css_property_state_padding_left'] = wasmExports['lxb_css_property_state_padding_left'];
+  _lxb_css_property_state_padding_right = Module['_lxb_css_property_state_padding_right'] = wasmExports['lxb_css_property_state_padding_right'];
+  _lxb_css_property_state_padding_top = Module['_lxb_css_property_state_padding_top'] = wasmExports['lxb_css_property_state_padding_top'];
+  _lxb_css_property_state_position = Module['_lxb_css_property_state_position'] = wasmExports['lxb_css_property_state_position'];
+  _lxb_css_property_state_right = Module['_lxb_css_property_state_right'] = wasmExports['lxb_css_property_state_right'];
+  _lxb_css_property_state_tab_size = Module['_lxb_css_property_state_tab_size'] = wasmExports['lxb_css_property_state_tab_size'];
+  _lxb_css_property_state_text_align = Module['_lxb_css_property_state_text_align'] = wasmExports['lxb_css_property_state_text_align'];
+  _lxb_css_property_state_text_align_all = Module['_lxb_css_property_state_text_align_all'] = wasmExports['lxb_css_property_state_text_align_all'];
+  _lxb_css_property_state_text_align_last = Module['_lxb_css_property_state_text_align_last'] = wasmExports['lxb_css_property_state_text_align_last'];
+  _lxb_css_property_state_text_combine_upright = Module['_lxb_css_property_state_text_combine_upright'] = wasmExports['lxb_css_property_state_text_combine_upright'];
+  _lxb_css_property_state_text_decoration = Module['_lxb_css_property_state_text_decoration'] = wasmExports['lxb_css_property_state_text_decoration'];
+  _lxb_css_property_state_text_decoration_color = Module['_lxb_css_property_state_text_decoration_color'] = wasmExports['lxb_css_property_state_text_decoration_color'];
+  _lxb_css_property_state_text_decoration_line = Module['_lxb_css_property_state_text_decoration_line'] = wasmExports['lxb_css_property_state_text_decoration_line'];
+  _lxb_css_property_state_text_decoration_style = Module['_lxb_css_property_state_text_decoration_style'] = wasmExports['lxb_css_property_state_text_decoration_style'];
+  _lxb_css_property_state_text_indent = Module['_lxb_css_property_state_text_indent'] = wasmExports['lxb_css_property_state_text_indent'];
+  _lxb_css_property_state_text_justify = Module['_lxb_css_property_state_text_justify'] = wasmExports['lxb_css_property_state_text_justify'];
+  _lxb_css_property_state_text_orientation = Module['_lxb_css_property_state_text_orientation'] = wasmExports['lxb_css_property_state_text_orientation'];
+  _lxb_css_property_state_text_overflow = Module['_lxb_css_property_state_text_overflow'] = wasmExports['lxb_css_property_state_text_overflow'];
+  _lxb_css_property_state_text_transform = Module['_lxb_css_property_state_text_transform'] = wasmExports['lxb_css_property_state_text_transform'];
+  _lxb_css_property_state_top = Module['_lxb_css_property_state_top'] = wasmExports['lxb_css_property_state_top'];
+  _lxb_css_property_state_unicode_bidi = Module['_lxb_css_property_state_unicode_bidi'] = wasmExports['lxb_css_property_state_unicode_bidi'];
+  _lxb_css_property_state_vertical_align = Module['_lxb_css_property_state_vertical_align'] = wasmExports['lxb_css_property_state_vertical_align'];
+  _lxb_css_property_state_visibility = Module['_lxb_css_property_state_visibility'] = wasmExports['lxb_css_property_state_visibility'];
+  _lxb_css_property_state_white_space = Module['_lxb_css_property_state_white_space'] = wasmExports['lxb_css_property_state_white_space'];
+  _lxb_css_property_state_width = Module['_lxb_css_property_state_width'] = wasmExports['lxb_css_property_state_width'];
+  _lxb_css_property_state_word_break = Module['_lxb_css_property_state_word_break'] = wasmExports['lxb_css_property_state_word_break'];
+  _lxb_css_property_state_word_spacing = Module['_lxb_css_property_state_word_spacing'] = wasmExports['lxb_css_property_state_word_spacing'];
+  _lxb_css_property_state_word_wrap = Module['_lxb_css_property_state_word_wrap'] = wasmExports['lxb_css_property_state_word_wrap'];
+  _lxb_css_property_state_wrap_flow = Module['_lxb_css_property_state_wrap_flow'] = wasmExports['lxb_css_property_state_wrap_flow'];
+  _lxb_css_property_state_wrap_through = Module['_lxb_css_property_state_wrap_through'] = wasmExports['lxb_css_property_state_wrap_through'];
+  _lxb_css_property_state_writing_mode = Module['_lxb_css_property_state_writing_mode'] = wasmExports['lxb_css_property_state_writing_mode'];
+  _lxb_css_property_state_z_index = Module['_lxb_css_property_state_z_index'] = wasmExports['lxb_css_property_state_z_index'];
+  _lxb_css_value_by_name = Module['_lxb_css_value_by_name'] = wasmExports['lxb_css_value_by_name'];
+  _lxb_css_unit_absolute_relative_by_name = Module['_lxb_css_unit_absolute_relative_by_name'] = wasmExports['lxb_css_unit_absolute_relative_by_name'];
+  _lxb_css_syntax_token_serialize_str = Module['_lxb_css_syntax_token_serialize_str'] = wasmExports['lxb_css_syntax_token_serialize_str'];
+  _lxb_css_syntax_parser_token_wo_ws = Module['_lxb_css_syntax_parser_token_wo_ws'] = wasmExports['lxb_css_syntax_parser_token_wo_ws'];
+  _lxb_css_unit_angle_by_name = Module['_lxb_css_unit_angle_by_name'] = wasmExports['lxb_css_unit_angle_by_name'];
+  _lxb_css_rule_destroy = Module['_lxb_css_rule_destroy'] = wasmExports['lxb_css_rule_destroy'];
+  _lxb_css_rule_list_destroy = Module['_lxb_css_rule_list_destroy'] = wasmExports['lxb_css_rule_list_destroy'];
+  _lxb_css_selector_list_destroy = Module['_lxb_css_selector_list_destroy'] = wasmExports['lxb_css_selector_list_destroy'];
+  _lxb_css_rule_style_destroy = Module['_lxb_css_rule_style_destroy'] = wasmExports['lxb_css_rule_style_destroy'];
+  _lxb_css_rule_bad_style_destroy = Module['_lxb_css_rule_bad_style_destroy'] = wasmExports['lxb_css_rule_bad_style_destroy'];
+  _lxb_css_rule_declaration_list_destroy = Module['_lxb_css_rule_declaration_list_destroy'] = wasmExports['lxb_css_rule_declaration_list_destroy'];
+  _lxb_css_rule_serialize = Module['_lxb_css_rule_serialize'] = wasmExports['lxb_css_rule_serialize'];
+  _lxb_css_rule_at_serialize = Module['_lxb_css_rule_at_serialize'] = wasmExports['lxb_css_rule_at_serialize'];
+  _lxb_css_rule_style_serialize = Module['_lxb_css_rule_style_serialize'] = wasmExports['lxb_css_rule_style_serialize'];
+  _lxb_css_rule_declaration_serialize = Module['_lxb_css_rule_declaration_serialize'] = wasmExports['lxb_css_rule_declaration_serialize'];
+  _lxb_css_selector_serialize_list_chain = Module['_lxb_css_selector_serialize_list_chain'] = wasmExports['lxb_css_selector_serialize_list_chain'];
+  _lxb_css_rule_bad_style_serialize = Module['_lxb_css_rule_bad_style_serialize'] = wasmExports['lxb_css_rule_bad_style_serialize'];
+  _lxb_css_rule_declaration_list_serialize = Module['_lxb_css_rule_declaration_list_serialize'] = wasmExports['lxb_css_rule_declaration_list_serialize'];
+  _lxb_css_rule_serialize_chain = Module['_lxb_css_rule_serialize_chain'] = wasmExports['lxb_css_rule_serialize_chain'];
+  _lxb_css_rule_at_serialize_name = Module['_lxb_css_rule_at_serialize_name'] = wasmExports['lxb_css_rule_at_serialize_name'];
+  _lxb_css_rule_declaration_serialize_name = Module['_lxb_css_rule_declaration_serialize_name'] = wasmExports['lxb_css_rule_declaration_serialize_name'];
   _lxb_css_selectors_state_pseudo_class_function__undef = Module['_lxb_css_selectors_state_pseudo_class_function__undef'] = wasmExports['lxb_css_selectors_state_pseudo_class_function__undef'];
   _lxb_css_selectors_state_pseudo_class_function_current = Module['_lxb_css_selectors_state_pseudo_class_function_current'] = wasmExports['lxb_css_selectors_state_pseudo_class_function_current'];
   _lxb_css_selectors_state_complex_list = Module['_lxb_css_selectors_state_complex_list'] = wasmExports['lxb_css_selectors_state_complex_list'];
@@ -11127,8 +12403,6 @@ function assignWasmExports(wasmExports) {
   _lxb_css_selectors_state_pseudo_class_function_not = Module['_lxb_css_selectors_state_pseudo_class_function_not'] = wasmExports['lxb_css_selectors_state_pseudo_class_function_not'];
   _lxb_css_selectors_state_pseudo_class_function_nth_child = Module['_lxb_css_selectors_state_pseudo_class_function_nth_child'] = wasmExports['lxb_css_selectors_state_pseudo_class_function_nth_child'];
   _lxb_css_syntax_anb_handler = Module['_lxb_css_syntax_anb_handler'] = wasmExports['lxb_css_syntax_anb_handler'];
-  _lxb_css_syntax_parser_token = Module['_lxb_css_syntax_parser_token'] = wasmExports['lxb_css_syntax_parser_token'];
-  _lxb_css_syntax_parser_consume = Module['_lxb_css_syntax_parser_consume'] = wasmExports['lxb_css_syntax_parser_consume'];
   _lxb_css_syntax_token_consume = Module['_lxb_css_syntax_token_consume'] = wasmExports['lxb_css_syntax_token_consume'];
   _lxb_css_syntax_parser_components_push = Module['_lxb_css_syntax_parser_components_push'] = wasmExports['lxb_css_syntax_parser_components_push'];
   _lxb_css_selectors_state_pseudo_class_function_nth_col = Module['_lxb_css_selectors_state_pseudo_class_function_nth_col'] = wasmExports['lxb_css_selectors_state_pseudo_class_function_nth_col'];
@@ -11138,7 +12412,7 @@ function assignWasmExports(wasmExports) {
   _lxb_css_selectors_state_pseudo_class_function_nth_of_type = Module['_lxb_css_selectors_state_pseudo_class_function_nth_of_type'] = wasmExports['lxb_css_selectors_state_pseudo_class_function_nth_of_type'];
   _lxb_css_selectors_state_pseudo_class_function_where = Module['_lxb_css_selectors_state_pseudo_class_function_where'] = wasmExports['lxb_css_selectors_state_pseudo_class_function_where'];
   _lxb_css_selectors_state_pseudo_element_function__undef = Module['_lxb_css_selectors_state_pseudo_element_function__undef'] = wasmExports['lxb_css_selectors_state_pseudo_element_function__undef'];
-  _lxb_css_state_failed = Module['_lxb_css_state_failed'] = wasmExports['lxb_css_state_failed'];
+  _lxb_css_selectors_state_pseudo_class_function_lexbor_contains = Module['_lxb_css_selectors_state_pseudo_class_function_lexbor_contains'] = wasmExports['lxb_css_selectors_state_pseudo_class_function_lexbor_contains'];
   _lxb_css_selector_pseudo_class_by_name = Module['_lxb_css_selector_pseudo_class_by_name'] = wasmExports['lxb_css_selector_pseudo_class_by_name'];
   _lxb_css_selector_pseudo_class_function_by_name = Module['_lxb_css_selector_pseudo_class_function_by_name'] = wasmExports['lxb_css_selector_pseudo_class_function_by_name'];
   _lxb_css_selector_pseudo_class_function_by_id = Module['_lxb_css_selector_pseudo_class_function_by_id'] = wasmExports['lxb_css_selector_pseudo_class_function_by_id'];
@@ -11157,7 +12431,6 @@ function assignWasmExports(wasmExports) {
   _lxb_css_selector_list_create = Module['_lxb_css_selector_list_create'] = wasmExports['lxb_css_selector_list_create'];
   _lxb_css_selector_list_remove = Module['_lxb_css_selector_list_remove'] = wasmExports['lxb_css_selector_list_remove'];
   _lxb_css_selector_list_selectors_remove = Module['_lxb_css_selector_list_selectors_remove'] = wasmExports['lxb_css_selector_list_selectors_remove'];
-  _lxb_css_selector_list_destroy = Module['_lxb_css_selector_list_destroy'] = wasmExports['lxb_css_selector_list_destroy'];
   _lxb_css_selector_list_destroy_chain = Module['_lxb_css_selector_list_destroy_chain'] = wasmExports['lxb_css_selector_list_destroy_chain'];
   _lxb_css_selector_list_destroy_memory = Module['_lxb_css_selector_list_destroy_memory'] = wasmExports['lxb_css_selector_list_destroy_memory'];
   _lxb_css_selector_serialize = Module['_lxb_css_selector_serialize'] = wasmExports['lxb_css_selector_serialize'];
@@ -11165,17 +12438,13 @@ function assignWasmExports(wasmExports) {
   _lxb_css_selector_combinator = Module['_lxb_css_selector_combinator'] = wasmExports['lxb_css_selector_combinator'];
   _lxb_css_selector_serialize_chain_char = Module['_lxb_css_selector_serialize_chain_char'] = wasmExports['lxb_css_selector_serialize_chain_char'];
   _lxb_css_selector_serialize_list = Module['_lxb_css_selector_serialize_list'] = wasmExports['lxb_css_selector_serialize_list'];
-  _lxb_css_selector_serialize_list_chain = Module['_lxb_css_selector_serialize_list_chain'] = wasmExports['lxb_css_selector_serialize_list_chain'];
   _lxb_css_selector_serialize_list_chain_char = Module['_lxb_css_selector_serialize_list_chain_char'] = wasmExports['lxb_css_selector_serialize_list_chain_char'];
   _lxb_css_selector_serialize_anb_of = Module['_lxb_css_selector_serialize_anb_of'] = wasmExports['lxb_css_selector_serialize_anb_of'];
   _lxb_css_syntax_anb_serialize = Module['_lxb_css_syntax_anb_serialize'] = wasmExports['lxb_css_syntax_anb_serialize'];
   _lxb_css_selector_list_append = Module['_lxb_css_selector_list_append'] = wasmExports['lxb_css_selector_list_append'];
   _lxb_css_selector_append_next = Module['_lxb_css_selector_append_next'] = wasmExports['lxb_css_selector_append_next'];
   _lxb_css_selector_list_append_next = Module['_lxb_css_selector_list_append_next'] = wasmExports['lxb_css_selector_list_append_next'];
-  _lxb_css_selectors_create = Module['_lxb_css_selectors_create'] = wasmExports['lxb_css_selectors_create'];
-  _lxb_css_selectors_init = Module['_lxb_css_selectors_init'] = wasmExports['lxb_css_selectors_init'];
   _lxb_css_selectors_clean = Module['_lxb_css_selectors_clean'] = wasmExports['lxb_css_selectors_clean'];
-  _lxb_css_selectors_destroy = Module['_lxb_css_selectors_destroy'] = wasmExports['lxb_css_selectors_destroy'];
   _lxb_css_selectors_parse = Module['_lxb_css_selectors_parse'] = wasmExports['lxb_css_selectors_parse'];
   _lxb_css_selectors_parse_complex_list = Module['_lxb_css_selectors_parse_complex_list'] = wasmExports['lxb_css_selectors_parse_complex_list'];
   _lxb_css_syntax_parser_run = Module['_lxb_css_syntax_parser_run'] = wasmExports['lxb_css_syntax_parser_run'];
@@ -11195,36 +12464,48 @@ function assignWasmExports(wasmExports) {
   _lxb_css_syntax_token = Module['_lxb_css_syntax_token'] = wasmExports['lxb_css_syntax_token'];
   _lxb_css_syntax_token_next = Module['_lxb_css_syntax_token_next'] = wasmExports['lxb_css_syntax_token_next'];
   _lxb_css_syntax_token_string_dup = Module['_lxb_css_syntax_token_string_dup'] = wasmExports['lxb_css_syntax_token_string_dup'];
-  _lxb_css_syntax_parser_function_push = Module['_lxb_css_syntax_parser_function_push'] = wasmExports['lxb_css_syntax_parser_function_push'];
+  _lxb_css_syntax_consume_function = Module['_lxb_css_syntax_consume_function'] = wasmExports['lxb_css_syntax_consume_function'];
   _lxb_css_state_stop = Module['_lxb_css_state_stop'] = wasmExports['lxb_css_state_stop'];
+  _lxb_css_state_blank = Module['_lxb_css_state_blank'] = wasmExports['lxb_css_state_blank'];
+  _lxb_css_state_cb_list_rules = Module['_lxb_css_state_cb_list_rules'] = wasmExports['lxb_css_state_cb_list_rules'];
+  _lxb_css_state_cb_at_rule = Module['_lxb_css_state_cb_at_rule'] = wasmExports['lxb_css_state_cb_at_rule'];
+  _lxb_css_state_cb_qualified_rule = Module['_lxb_css_state_cb_qualified_rule'] = wasmExports['lxb_css_state_cb_qualified_rule'];
+  _lxb_css_state_cb_block = Module['_lxb_css_state_cb_block'] = wasmExports['lxb_css_state_cb_block'];
+  _lxb_css_stylesheet_create = Module['_lxb_css_stylesheet_create'] = wasmExports['lxb_css_stylesheet_create'];
+  _lxb_css_stylesheet_destroy = Module['_lxb_css_stylesheet_destroy'] = wasmExports['lxb_css_stylesheet_destroy'];
+  _lxb_css_stylesheet_parse = Module['_lxb_css_stylesheet_parse'] = wasmExports['lxb_css_stylesheet_parse'];
+  _lxb_css_syntax_parse_list_rules = Module['_lxb_css_syntax_parse_list_rules'] = wasmExports['lxb_css_syntax_parse_list_rules'];
   _lxb_css_syntax_anb_parse = Module['_lxb_css_syntax_anb_parse'] = wasmExports['lxb_css_syntax_anb_parse'];
   _lxb_css_syntax_parser_pipe_push = Module['_lxb_css_syntax_parser_pipe_push'] = wasmExports['lxb_css_syntax_parser_pipe_push'];
   _lxb_css_syntax_anb_serialize_char = Module['_lxb_css_syntax_anb_serialize_char'] = wasmExports['lxb_css_syntax_anb_serialize_char'];
-  _lxb_css_syntax_parser_token_wo_ws = Module['_lxb_css_syntax_parser_token_wo_ws'] = wasmExports['lxb_css_syntax_parser_token_wo_ws'];
   _lxb_css_syntax_parser_list_rules_push = Module['_lxb_css_syntax_parser_list_rules_push'] = wasmExports['lxb_css_syntax_parser_list_rules_push'];
   _lxb_css_syntax_stack_expand = Module['_lxb_css_syntax_stack_expand'] = wasmExports['lxb_css_syntax_stack_expand'];
   _lxb_css_syntax_parser_end = Module['_lxb_css_syntax_parser_end'] = wasmExports['lxb_css_syntax_parser_end'];
   _lxb_css_syntax_parser_at_rule_push = Module['_lxb_css_syntax_parser_at_rule_push'] = wasmExports['lxb_css_syntax_parser_at_rule_push'];
-  _lxb_css_syntax_parser_start_block = Module['_lxb_css_syntax_parser_start_block'] = wasmExports['lxb_css_syntax_parser_start_block'];
   _lxb_css_syntax_parser_qualified_push = Module['_lxb_css_syntax_parser_qualified_push'] = wasmExports['lxb_css_syntax_parser_qualified_push'];
-  _lxb_css_syntax_parser_declarations_push = Module['_lxb_css_syntax_parser_declarations_push'] = wasmExports['lxb_css_syntax_parser_declarations_push'];
-  _lxb_css_syntax_tokenizer_lookup_colon = Module['_lxb_css_syntax_tokenizer_lookup_colon'] = wasmExports['lxb_css_syntax_tokenizer_lookup_colon'];
   _lxb_css_syntax_parser_block_push = Module['_lxb_css_syntax_parser_block_push'] = wasmExports['lxb_css_syntax_parser_block_push'];
+  _lxb_css_syntax_parser_end_consume_token = Module['_lxb_css_syntax_parser_end_consume_token'] = wasmExports['lxb_css_syntax_parser_end_consume_token'];
+  _lxb_css_syntax_tokenizer_lookup_colon = Module['_lxb_css_syntax_tokenizer_lookup_colon'] = wasmExports['lxb_css_syntax_tokenizer_lookup_colon'];
+  _lxb_css_syntax_parser_declarations_push = Module['_lxb_css_syntax_parser_declarations_push'] = wasmExports['lxb_css_syntax_parser_declarations_push'];
+  _lxb_css_syntax_parser_function_push = Module['_lxb_css_syntax_parser_function_push'] = wasmExports['lxb_css_syntax_parser_function_push'];
   _lxb_css_syntax_tokenizer_lookup_declaration_ws_end = Module['_lxb_css_syntax_tokenizer_lookup_declaration_ws_end'] = wasmExports['lxb_css_syntax_tokenizer_lookup_declaration_ws_end'];
   _lxb_css_syntax_tokenizer_lookup_important = Module['_lxb_css_syntax_tokenizer_lookup_important'] = wasmExports['lxb_css_syntax_tokenizer_lookup_important'];
   _lxb_css_syntax_tokenizer_error_add = Module['_lxb_css_syntax_tokenizer_error_add'] = wasmExports['lxb_css_syntax_tokenizer_error_add'];
   _lxb_css_syntax_codepoint_to_ascii = Module['_lxb_css_syntax_codepoint_to_ascii'] = wasmExports['lxb_css_syntax_codepoint_to_ascii'];
-  _lxb_css_syntax_parse_list_rules = Module['_lxb_css_syntax_parse_list_rules'] = wasmExports['lxb_css_syntax_parse_list_rules'];
+  _lxb_css_syntax_consume_list_rules = Module['_lxb_css_syntax_consume_list_rules'] = wasmExports['lxb_css_syntax_consume_list_rules'];
+  _lxb_css_syntax_consume_at_rule = Module['_lxb_css_syntax_consume_at_rule'] = wasmExports['lxb_css_syntax_consume_at_rule'];
+  _lxb_css_syntax_consume_qualified_rule = Module['_lxb_css_syntax_consume_qualified_rule'] = wasmExports['lxb_css_syntax_consume_qualified_rule'];
+  _lxb_css_syntax_consume_block = Module['_lxb_css_syntax_consume_block'] = wasmExports['lxb_css_syntax_consume_block'];
+  _lxb_css_syntax_consume_declarations = Module['_lxb_css_syntax_consume_declarations'] = wasmExports['lxb_css_syntax_consume_declarations'];
+  _lxb_css_syntax_consume_components = Module['_lxb_css_syntax_consume_components'] = wasmExports['lxb_css_syntax_consume_components'];
   _lxb_css_syntax_ident_serialize = Module['_lxb_css_syntax_ident_serialize'] = wasmExports['lxb_css_syntax_ident_serialize'];
   _lxb_css_syntax_string_serialize = Module['_lxb_css_syntax_string_serialize'] = wasmExports['lxb_css_syntax_string_serialize'];
-  _lxb_css_syntax_ident_or_string_serialize = Module['_lxb_css_syntax_ident_or_string_serialize'] = wasmExports['lxb_css_syntax_ident_or_string_serialize'];
   _lxb_css_syntax_token_string_free = Module['_lxb_css_syntax_token_string_free'] = wasmExports['lxb_css_syntax_token_string_free'];
   _lxb_css_syntax_token_consume_n = Module['_lxb_css_syntax_token_consume_n'] = wasmExports['lxb_css_syntax_token_consume_n'];
   _lxb_css_syntax_token_string_make = Module['_lxb_css_syntax_token_string_make'] = wasmExports['lxb_css_syntax_token_string_make'];
   _lxb_css_syntax_token_type_name_by_id = Module['_lxb_css_syntax_token_type_name_by_id'] = wasmExports['lxb_css_syntax_token_type_name_by_id'];
   _lxb_css_syntax_token_type_id_by_name = Module['_lxb_css_syntax_token_type_id_by_name'] = wasmExports['lxb_css_syntax_token_type_id_by_name'];
   _lxb_css_syntax_token_serialize = Module['_lxb_css_syntax_token_serialize'] = wasmExports['lxb_css_syntax_token_serialize'];
-  _lxb_css_syntax_token_serialize_str = Module['_lxb_css_syntax_token_serialize_str'] = wasmExports['lxb_css_syntax_token_serialize_str'];
   _lxb_css_syntax_token_serialize_char = Module['_lxb_css_syntax_token_serialize_char'] = wasmExports['lxb_css_syntax_token_serialize_char'];
   _lxb_css_syntax_token_create_noi = Module['_lxb_css_syntax_token_create_noi'] = wasmExports['lxb_css_syntax_token_create_noi'];
   _lxb_css_syntax_token_clean_noi = Module['_lxb_css_syntax_token_clean_noi'] = wasmExports['lxb_css_syntax_token_clean_noi'];
@@ -11232,6 +12513,13 @@ function assignWasmExports(wasmExports) {
   _lxb_css_syntax_token_type_name_noi = Module['_lxb_css_syntax_token_type_name_noi'] = wasmExports['lxb_css_syntax_token_type_name_noi'];
   _lxb_css_syntax_token_type_noi = Module['_lxb_css_syntax_token_type_noi'] = wasmExports['lxb_css_syntax_token_type_noi'];
   _lxb_css_syntax_tokenizer_status_noi = Module['_lxb_css_syntax_tokenizer_status_noi'] = wasmExports['lxb_css_syntax_tokenizer_status_noi'];
+  _lxb_css_unit_absolute_by_name = Module['_lxb_css_unit_absolute_by_name'] = wasmExports['lxb_css_unit_absolute_by_name'];
+  _lxb_css_unit_relative_by_name = Module['_lxb_css_unit_relative_by_name'] = wasmExports['lxb_css_unit_relative_by_name'];
+  _lxb_css_unit_frequency_by_name = Module['_lxb_css_unit_frequency_by_name'] = wasmExports['lxb_css_unit_frequency_by_name'];
+  _lxb_css_unit_resolution_by_name = Module['_lxb_css_unit_resolution_by_name'] = wasmExports['lxb_css_unit_resolution_by_name'];
+  _lxb_css_unit_duration_by_name = Module['_lxb_css_unit_duration_by_name'] = wasmExports['lxb_css_unit_duration_by_name'];
+  _lxb_css_unit_by_id = Module['_lxb_css_unit_by_id'] = wasmExports['lxb_css_unit_by_id'];
+  _lxb_css_value_hue_sr = Module['_lxb_css_value_hue_sr'] = wasmExports['lxb_css_value_hue_sr'];
   _lxb_dom_interface_create = Module['_lxb_dom_interface_create'] = wasmExports['lxb_dom_interface_create'];
   _lxb_dom_element_interface_create = Module['_lxb_dom_element_interface_create'] = wasmExports['lxb_dom_element_interface_create'];
   _lxb_dom_interface_clone = Module['_lxb_dom_interface_clone'] = wasmExports['lxb_dom_interface_clone'];
@@ -11286,6 +12574,8 @@ function assignWasmExports(wasmExports) {
   _lxb_dom_comment_interface_copy = Module['_lxb_dom_comment_interface_copy'] = wasmExports['lxb_dom_comment_interface_copy'];
   _lxb_dom_document_fragment_interface_create = Module['_lxb_dom_document_fragment_interface_create'] = wasmExports['lxb_dom_document_fragment_interface_create'];
   _lxb_dom_document_type_interface_create = Module['_lxb_dom_document_type_interface_create'] = wasmExports['lxb_dom_document_type_interface_create'];
+  _lxb_dom_document_type_create = Module['_lxb_dom_document_type_create'] = wasmExports['lxb_dom_document_type_create'];
+  _lxb_dom_document_type_valid_name = Module['_lxb_dom_document_type_valid_name'] = wasmExports['lxb_dom_document_type_valid_name'];
   _lxb_dom_document_type_name_noi = Module['_lxb_dom_document_type_name_noi'] = wasmExports['lxb_dom_document_type_name_noi'];
   _lxb_dom_document_type_public_id_noi = Module['_lxb_dom_document_type_public_id_noi'] = wasmExports['lxb_dom_document_type_public_id_noi'];
   _lxb_dom_document_type_system_id_noi = Module['_lxb_dom_document_type_system_id_noi'] = wasmExports['lxb_dom_document_type_system_id_noi'];
@@ -11337,6 +12627,8 @@ function assignWasmExports(wasmExports) {
   _lxb_dom_element_attr_by_local_name_data = Module['_lxb_dom_element_attr_by_local_name_data'] = wasmExports['lxb_dom_element_attr_by_local_name_data'];
   _lxb_dom_element_attr_by_id = Module['_lxb_dom_element_attr_by_id'] = wasmExports['lxb_dom_element_attr_by_id'];
   _lxb_dom_element_compare = Module['_lxb_dom_element_compare'] = wasmExports['lxb_dom_element_compare'];
+  _lxb_dom_element_by_id = Module['_lxb_dom_element_by_id'] = wasmExports['lxb_dom_element_by_id'];
+  _lxb_dom_node_by_id = Module['_lxb_dom_node_by_id'] = wasmExports['lxb_dom_node_by_id'];
   _lxb_dom_elements_by_tag_name = Module['_lxb_dom_elements_by_tag_name'] = wasmExports['lxb_dom_elements_by_tag_name'];
   _lxb_dom_node_by_tag_name = Module['_lxb_dom_node_by_tag_name'] = wasmExports['lxb_dom_node_by_tag_name'];
   _lxb_dom_elements_by_class_name = Module['_lxb_dom_elements_by_class_name'] = wasmExports['lxb_dom_elements_by_class_name'];
@@ -11377,6 +12669,16 @@ function assignWasmExports(wasmExports) {
   _lxb_dom_node_insert_before = Module['_lxb_dom_node_insert_before'] = wasmExports['lxb_dom_node_insert_before'];
   _lxb_dom_node_insert_after_wo_events = Module['_lxb_dom_node_insert_after_wo_events'] = wasmExports['lxb_dom_node_insert_after_wo_events'];
   _lxb_dom_node_insert_after = Module['_lxb_dom_node_insert_after'] = wasmExports['lxb_dom_node_insert_after'];
+  _lxb_dom_node_pre_insert_validity = Module['_lxb_dom_node_pre_insert_validity'] = wasmExports['lxb_dom_node_pre_insert_validity'];
+  _lxb_dom_node_host_including_inclusive_ancestor = Module['_lxb_dom_node_host_including_inclusive_ancestor'] = wasmExports['lxb_dom_node_host_including_inclusive_ancestor'];
+  _lxb_dom_node_pre_insert = Module['_lxb_dom_node_pre_insert'] = wasmExports['lxb_dom_node_pre_insert'];
+  _lxb_dom_node_insert = Module['_lxb_dom_node_insert'] = wasmExports['lxb_dom_node_insert'];
+  _lxb_dom_node_insert_before_spec = Module['_lxb_dom_node_insert_before_spec'] = wasmExports['lxb_dom_node_insert_before_spec'];
+  _lxb_dom_node_append_child = Module['_lxb_dom_node_append_child'] = wasmExports['lxb_dom_node_append_child'];
+  _lxb_dom_node_remove_child = Module['_lxb_dom_node_remove_child'] = wasmExports['lxb_dom_node_remove_child'];
+  _lxb_dom_node_remove_spec = Module['_lxb_dom_node_remove_spec'] = wasmExports['lxb_dom_node_remove_spec'];
+  _lxb_dom_node_replace_child = Module['_lxb_dom_node_replace_child'] = wasmExports['lxb_dom_node_replace_child'];
+  _lxb_dom_node_replace_all_spec = Module['_lxb_dom_node_replace_all_spec'] = wasmExports['lxb_dom_node_replace_all_spec'];
   _lxb_dom_node_remove_wo_events = Module['_lxb_dom_node_remove_wo_events'] = wasmExports['lxb_dom_node_remove_wo_events'];
   _lxb_dom_node_replace_all = Module['_lxb_dom_node_replace_all'] = wasmExports['lxb_dom_node_replace_all'];
   _lxb_dom_node_simple_walk = Module['_lxb_dom_node_simple_walk'] = wasmExports['lxb_dom_node_simple_walk'];
@@ -11385,12 +12687,14 @@ function assignWasmExports(wasmExports) {
   _lxb_dom_node_text_content = Module['_lxb_dom_node_text_content'] = wasmExports['lxb_dom_node_text_content'];
   _lxb_dom_node_text_content_set = Module['_lxb_dom_node_text_content_set'] = wasmExports['lxb_dom_node_text_content_set'];
   _lxb_dom_node_is_empty = Module['_lxb_dom_node_is_empty'] = wasmExports['lxb_dom_node_is_empty'];
+  _lxb_dom_node_adopt = Module['_lxb_dom_node_adopt'] = wasmExports['lxb_dom_node_adopt'];
   _lxb_dom_node_tag_id_noi = Module['_lxb_dom_node_tag_id_noi'] = wasmExports['lxb_dom_node_tag_id_noi'];
   _lxb_dom_node_next_noi = Module['_lxb_dom_node_next_noi'] = wasmExports['lxb_dom_node_next_noi'];
   _lxb_dom_node_prev_noi = Module['_lxb_dom_node_prev_noi'] = wasmExports['lxb_dom_node_prev_noi'];
   _lxb_dom_node_parent_noi = Module['_lxb_dom_node_parent_noi'] = wasmExports['lxb_dom_node_parent_noi'];
   _lxb_dom_node_first_child_noi = Module['_lxb_dom_node_first_child_noi'] = wasmExports['lxb_dom_node_first_child_noi'];
   _lxb_dom_node_last_child_noi = Module['_lxb_dom_node_last_child_noi'] = wasmExports['lxb_dom_node_last_child_noi'];
+  _lxb_dom_node_type_noi = Module['_lxb_dom_node_type_noi'] = wasmExports['lxb_dom_node_type_noi'];
   _lxb_dom_processing_instruction_copy = Module['_lxb_dom_processing_instruction_copy'] = wasmExports['lxb_dom_processing_instruction_copy'];
   _lxb_dom_processing_instruction_target_noi = Module['_lxb_dom_processing_instruction_target_noi'] = wasmExports['lxb_dom_processing_instruction_target_noi'];
   _lxb_dom_shadow_root_interface_create = Module['_lxb_dom_shadow_root_interface_create'] = wasmExports['lxb_dom_shadow_root_interface_create'];
@@ -11575,9 +12879,16 @@ function assignWasmExports(wasmExports) {
   _lxb_encoding_encode_x_mac_cyrillic_single = Module['_lxb_encoding_encode_x_mac_cyrillic_single'] = wasmExports['lxb_encoding_encode_x_mac_cyrillic_single'];
   _lxb_encoding_encode_x_user_defined_single = Module['_lxb_encoding_encode_x_user_defined_single'] = wasmExports['lxb_encoding_encode_x_user_defined_single'];
   _lxb_encoding_data_by_pre_name = Module['_lxb_encoding_data_by_pre_name'] = wasmExports['lxb_encoding_data_by_pre_name'];
+  _lxb_encoding_prescan_validate = Module['_lxb_encoding_prescan_validate'] = wasmExports['lxb_encoding_prescan_validate'];
+  _lxb_encoding_data_prescan_validate = Module['_lxb_encoding_data_prescan_validate'] = wasmExports['lxb_encoding_data_prescan_validate'];
+  _lxb_encoding_data = Module['_lxb_encoding_data'] = wasmExports['lxb_encoding_data'];
+  _lxb_encoding_bom_sniff = Module['_lxb_encoding_bom_sniff'] = wasmExports['lxb_encoding_bom_sniff'];
   _lxb_encoding_utf_8_skip_bom = Module['_lxb_encoding_utf_8_skip_bom'] = wasmExports['lxb_encoding_utf_8_skip_bom'];
   _lxb_encoding_utf_16be_skip_bom = Module['_lxb_encoding_utf_16be_skip_bom'] = wasmExports['lxb_encoding_utf_16be_skip_bom'];
   _lxb_encoding_utf_16le_skip_bom = Module['_lxb_encoding_utf_16le_skip_bom'] = wasmExports['lxb_encoding_utf_16le_skip_bom'];
+  _lxb_encoding_data_by_name = Module['_lxb_encoding_data_by_name'] = wasmExports['lxb_encoding_data_by_name'];
+  _lxb_encoding_encode_function = Module['_lxb_encoding_encode_function'] = wasmExports['lxb_encoding_encode_function'];
+  _lxb_encoding_decode_function = Module['_lxb_encoding_decode_function'] = wasmExports['lxb_encoding_decode_function'];
   _lxb_encoding_encode_init_noi = Module['_lxb_encoding_encode_init_noi'] = wasmExports['lxb_encoding_encode_init_noi'];
   _lxb_encoding_encode_finish_noi = Module['_lxb_encoding_encode_finish_noi'] = wasmExports['lxb_encoding_encode_finish_noi'];
   _lxb_encoding_encode_buf_noi = Module['_lxb_encoding_encode_buf_noi'] = wasmExports['lxb_encoding_encode_buf_noi'];
@@ -11609,6 +12920,7 @@ function assignWasmExports(wasmExports) {
   _lxb_encoding_decode_t_sizeof = Module['_lxb_encoding_decode_t_sizeof'] = wasmExports['lxb_encoding_decode_t_sizeof'];
   _lxb_html_encoding_init = Module['_lxb_html_encoding_init'] = wasmExports['lxb_html_encoding_init'];
   _lxb_html_encoding_destroy = Module['_lxb_html_encoding_destroy'] = wasmExports['lxb_html_encoding_destroy'];
+  _lxb_html_encoding_prescan = Module['_lxb_html_encoding_prescan'] = wasmExports['lxb_html_encoding_prescan'];
   _lxb_html_encoding_determine = Module['_lxb_html_encoding_determine'] = wasmExports['lxb_html_encoding_determine'];
   _lxb_html_encoding_content = Module['_lxb_html_encoding_content'] = wasmExports['lxb_html_encoding_content'];
   _lxb_html_encoding_create_noi = Module['_lxb_html_encoding_create_noi'] = wasmExports['lxb_html_encoding_create_noi'];
@@ -11675,7 +12987,9 @@ function assignWasmExports(wasmExports) {
   _lxb_html_picture_element_interface_create = Module['_lxb_html_picture_element_interface_create'] = wasmExports['lxb_html_picture_element_interface_create'];
   _lxb_html_progress_element_interface_create = Module['_lxb_html_progress_element_interface_create'] = wasmExports['lxb_html_progress_element_interface_create'];
   _lxb_html_script_element_interface_create = Module['_lxb_html_script_element_interface_create'] = wasmExports['lxb_html_script_element_interface_create'];
+  _lxb_html_search_element_interface_create = Module['_lxb_html_search_element_interface_create'] = wasmExports['lxb_html_search_element_interface_create'];
   _lxb_html_select_element_interface_create = Module['_lxb_html_select_element_interface_create'] = wasmExports['lxb_html_select_element_interface_create'];
+  _lxb_html_selectedcontent_element_interface_create = Module['_lxb_html_selectedcontent_element_interface_create'] = wasmExports['lxb_html_selectedcontent_element_interface_create'];
   _lxb_html_slot_element_interface_create = Module['_lxb_html_slot_element_interface_create'] = wasmExports['lxb_html_slot_element_interface_create'];
   _lxb_html_source_element_interface_create = Module['_lxb_html_source_element_interface_create'] = wasmExports['lxb_html_source_element_interface_create'];
   _lxb_html_span_element_interface_create = Module['_lxb_html_span_element_interface_create'] = wasmExports['lxb_html_span_element_interface_create'];
@@ -11745,7 +13059,9 @@ function assignWasmExports(wasmExports) {
   _lxb_html_picture_element_interface_destroy = Module['_lxb_html_picture_element_interface_destroy'] = wasmExports['lxb_html_picture_element_interface_destroy'];
   _lxb_html_progress_element_interface_destroy = Module['_lxb_html_progress_element_interface_destroy'] = wasmExports['lxb_html_progress_element_interface_destroy'];
   _lxb_html_script_element_interface_destroy = Module['_lxb_html_script_element_interface_destroy'] = wasmExports['lxb_html_script_element_interface_destroy'];
+  _lxb_html_search_element_interface_destroy = Module['_lxb_html_search_element_interface_destroy'] = wasmExports['lxb_html_search_element_interface_destroy'];
   _lxb_html_select_element_interface_destroy = Module['_lxb_html_select_element_interface_destroy'] = wasmExports['lxb_html_select_element_interface_destroy'];
+  _lxb_html_selectedcontent_element_interface_destroy = Module['_lxb_html_selectedcontent_element_interface_destroy'] = wasmExports['lxb_html_selectedcontent_element_interface_destroy'];
   _lxb_html_slot_element_interface_destroy = Module['_lxb_html_slot_element_interface_destroy'] = wasmExports['lxb_html_slot_element_interface_destroy'];
   _lxb_html_source_element_interface_destroy = Module['_lxb_html_source_element_interface_destroy'] = wasmExports['lxb_html_source_element_interface_destroy'];
   _lxb_html_span_element_interface_destroy = Module['_lxb_html_span_element_interface_destroy'] = wasmExports['lxb_html_span_element_interface_destroy'];
@@ -11768,11 +13084,11 @@ function assignWasmExports(wasmExports) {
   _lxb_html_document_parse = Module['_lxb_html_document_parse'] = wasmExports['lxb_html_document_parse'];
   _lxb_html_parser_create = Module['_lxb_html_parser_create'] = wasmExports['lxb_html_parser_create'];
   _lxb_html_parser_init = Module['_lxb_html_parser_init'] = wasmExports['lxb_html_parser_init'];
-  _lxb_html_parser_destroy = Module['_lxb_html_parser_destroy'] = wasmExports['lxb_html_parser_destroy'];
   _lxb_html_parser_clean = Module['_lxb_html_parser_clean'] = wasmExports['lxb_html_parser_clean'];
   _lxb_html_parse_chunk_prepare = Module['_lxb_html_parse_chunk_prepare'] = wasmExports['lxb_html_parse_chunk_prepare'];
   _lxb_html_parse_chunk_process = Module['_lxb_html_parse_chunk_process'] = wasmExports['lxb_html_parse_chunk_process'];
   _lxb_html_parse_chunk_end = Module['_lxb_html_parse_chunk_end'] = wasmExports['lxb_html_parse_chunk_end'];
+  _lxb_html_parser_destroy = Module['_lxb_html_parser_destroy'] = wasmExports['lxb_html_parser_destroy'];
   _lxb_html_document_parse_chunk_begin = Module['_lxb_html_document_parse_chunk_begin'] = wasmExports['lxb_html_document_parse_chunk_begin'];
   _lxb_html_document_parse_chunk = Module['_lxb_html_document_parse_chunk'] = wasmExports['lxb_html_document_parse_chunk'];
   _lxb_html_document_parse_chunk_end = Module['_lxb_html_document_parse_chunk_end'] = wasmExports['lxb_html_document_parse_chunk_end'];
@@ -11804,6 +13120,10 @@ function assignWasmExports(wasmExports) {
   _lxb_html_element_inner_html_set = Module['_lxb_html_element_inner_html_set'] = wasmExports['lxb_html_element_inner_html_set'];
   _lxb_html_media_element_interface_create = Module['_lxb_html_media_element_interface_create'] = wasmExports['lxb_html_media_element_interface_create'];
   _lxb_html_media_element_interface_destroy = Module['_lxb_html_media_element_interface_destroy'] = wasmExports['lxb_html_media_element_interface_destroy'];
+  _lxb_html_option_maybe_clone_to_selectedcontent = Module['_lxb_html_option_maybe_clone_to_selectedcontent'] = wasmExports['lxb_html_option_maybe_clone_to_selectedcontent'];
+  _lxb_html_select_get_enabled_selectedcontent = Module['_lxb_html_select_get_enabled_selectedcontent'] = wasmExports['lxb_html_select_get_enabled_selectedcontent'];
+  _lxb_html_selectedcontent_clone_option = Module['_lxb_html_selectedcontent_clone_option'] = wasmExports['lxb_html_selectedcontent_clone_option'];
+  _lxb_html_option_element_selectedness = Module['_lxb_html_option_element_selectedness'] = wasmExports['lxb_html_option_element_selectedness'];
   _lxb_html_window_create = Module['_lxb_html_window_create'] = wasmExports['lxb_html_window_create'];
   _lxb_html_window_destroy = Module['_lxb_html_window_destroy'] = wasmExports['lxb_html_window_destroy'];
   _lxb_html_tokenizer_create = Module['_lxb_html_tokenizer_create'] = wasmExports['lxb_html_tokenizer_create'];
@@ -11831,6 +13151,8 @@ function assignWasmExports(wasmExports) {
   _lxb_html_parser_state_noi = Module['_lxb_html_parser_state_noi'] = wasmExports['lxb_html_parser_state_noi'];
   _lxb_html_parser_scripting_noi = Module['_lxb_html_parser_scripting_noi'] = wasmExports['lxb_html_parser_scripting_noi'];
   _lxb_html_parser_scripting_set_noi = Module['_lxb_html_parser_scripting_set_noi'] = wasmExports['lxb_html_parser_scripting_set_noi'];
+  _lxb_html_tag_is_category = Module['_lxb_html_tag_is_category'] = wasmExports['lxb_html_tag_is_category'];
+  _lxb_html_tag_fixname_svg = Module['_lxb_html_tag_fixname_svg'] = wasmExports['lxb_html_tag_fixname_svg'];
   _lxb_html_token_attr_create = Module['_lxb_html_token_attr_create'] = wasmExports['lxb_html_token_attr_create'];
   _lxb_html_token_attr_clean = Module['_lxb_html_token_attr_clean'] = wasmExports['lxb_html_token_attr_clean'];
   _lxb_html_token_attr_destroy = Module['_lxb_html_token_attr_destroy'] = wasmExports['lxb_html_token_attr_destroy'];
@@ -11858,11 +13180,14 @@ function assignWasmExports(wasmExports) {
   _lxb_html_tokenizer_attrs_destroy = Module['_lxb_html_tokenizer_attrs_destroy'] = wasmExports['lxb_html_tokenizer_attrs_destroy'];
   _lxb_html_tokenizer_tags_make = Module['_lxb_html_tokenizer_tags_make'] = wasmExports['lxb_html_tokenizer_tags_make'];
   _lxb_html_tokenizer_attrs_make = Module['_lxb_html_tokenizer_attrs_make'] = wasmExports['lxb_html_tokenizer_attrs_make'];
+  _lxb_html_tokenizer_error_add = Module['_lxb_html_tokenizer_error_add'] = wasmExports['lxb_html_tokenizer_error_add'];
   _lxb_html_tokenizer_current_namespace = Module['_lxb_html_tokenizer_current_namespace'] = wasmExports['lxb_html_tokenizer_current_namespace'];
   _lxb_html_tokenizer_state_plaintext_before = Module['_lxb_html_tokenizer_state_plaintext_before'] = wasmExports['lxb_html_tokenizer_state_plaintext_before'];
   _lxb_html_tokenizer_state_rcdata_before = Module['_lxb_html_tokenizer_state_rcdata_before'] = wasmExports['lxb_html_tokenizer_state_rcdata_before'];
   _lxb_html_tokenizer_state_rawtext_before = Module['_lxb_html_tokenizer_state_rawtext_before'] = wasmExports['lxb_html_tokenizer_state_rawtext_before'];
   _lxb_html_tokenizer_state_script_data_before = Module['_lxb_html_tokenizer_state_script_data_before'] = wasmExports['lxb_html_tokenizer_state_script_data_before'];
+  _lxb_html_tokenizer_attr_last_duplicate = Module['_lxb_html_tokenizer_attr_last_duplicate'] = wasmExports['lxb_html_tokenizer_attr_last_duplicate'];
+  _lxb_html_tokenizer_validate_close_tag = Module['_lxb_html_tokenizer_validate_close_tag'] = wasmExports['lxb_html_tokenizer_validate_close_tag'];
   _lxb_html_tokenizer_status_set_noi = Module['_lxb_html_tokenizer_status_set_noi'] = wasmExports['lxb_html_tokenizer_status_set_noi'];
   _lxb_html_tokenizer_callback_token_done_set_noi = Module['_lxb_html_tokenizer_callback_token_done_set_noi'] = wasmExports['lxb_html_tokenizer_callback_token_done_set_noi'];
   _lxb_html_tokenizer_callback_token_done_ctx_noi = Module['_lxb_html_tokenizer_callback_token_done_ctx_noi'] = wasmExports['lxb_html_tokenizer_callback_token_done_ctx_noi'];
@@ -11870,15 +13195,18 @@ function assignWasmExports(wasmExports) {
   _lxb_html_tokenizer_tmp_tag_id_set_noi = Module['_lxb_html_tokenizer_tmp_tag_id_set_noi'] = wasmExports['lxb_html_tokenizer_tmp_tag_id_set_noi'];
   _lxb_html_tokenizer_tree_noi = Module['_lxb_html_tokenizer_tree_noi'] = wasmExports['lxb_html_tokenizer_tree_noi'];
   _lxb_html_tokenizer_tree_set_noi = Module['_lxb_html_tokenizer_tree_set_noi'] = wasmExports['lxb_html_tokenizer_tree_set_noi'];
+  _lxb_html_tokenizer_input_validation_set_noi = Module['_lxb_html_tokenizer_input_validation_set_noi'] = wasmExports['lxb_html_tokenizer_input_validation_set_noi'];
   _lxb_html_tokenizer_mraw_noi = Module['_lxb_html_tokenizer_mraw_noi'] = wasmExports['lxb_html_tokenizer_mraw_noi'];
   _lxb_html_tokenizer_tags_noi = Module['_lxb_html_tokenizer_tags_noi'] = wasmExports['lxb_html_tokenizer_tags_noi'];
-  _lxb_html_tokenizer_error_add = Module['_lxb_html_tokenizer_error_add'] = wasmExports['lxb_html_tokenizer_error_add'];
+  _lxb_html_tokenizer_keep_duplicate_set_noi = Module['_lxb_html_tokenizer_keep_duplicate_set_noi'] = wasmExports['lxb_html_tokenizer_keep_duplicate_set_noi'];
+  _lxb_html_tokenizer_error_to_string = Module['_lxb_html_tokenizer_error_to_string'] = wasmExports['lxb_html_tokenizer_error_to_string'];
   _lxb_html_tokenizer_state_comment_before_start = Module['_lxb_html_tokenizer_state_comment_before_start'] = wasmExports['lxb_html_tokenizer_state_comment_before_start'];
   _lxb_html_tokenizer_state_cr = Module['_lxb_html_tokenizer_state_cr'] = wasmExports['lxb_html_tokenizer_state_cr'];
   _lxb_html_tokenizer_state_doctype_before = Module['_lxb_html_tokenizer_state_doctype_before'] = wasmExports['lxb_html_tokenizer_state_doctype_before'];
   _lxb_html_tokenizer_state_before_attribute_name = Module['_lxb_html_tokenizer_state_before_attribute_name'] = wasmExports['lxb_html_tokenizer_state_before_attribute_name'];
   _lxb_html_tokenizer_state_self_closing_start_tag = Module['_lxb_html_tokenizer_state_self_closing_start_tag'] = wasmExports['lxb_html_tokenizer_state_self_closing_start_tag'];
   _lxb_html_tokenizer_state_char_ref = Module['_lxb_html_tokenizer_state_char_ref'] = wasmExports['lxb_html_tokenizer_state_char_ref'];
+  _lxb_html_tokenizer_state_cdata_section_before = Module['_lxb_html_tokenizer_state_cdata_section_before'] = wasmExports['lxb_html_tokenizer_state_cdata_section_before'];
   _lxb_html_tree_insertion_mode_initial = Module['_lxb_html_tree_insertion_mode_initial'] = wasmExports['lxb_html_tree_insertion_mode_initial'];
   _lxb_html_tree_construction_dispatcher = Module['_lxb_html_tree_construction_dispatcher'] = wasmExports['lxb_html_tree_construction_dispatcher'];
   _lxb_html_tree_ref = Module['_lxb_html_tree_ref'] = wasmExports['lxb_html_tree_ref'];
@@ -11908,8 +13236,6 @@ function assignWasmExports(wasmExports) {
   _lxb_html_tree_generate_implied_end_tags = Module['_lxb_html_tree_generate_implied_end_tags'] = wasmExports['lxb_html_tree_generate_implied_end_tags'];
   _lxb_html_tree_generate_all_implied_end_tags_thoroughly = Module['_lxb_html_tree_generate_all_implied_end_tags_thoroughly'] = wasmExports['lxb_html_tree_generate_all_implied_end_tags_thoroughly'];
   _lxb_html_tree_insertion_mode_in_body = Module['_lxb_html_tree_insertion_mode_in_body'] = wasmExports['lxb_html_tree_insertion_mode_in_body'];
-  _lxb_html_tree_insertion_mode_in_select = Module['_lxb_html_tree_insertion_mode_in_select'] = wasmExports['lxb_html_tree_insertion_mode_in_select'];
-  _lxb_html_tree_insertion_mode_in_select_in_table = Module['_lxb_html_tree_insertion_mode_in_select_in_table'] = wasmExports['lxb_html_tree_insertion_mode_in_select_in_table'];
   _lxb_html_tree_insertion_mode_in_cell = Module['_lxb_html_tree_insertion_mode_in_cell'] = wasmExports['lxb_html_tree_insertion_mode_in_cell'];
   _lxb_html_tree_insertion_mode_in_row = Module['_lxb_html_tree_insertion_mode_in_row'] = wasmExports['lxb_html_tree_insertion_mode_in_row'];
   _lxb_html_tree_insertion_mode_in_table_body = Module['_lxb_html_tree_insertion_mode_in_table_body'] = wasmExports['lxb_html_tree_insertion_mode_in_table_body'];
@@ -11925,12 +13251,14 @@ function assignWasmExports(wasmExports) {
   _lxb_html_tree_element_in_scope_h123456 = Module['_lxb_html_tree_element_in_scope_h123456'] = wasmExports['lxb_html_tree_element_in_scope_h123456'];
   _lxb_html_tree_element_in_scope_tbody_thead_tfoot = Module['_lxb_html_tree_element_in_scope_tbody_thead_tfoot'] = wasmExports['lxb_html_tree_element_in_scope_tbody_thead_tfoot'];
   _lxb_html_tree_element_in_scope_td_th = Module['_lxb_html_tree_element_in_scope_td_th'] = wasmExports['lxb_html_tree_element_in_scope_td_th'];
+  _lxb_html_tree_element_in_scope_option_optgroup = Module['_lxb_html_tree_element_in_scope_option_optgroup'] = wasmExports['lxb_html_tree_element_in_scope_option_optgroup'];
   _lxb_html_tree_check_scope_element = Module['_lxb_html_tree_check_scope_element'] = wasmExports['lxb_html_tree_check_scope_element'];
   _lxb_html_tree_close_p_element = Module['_lxb_html_tree_close_p_element'] = wasmExports['lxb_html_tree_close_p_element'];
   _lxb_html_tree_adoption_agency_algorithm = Module['_lxb_html_tree_adoption_agency_algorithm'] = wasmExports['lxb_html_tree_adoption_agency_algorithm'];
   _lxb_html_tree_open_elements_remove_by_node = Module['_lxb_html_tree_open_elements_remove_by_node'] = wasmExports['lxb_html_tree_open_elements_remove_by_node'];
   _lxb_html_tree_adjust_attributes_mathml = Module['_lxb_html_tree_adjust_attributes_mathml'] = wasmExports['lxb_html_tree_adjust_attributes_mathml'];
   _lxb_html_tree_adjust_attributes_svg = Module['_lxb_html_tree_adjust_attributes_svg'] = wasmExports['lxb_html_tree_adjust_attributes_svg'];
+  _lxb_html_tree_error_to_string = Module['_lxb_html_tree_error_to_string'] = wasmExports['lxb_html_tree_error_to_string'];
   _lxb_html_tree_insertion_mode_after_after_body = Module['_lxb_html_tree_insertion_mode_after_after_body'] = wasmExports['lxb_html_tree_insertion_mode_after_after_body'];
   _lxb_html_tree_insertion_mode_after_after_frameset = Module['_lxb_html_tree_insertion_mode_after_after_frameset'] = wasmExports['lxb_html_tree_insertion_mode_after_after_frameset'];
   _lxb_html_tree_insertion_mode_after_body = Module['_lxb_html_tree_insertion_mode_after_body'] = wasmExports['lxb_html_tree_insertion_mode_after_body'];
@@ -12139,11 +13467,8 @@ function assignWasmExports(wasmExports) {
   _zend_strndup = Module['_zend_strndup'] = wasmExports['zend_strndup'];
   _expand_filepath_ex = Module['_expand_filepath_ex'] = wasmExports['expand_filepath_ex'];
   _php_globfree = Module['_php_globfree'] = wasmExports['php_globfree'];
-  __zend_bailout = Module['__zend_bailout'] = wasmExports['_zend_bailout'];
   _zend_string_hash_func = Module['_zend_string_hash_func'] = wasmExports['zend_string_hash_func'];
   _zend_hash_str_find_ptr_lc = Module['_zend_hash_str_find_ptr_lc'] = wasmExports['zend_hash_str_find_ptr_lc'];
-  _setTempRet0 = Module['_setTempRet0'] = wasmExports['setTempRet0'];
-  _getTempRet0 = Module['_getTempRet0'] = wasmExports['getTempRet0'];
   _zend_stream_init_filename_ex = Module['_zend_stream_init_filename_ex'] = wasmExports['zend_stream_init_filename_ex'];
   _destroy_op_array = Module['_destroy_op_array'] = wasmExports['destroy_op_array'];
   _zend_destroy_file_handle = Module['_zend_destroy_file_handle'] = wasmExports['zend_destroy_file_handle'];
@@ -12159,6 +13484,7 @@ function assignWasmExports(wasmExports) {
   _zend_hash_find_known_hash = Module['_zend_hash_find_known_hash'] = wasmExports['zend_hash_find_known_hash'];
   _zend_set_compiled_filename = Module['_zend_set_compiled_filename'] = wasmExports['zend_set_compiled_filename'];
   _zend_class_redeclaration_error = Module['_zend_class_redeclaration_error'] = wasmExports['zend_class_redeclaration_error'];
+  _zend_bind_class_in_slot = Module['_zend_bind_class_in_slot'] = wasmExports['zend_bind_class_in_slot'];
   _zend_try_early_bind = Module['_zend_try_early_bind'] = wasmExports['zend_try_early_bind'];
   __zend_observer_function_declared_notify = Module['__zend_observer_function_declared_notify'] = wasmExports['_zend_observer_function_declared_notify'];
   __zend_observer_class_linked_notify = Module['__zend_observer_class_linked_notify'] = wasmExports['_zend_observer_class_linked_notify'];
@@ -12340,6 +13666,7 @@ function assignWasmExports(wasmExports) {
   _zend_get_closure_invoke_method = Module['_zend_get_closure_invoke_method'] = wasmExports['zend_get_closure_invoke_method'];
   _zend_get_default_from_internal_arg_info = Module['_zend_get_default_from_internal_arg_info'] = wasmExports['zend_get_default_from_internal_arg_info'];
   _zend_separate_class_constants_table = Module['_zend_separate_class_constants_table'] = wasmExports['zend_separate_class_constants_table'];
+  _smart_str_append_double = Module['_smart_str_append_double'] = wasmExports['smart_str_append_double'];
   _zval_copy_ctor_func = Module['_zval_copy_ctor_func'] = wasmExports['zval_copy_ctor_func'];
   _zend_update_class_constants = Module['_zend_update_class_constants'] = wasmExports['zend_update_class_constants'];
   _zend_class_init_statics = Module['_zend_class_init_statics'] = wasmExports['zend_class_init_statics'];
@@ -12765,6 +14092,7 @@ function assignWasmExports(wasmExports) {
   _add_property_zval_ex = Module['_add_property_zval_ex'] = wasmExports['add_property_zval_ex'];
   _add_property_null_ex = Module['_add_property_null_ex'] = wasmExports['add_property_null_ex'];
   _zend_call_method_if_exists = Module['_zend_call_method_if_exists'] = wasmExports['zend_call_method_if_exists'];
+  _zend_update_property_null = Module['_zend_update_property_null'] = wasmExports['zend_update_property_null'];
   _php_uuencode = Module['_php_uuencode'] = wasmExports['php_uuencode'];
   _php_uudecode = Module['_php_uudecode'] = wasmExports['php_uudecode'];
   _var_destroy = Module['_var_destroy'] = wasmExports['var_destroy'];
@@ -12784,7 +14112,6 @@ function assignWasmExports(wasmExports) {
   _zend_array_count = Module['_zend_array_count'] = wasmExports['zend_array_count'];
   _php_debug_zval_dump = Module['_php_debug_zval_dump'] = wasmExports['php_debug_zval_dump'];
   _php_var_export_ex = Module['_php_var_export_ex'] = wasmExports['php_var_export_ex'];
-  _smart_str_append_double = Module['_smart_str_append_double'] = wasmExports['smart_str_append_double'];
   _php_var_export = Module['_php_var_export'] = wasmExports['php_var_export'];
   _php_unserialize_with_options = Module['_php_unserialize_with_options'] = wasmExports['php_unserialize_with_options'];
   _zend_memory_usage = Module['_zend_memory_usage'] = wasmExports['zend_memory_usage'];
@@ -12920,8 +14247,8 @@ function assignWasmExports(wasmExports) {
   _php_set_sock_blocking = Module['_php_set_sock_blocking'] = wasmExports['php_set_sock_blocking'];
   _zend_stack_init = Module['_zend_stack_init'] = wasmExports['zend_stack_init'];
   _zend_stack_top = Module['_zend_stack_top'] = wasmExports['zend_stack_top'];
-  _php_output_handler_dtor = Module['_php_output_handler_dtor'] = wasmExports['php_output_handler_dtor'];
   _zend_stack_del_top = Module['_zend_stack_del_top'] = wasmExports['zend_stack_del_top'];
+  _php_output_handler_dtor = Module['_php_output_handler_dtor'] = wasmExports['php_output_handler_dtor'];
   _zend_stack_destroy = Module['_zend_stack_destroy'] = wasmExports['zend_stack_destroy'];
   _zend_is_compiling = Module['_zend_is_compiling'] = wasmExports['zend_is_compiling'];
   _zend_get_compiled_filename = Module['_zend_get_compiled_filename'] = wasmExports['zend_get_compiled_filename'];
@@ -13248,7 +14575,6 @@ function assignWasmExports(wasmExports) {
   _zend_declare_class_constant_double = Module['_zend_declare_class_constant_double'] = wasmExports['zend_declare_class_constant_double'];
   _zend_declare_class_constant_stringl = Module['_zend_declare_class_constant_stringl'] = wasmExports['zend_declare_class_constant_stringl'];
   _zend_declare_class_constant_string = Module['_zend_declare_class_constant_string'] = wasmExports['zend_declare_class_constant_string'];
-  _zend_update_property_null = Module['_zend_update_property_null'] = wasmExports['zend_update_property_null'];
   _zend_unset_property = Module['_zend_unset_property'] = wasmExports['zend_unset_property'];
   _zend_update_property_bool = Module['_zend_update_property_bool'] = wasmExports['zend_update_property_bool'];
   _zend_update_property_double = Module['_zend_update_property_double'] = wasmExports['zend_update_property_double'];
@@ -13343,7 +14669,6 @@ function assignWasmExports(wasmExports) {
   _zend_init_rsrc_list = Module['_zend_init_rsrc_list'] = wasmExports['zend_init_rsrc_list'];
   _zend_restore_compiled_filename = Module['_zend_restore_compiled_filename'] = wasmExports['zend_restore_compiled_filename'];
   _do_bind_function = Module['_do_bind_function'] = wasmExports['do_bind_function'];
-  _zend_bind_class_in_slot = Module['_zend_bind_class_in_slot'] = wasmExports['zend_bind_class_in_slot'];
   _do_bind_class = Module['_do_bind_class'] = wasmExports['do_bind_class'];
   _zend_is_auto_global_str = Module['_zend_is_auto_global_str'] = wasmExports['zend_is_auto_global_str'];
   _zend_get_compiled_variable_name = Module['_zend_get_compiled_variable_name'] = wasmExports['zend_get_compiled_variable_name'];
@@ -13469,6 +14794,7 @@ function assignWasmExports(wasmExports) {
   _zend_hash_real_init = Module['_zend_hash_real_init'] = wasmExports['zend_hash_real_init'];
   _zend_get_opcode_handler_func = Module['_zend_get_opcode_handler_func'] = wasmExports['zend_get_opcode_handler_func'];
   _zend_get_halt_op = Module['_zend_get_halt_op'] = wasmExports['zend_get_halt_op'];
+  _zend_get_interrupt_op = Module['_zend_get_interrupt_op'] = wasmExports['zend_get_interrupt_op'];
   _zend_vm_kind = Module['_zend_vm_kind'] = wasmExports['zend_vm_kind'];
   _zend_vm_call_opcode_handler = Module['_zend_vm_call_opcode_handler'] = wasmExports['zend_vm_call_opcode_handler'];
   _zend_set_user_opcode_handler = Module['_zend_set_user_opcode_handler'] = wasmExports['zend_set_user_opcode_handler'];
@@ -13580,7 +14906,6 @@ function assignWasmExports(wasmExports) {
   _zend_multibyte_parse_encoding_list = Module['_zend_multibyte_parse_encoding_list'] = wasmExports['zend_multibyte_parse_encoding_list'];
   _zend_multibyte_get_script_encoding = Module['_zend_multibyte_get_script_encoding'] = wasmExports['zend_multibyte_get_script_encoding'];
   _zend_multibyte_set_script_encoding = Module['_zend_multibyte_set_script_encoding'] = wasmExports['zend_multibyte_set_script_encoding'];
-  _zend_std_get_debug_info = Module['_zend_std_get_debug_info'] = wasmExports['zend_std_get_debug_info'];
   _zend_get_property_guard = Module['_zend_get_property_guard'] = wasmExports['zend_get_property_guard'];
   _zend_std_get_closure = Module['_zend_std_get_closure'] = wasmExports['zend_std_get_closure'];
   _zend_hooked_object_build_properties = Module['_zend_hooked_object_build_properties'] = wasmExports['zend_hooked_object_build_properties'];
@@ -13673,6 +14998,7 @@ function assignWasmExports(wasmExports) {
   _php_cli_get_shell_callbacks = Module['_php_cli_get_shell_callbacks'] = wasmExports['php_cli_get_shell_callbacks'];
   _sapi_cli_single_write = Module['_sapi_cli_single_write'] = wasmExports['sapi_cli_single_write'];
   _main = Module['_main'] = wasmExports['__main_argc_argv'];
+  _locale_charset = Module['_locale_charset'] = wasmExports['locale_charset'];
   _libiconv_open_into = Module['_libiconv_open_into'] = wasmExports['libiconv_open_into'];
   _libiconvctl = Module['_libiconvctl'] = wasmExports['libiconvctl'];
   _libiconvlist = Module['_libiconvlist'] = wasmExports['libiconvlist'];
@@ -13680,8 +15006,9 @@ function assignWasmExports(wasmExports) {
   _sqlite3_status64 = Module['_sqlite3_status64'] = wasmExports['sqlite3_status64'];
   _sqlite3_log = Module['_sqlite3_log'] = wasmExports['sqlite3_log'];
   _sqlite3_status = Module['_sqlite3_status'] = wasmExports['sqlite3_status'];
-  _sqlite3_db_status = Module['_sqlite3_db_status'] = wasmExports['sqlite3_db_status'];
+  _sqlite3_db_status64 = Module['_sqlite3_db_status64'] = wasmExports['sqlite3_db_status64'];
   _sqlite3_msize = Module['_sqlite3_msize'] = wasmExports['sqlite3_msize'];
+  _sqlite3_db_status = Module['_sqlite3_db_status'] = wasmExports['sqlite3_db_status'];
   _sqlite3_vfs_find = Module['_sqlite3_vfs_find'] = wasmExports['sqlite3_vfs_find'];
   _sqlite3_initialize = Module['_sqlite3_initialize'] = wasmExports['sqlite3_initialize'];
   _sqlite3_config = Module['_sqlite3_config'] = wasmExports['sqlite3_config'];
@@ -13701,14 +15028,16 @@ function assignWasmExports(wasmExports) {
   _sqlite3_realloc64 = Module['_sqlite3_realloc64'] = wasmExports['sqlite3_realloc64'];
   _sqlite3_str_vappendf = Module['_sqlite3_str_vappendf'] = wasmExports['sqlite3_str_vappendf'];
   _sqlite3_str_append = Module['_sqlite3_str_append'] = wasmExports['sqlite3_str_append'];
-  _sqlite3_str_appendf = Module['_sqlite3_str_appendf'] = wasmExports['sqlite3_str_appendf'];
   _sqlite3_str_appendchar = Module['_sqlite3_str_appendchar'] = wasmExports['sqlite3_str_appendchar'];
+  _sqlite3_str_appendf = Module['_sqlite3_str_appendf'] = wasmExports['sqlite3_str_appendf'];
   _sqlite3_str_reset = Module['_sqlite3_str_reset'] = wasmExports['sqlite3_str_reset'];
   _sqlite3_str_appendall = Module['_sqlite3_str_appendall'] = wasmExports['sqlite3_str_appendall'];
   _sqlite3_str_finish = Module['_sqlite3_str_finish'] = wasmExports['sqlite3_str_finish'];
   _sqlite3_str_errcode = Module['_sqlite3_str_errcode'] = wasmExports['sqlite3_str_errcode'];
   _sqlite3_str_length = Module['_sqlite3_str_length'] = wasmExports['sqlite3_str_length'];
+  _sqlite3_str_truncate = Module['_sqlite3_str_truncate'] = wasmExports['sqlite3_str_truncate'];
   _sqlite3_str_value = Module['_sqlite3_str_value'] = wasmExports['sqlite3_str_value'];
+  _sqlite3_str_free = Module['_sqlite3_str_free'] = wasmExports['sqlite3_str_free'];
   _sqlite3_str_new = Module['_sqlite3_str_new'] = wasmExports['sqlite3_str_new'];
   _sqlite3_vmprintf = Module['_sqlite3_vmprintf'] = wasmExports['sqlite3_vmprintf'];
   _sqlite3_vsnprintf = Module['_sqlite3_vsnprintf'] = wasmExports['sqlite3_vsnprintf'];
@@ -13735,6 +15064,7 @@ function assignWasmExports(wasmExports) {
   _sqlite3_value_text16 = Module['_sqlite3_value_text16'] = wasmExports['sqlite3_value_text16'];
   _sqlite3_value_text16be = Module['_sqlite3_value_text16be'] = wasmExports['sqlite3_value_text16be'];
   _sqlite3_value_text16le = Module['_sqlite3_value_text16le'] = wasmExports['sqlite3_value_text16le'];
+  _sqlite3_value_encoding = Module['_sqlite3_value_encoding'] = wasmExports['sqlite3_value_encoding'];
   _sqlite3_value_nochange = Module['_sqlite3_value_nochange'] = wasmExports['sqlite3_value_nochange'];
   _sqlite3_value_frombind = Module['_sqlite3_value_frombind'] = wasmExports['sqlite3_value_frombind'];
   _sqlite3_value_dup = Module['_sqlite3_value_dup'] = wasmExports['sqlite3_value_dup'];
@@ -13751,10 +15081,10 @@ function assignWasmExports(wasmExports) {
   _sqlite3_result_text16be = Module['_sqlite3_result_text16be'] = wasmExports['sqlite3_result_text16be'];
   _sqlite3_result_text16le = Module['_sqlite3_result_text16le'] = wasmExports['sqlite3_result_text16le'];
   _sqlite3_result_value = Module['_sqlite3_result_value'] = wasmExports['sqlite3_result_value'];
+  _sqlite3_result_error_toobig = Module['_sqlite3_result_error_toobig'] = wasmExports['sqlite3_result_error_toobig'];
   _sqlite3_result_zeroblob = Module['_sqlite3_result_zeroblob'] = wasmExports['sqlite3_result_zeroblob'];
   _sqlite3_result_zeroblob64 = Module['_sqlite3_result_zeroblob64'] = wasmExports['sqlite3_result_zeroblob64'];
   _sqlite3_result_error_code = Module['_sqlite3_result_error_code'] = wasmExports['sqlite3_result_error_code'];
-  _sqlite3_result_error_toobig = Module['_sqlite3_result_error_toobig'] = wasmExports['sqlite3_result_error_toobig'];
   _sqlite3_context_db_handle = Module['_sqlite3_context_db_handle'] = wasmExports['sqlite3_context_db_handle'];
   _sqlite3_vtab_nochange = Module['_sqlite3_vtab_nochange'] = wasmExports['sqlite3_vtab_nochange'];
   _sqlite3_vtab_in_first = Module['_sqlite3_vtab_in_first'] = wasmExports['sqlite3_vtab_in_first'];
@@ -13777,7 +15107,6 @@ function assignWasmExports(wasmExports) {
   _sqlite3_bind_zeroblob64 = Module['_sqlite3_bind_zeroblob64'] = wasmExports['sqlite3_bind_zeroblob64'];
   _sqlite3_bind_parameter_name = Module['_sqlite3_bind_parameter_name'] = wasmExports['sqlite3_bind_parameter_name'];
   _sqlite3_transfer_bindings = Module['_sqlite3_transfer_bindings'] = wasmExports['sqlite3_transfer_bindings'];
-  _sqlite3_stmt_isexplain = Module['_sqlite3_stmt_isexplain'] = wasmExports['sqlite3_stmt_isexplain'];
   _sqlite3_next_stmt = Module['_sqlite3_next_stmt'] = wasmExports['sqlite3_next_stmt'];
   _sqlite3_stmt_status = Module['_sqlite3_stmt_status'] = wasmExports['sqlite3_stmt_status'];
   _sqlite3_value_numeric_type = Module['_sqlite3_value_numeric_type'] = wasmExports['sqlite3_value_numeric_type'];
@@ -13821,7 +15150,9 @@ function assignWasmExports(wasmExports) {
   _sqlite3_txn_state = Module['_sqlite3_txn_state'] = wasmExports['sqlite3_txn_state'];
   _sqlite3_busy_handler = Module['_sqlite3_busy_handler'] = wasmExports['sqlite3_busy_handler'];
   _sqlite3_progress_handler = Module['_sqlite3_progress_handler'] = wasmExports['sqlite3_progress_handler'];
+  _sqlite3_setlk_timeout = Module['_sqlite3_setlk_timeout'] = wasmExports['sqlite3_setlk_timeout'];
   _sqlite3_interrupt = Module['_sqlite3_interrupt'] = wasmExports['sqlite3_interrupt'];
+  _sqlite3_is_interrupted = Module['_sqlite3_is_interrupted'] = wasmExports['sqlite3_is_interrupted'];
   _sqlite3_create_function_v2 = Module['_sqlite3_create_function_v2'] = wasmExports['sqlite3_create_function_v2'];
   _sqlite3_create_window_function = Module['_sqlite3_create_window_function'] = wasmExports['sqlite3_create_window_function'];
   _sqlite3_create_function16 = Module['_sqlite3_create_function16'] = wasmExports['sqlite3_create_function16'];
@@ -13837,6 +15168,7 @@ function assignWasmExports(wasmExports) {
   _sqlite3_wal_hook = Module['_sqlite3_wal_hook'] = wasmExports['sqlite3_wal_hook'];
   _sqlite3_wal_checkpoint_v2 = Module['_sqlite3_wal_checkpoint_v2'] = wasmExports['sqlite3_wal_checkpoint_v2'];
   _sqlite3_wal_checkpoint = Module['_sqlite3_wal_checkpoint'] = wasmExports['sqlite3_wal_checkpoint'];
+  _sqlite3_set_errmsg = Module['_sqlite3_set_errmsg'] = wasmExports['sqlite3_set_errmsg'];
   _sqlite3_error_offset = Module['_sqlite3_error_offset'] = wasmExports['sqlite3_error_offset'];
   _sqlite3_errmsg16 = Module['_sqlite3_errmsg16'] = wasmExports['sqlite3_errmsg16'];
   _sqlite3_system_errno = Module['_sqlite3_system_errno'] = wasmExports['sqlite3_system_errno'];
@@ -13848,6 +15180,8 @@ function assignWasmExports(wasmExports) {
   _sqlite3_create_collation16 = Module['_sqlite3_create_collation16'] = wasmExports['sqlite3_create_collation16'];
   _sqlite3_collation_needed = Module['_sqlite3_collation_needed'] = wasmExports['sqlite3_collation_needed'];
   _sqlite3_collation_needed16 = Module['_sqlite3_collation_needed16'] = wasmExports['sqlite3_collation_needed16'];
+  _sqlite3_get_clientdata = Module['_sqlite3_get_clientdata'] = wasmExports['sqlite3_get_clientdata'];
+  _sqlite3_set_clientdata = Module['_sqlite3_set_clientdata'] = wasmExports['sqlite3_set_clientdata'];
   _sqlite3_global_recover = Module['_sqlite3_global_recover'] = wasmExports['sqlite3_global_recover'];
   _sqlite3_thread_cleanup = Module['_sqlite3_thread_cleanup'] = wasmExports['sqlite3_thread_cleanup'];
   _sqlite3_table_column_metadata = Module['_sqlite3_table_column_metadata'] = wasmExports['sqlite3_table_column_metadata'];
@@ -13859,11 +15193,62 @@ function assignWasmExports(wasmExports) {
   _sqlite3_filename_database = Module['_sqlite3_filename_database'] = wasmExports['sqlite3_filename_database'];
   _sqlite3_filename_journal = Module['_sqlite3_filename_journal'] = wasmExports['sqlite3_filename_journal'];
   _sqlite3_filename_wal = Module['_sqlite3_filename_wal'] = wasmExports['sqlite3_filename_wal'];
+  _sqlite3_db_name = Module['_sqlite3_db_name'] = wasmExports['sqlite3_db_name'];
   _sqlite3_db_filename = Module['_sqlite3_db_filename'] = wasmExports['sqlite3_db_filename'];
   _sqlite3_db_readonly = Module['_sqlite3_db_readonly'] = wasmExports['sqlite3_db_readonly'];
   _sqlite3_compileoption_used = Module['_sqlite3_compileoption_used'] = wasmExports['sqlite3_compileoption_used'];
   _sqlite3_compileoption_get = Module['_sqlite3_compileoption_get'] = wasmExports['sqlite3_compileoption_get'];
   _sqlite3_sourceid = Module['_sqlite3_sourceid'] = wasmExports['sqlite3_sourceid'];
+  _crc32 = Module['_crc32'] = wasmExports['crc32'];
+  _zError = Module['_zError'] = wasmExports['zError'];
+  _deflateInit2_ = Module['_deflateInit2_'] = wasmExports['deflateInit2_'];
+  _inflateInit2_ = Module['_inflateInit2_'] = wasmExports['inflateInit2_'];
+  _deflateEnd = Module['_deflateEnd'] = wasmExports['deflateEnd'];
+  _inflateEnd = Module['_inflateEnd'] = wasmExports['inflateEnd'];
+  _deflate = Module['_deflate'] = wasmExports['deflate'];
+  _inflate = Module['_inflate'] = wasmExports['inflate'];
+  _adler32_z = Module['_adler32_z'] = wasmExports['adler32_z'];
+  _adler32 = Module['_adler32'] = wasmExports['adler32'];
+  _adler32_combine = Module['_adler32_combine'] = wasmExports['adler32_combine'];
+  _adler32_combine64 = Module['_adler32_combine64'] = wasmExports['adler32_combine64'];
+  _get_crc_table = Module['_get_crc_table'] = wasmExports['get_crc_table'];
+  _crc32_z = Module['_crc32_z'] = wasmExports['crc32_z'];
+  _crc32_combine_gen64 = Module['_crc32_combine_gen64'] = wasmExports['crc32_combine_gen64'];
+  _crc32_combine_gen = Module['_crc32_combine_gen'] = wasmExports['crc32_combine_gen'];
+  _crc32_combine_op = Module['_crc32_combine_op'] = wasmExports['crc32_combine_op'];
+  _crc32_combine64 = Module['_crc32_combine64'] = wasmExports['crc32_combine64'];
+  _crc32_combine = Module['_crc32_combine'] = wasmExports['crc32_combine'];
+  _deflateInit_ = Module['_deflateInit_'] = wasmExports['deflateInit_'];
+  _deflateReset = Module['_deflateReset'] = wasmExports['deflateReset'];
+  _deflateResetKeep = Module['_deflateResetKeep'] = wasmExports['deflateResetKeep'];
+  _deflateSetDictionary = Module['_deflateSetDictionary'] = wasmExports['deflateSetDictionary'];
+  _deflateGetDictionary = Module['_deflateGetDictionary'] = wasmExports['deflateGetDictionary'];
+  _deflateSetHeader = Module['_deflateSetHeader'] = wasmExports['deflateSetHeader'];
+  _deflatePending = Module['_deflatePending'] = wasmExports['deflatePending'];
+  _deflateUsed = Module['_deflateUsed'] = wasmExports['deflateUsed'];
+  _deflatePrime = Module['_deflatePrime'] = wasmExports['deflatePrime'];
+  _deflateParams = Module['_deflateParams'] = wasmExports['deflateParams'];
+  _deflateTune = Module['_deflateTune'] = wasmExports['deflateTune'];
+  _deflateBound_z = Module['_deflateBound_z'] = wasmExports['deflateBound_z'];
+  _deflateBound = Module['_deflateBound'] = wasmExports['deflateBound'];
+  _deflateCopy = Module['_deflateCopy'] = wasmExports['deflateCopy'];
+  _inflateResetKeep = Module['_inflateResetKeep'] = wasmExports['inflateResetKeep'];
+  _inflateReset = Module['_inflateReset'] = wasmExports['inflateReset'];
+  _inflateReset2 = Module['_inflateReset2'] = wasmExports['inflateReset2'];
+  _inflateInit_ = Module['_inflateInit_'] = wasmExports['inflateInit_'];
+  _inflatePrime = Module['_inflatePrime'] = wasmExports['inflatePrime'];
+  _inflateGetDictionary = Module['_inflateGetDictionary'] = wasmExports['inflateGetDictionary'];
+  _inflateSetDictionary = Module['_inflateSetDictionary'] = wasmExports['inflateSetDictionary'];
+  _inflateGetHeader = Module['_inflateGetHeader'] = wasmExports['inflateGetHeader'];
+  _inflateSync = Module['_inflateSync'] = wasmExports['inflateSync'];
+  _inflateSyncPoint = Module['_inflateSyncPoint'] = wasmExports['inflateSyncPoint'];
+  _inflateCopy = Module['_inflateCopy'] = wasmExports['inflateCopy'];
+  _inflateUndermine = Module['_inflateUndermine'] = wasmExports['inflateUndermine'];
+  _inflateValidate = Module['_inflateValidate'] = wasmExports['inflateValidate'];
+  _inflateMark = Module['_inflateMark'] = wasmExports['inflateMark'];
+  _inflateCodesUsed = Module['_inflateCodesUsed'] = wasmExports['inflateCodesUsed'];
+  _zlibVersion = Module['_zlibVersion'] = wasmExports['zlibVersion'];
+  _zlibCompileFlags = Module['_zlibCompileFlags'] = wasmExports['zlibCompileFlags'];
   __emscripten_memcpy_bulkmem = Module['__emscripten_memcpy_bulkmem'] = wasmExports['_emscripten_memcpy_bulkmem'];
   _emscripten_stack_get_end = Module['_emscripten_stack_get_end'] = wasmExports['emscripten_stack_get_end'];
   _emscripten_stack_get_base = Module['_emscripten_stack_get_base'] = wasmExports['emscripten_stack_get_base'];
@@ -13905,12 +15290,26 @@ function assignWasmExports(wasmExports) {
   _php_json_serializable_ce = Module['_php_json_serializable_ce'] = wasmExports['php_json_serializable_ce'].value;
   _php_json_exception_ce = Module['_php_json_exception_ce'] = wasmExports['php_json_exception_ce'].value;
   _json_globals = Module['_json_globals'] = wasmExports['json_globals'].value;
+  _lexbor_str_res_map_lowercase = Module['_lexbor_str_res_map_lowercase'] = wasmExports['lexbor_str_res_map_lowercase'].value;
+  _lexbor_str_res_map_uppercase = Module['_lexbor_str_res_map_uppercase'] = wasmExports['lexbor_str_res_map_uppercase'].value;
   _lexbor_hash_insert_raw = Module['_lexbor_hash_insert_raw'] = wasmExports['lexbor_hash_insert_raw'].value;
   _lexbor_hash_insert_lower = Module['_lexbor_hash_insert_lower'] = wasmExports['lexbor_hash_insert_lower'].value;
   _lexbor_hash_insert_upper = Module['_lexbor_hash_insert_upper'] = wasmExports['lexbor_hash_insert_upper'].value;
   _lexbor_hash_search_raw = Module['_lexbor_hash_search_raw'] = wasmExports['lexbor_hash_search_raw'].value;
   _lexbor_hash_search_lower = Module['_lexbor_hash_search_lower'] = wasmExports['lexbor_hash_search_lower'].value;
   _lexbor_hash_search_upper = Module['_lexbor_hash_search_upper'] = wasmExports['lexbor_hash_search_upper'].value;
+  _lexbor_str_res_ansi_replacement_character = Module['_lexbor_str_res_ansi_replacement_character'] = wasmExports['lexbor_str_res_ansi_replacement_character'].value;
+  _lexbor_str_res_map_num = Module['_lexbor_str_res_map_num'] = wasmExports['lexbor_str_res_map_num'].value;
+  _lexbor_str_res_map_hex = Module['_lexbor_str_res_map_hex'] = wasmExports['lexbor_str_res_map_hex'].value;
+  _lexbor_str_res_replacement_character = Module['_lexbor_str_res_replacement_character'] = wasmExports['lexbor_str_res_replacement_character'].value;
+  _lexbor_str_res_alphanumeric_character = Module['_lexbor_str_res_alphanumeric_character'] = wasmExports['lexbor_str_res_alphanumeric_character'].value;
+  _lexbor_str_res_alpha_character = Module['_lexbor_str_res_alpha_character'] = wasmExports['lexbor_str_res_alpha_character'].value;
+  _lexbor_tokenizer_chars_map = Module['_lexbor_tokenizer_chars_map'] = wasmExports['lexbor_tokenizer_chars_map'].value;
+  _lexbor_str_res_map_hex_to_char = Module['_lexbor_str_res_map_hex_to_char'] = wasmExports['lexbor_str_res_map_hex_to_char'].value;
+  _lexbor_str_res_map_hex_to_char_lowercase = Module['_lexbor_str_res_map_hex_to_char_lowercase'] = wasmExports['lexbor_str_res_map_hex_to_char_lowercase'].value;
+  _lexbor_str_res_char_to_two_hex_value = Module['_lexbor_str_res_char_to_two_hex_value'] = wasmExports['lexbor_str_res_char_to_two_hex_value'].value;
+  _lexbor_str_res_char_to_two_hex_value_lowercase = Module['_lexbor_str_res_char_to_two_hex_value_lowercase'] = wasmExports['lexbor_str_res_char_to_two_hex_value_lowercase'].value;
+  _lxb_css_syntax_res_name_map = Module['_lxb_css_syntax_res_name_map'] = wasmExports['lxb_css_syntax_res_name_map'].value;
   _lxb_encoding_multi_big5_map = Module['_lxb_encoding_multi_big5_map'] = wasmExports['lxb_encoding_multi_big5_map'].value;
   _lxb_encoding_multi_jis0208_map = Module['_lxb_encoding_multi_jis0208_map'] = wasmExports['lxb_encoding_multi_jis0208_map'].value;
   _lxb_encoding_multi_jis0212_map = Module['_lxb_encoding_multi_jis0212_map'] = wasmExports['lxb_encoding_multi_jis0212_map'].value;
@@ -13995,6 +15394,9 @@ function assignWasmExports(wasmExports) {
   _lxb_encoding_multi_jis0212_8470_8483_map = Module['_lxb_encoding_multi_jis0212_8470_8483_map'] = wasmExports['lxb_encoding_multi_jis0212_8470_8483_map'].value;
   _lxb_encoding_multi_jis0212_19970_40870_map = Module['_lxb_encoding_multi_jis0212_19970_40870_map'] = wasmExports['lxb_encoding_multi_jis0212_19970_40870_map'].value;
   _lxb_encoding_multi_jis0212_65374_65375_map = Module['_lxb_encoding_multi_jis0212_65374_65375_map'] = wasmExports['lxb_encoding_multi_jis0212_65374_65375_map'].value;
+  _lxb_html_tag_res_cats = Module['_lxb_html_tag_res_cats'] = wasmExports['lxb_html_tag_res_cats'].value;
+  _lxb_html_tag_res_fixname_svg = Module['_lxb_html_tag_res_fixname_svg'] = wasmExports['lxb_html_tag_res_fixname_svg'].value;
+  _lxb_html_tokenizer_eof = Module['_lxb_html_tokenizer_eof'] = wasmExports['lxb_html_tokenizer_eof'].value;
   _php_internal_encoding_changed = Module['_php_internal_encoding_changed'] = wasmExports['php_internal_encoding_changed'].value;
   _mbfl_encoding_pass = Module['_mbfl_encoding_pass'] = wasmExports['mbfl_encoding_pass'].value;
   _sapi_module = Module['_sapi_module'] = wasmExports['sapi_module'].value;
@@ -14248,7 +15650,9 @@ function assignWasmExports(wasmExports) {
   _sqlite3_version = Module['_sqlite3_version'] = wasmExports['sqlite3_version'].value;
   _sqlite3_data_directory = Module['_sqlite3_data_directory'] = wasmExports['sqlite3_data_directory'].value;
   _sqlite3_temp_directory = Module['_sqlite3_temp_directory'] = wasmExports['sqlite3_temp_directory'].value;
-  _sqlite3one = Module['_sqlite3one'] = wasmExports['sqlite3one'].value;
+  _z_errmsg = Module['_z_errmsg'] = wasmExports['z_errmsg'].value;
+  _deflate_copyright = Module['_deflate_copyright'] = wasmExports['deflate_copyright'].value;
+  _inflate_copyright = Module['_inflate_copyright'] = wasmExports['inflate_copyright'].value;
 }
 
 var wasmImports = {
@@ -14434,6 +15838,83 @@ var wasmImports = {
   strptime: _strptime
 };
 
+function invoke_iii(index,a1,a2) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2);
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_i(index) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)();
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_ii(index,a1) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1);
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_iiiiii(index,a1,a2,a3,a4,a5) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2,a3,a4,a5);
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_vii(index,a1,a2) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2);
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_vi(index,a1) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1);
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_iiiii(index,a1,a2,a3,a4) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1,a2,a3,a4);
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
 function invoke_iiii(index,a1,a2,a3) {
   var sp = stackSave();
   try {
@@ -14456,50 +15937,6 @@ function invoke_viii(index,a1,a2,a3) {
   }
 }
 
-function invoke_vii(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iii(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_vi(index,a1) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_ii(index,a1) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
 function invoke_jii(index,a1,a2) {
   var sp = stackSave();
   try {
@@ -14512,43 +15949,10 @@ function invoke_jii(index,a1,a2) {
   }
 }
 
-function invoke_i(index) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)();
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
 function invoke_v(index) {
   var sp = stackSave();
   try {
     getWasmTableEntry(index)();
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiii(index,a1,a2,a3,a4) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiiii(index,a1,a2,a3,a4,a5) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5);
   } catch(e) {
     stackRestore(sp);
     if (e !== e+0) throw e;
