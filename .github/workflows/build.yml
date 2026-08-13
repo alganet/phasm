@@ -1,0 +1,128 @@
+# SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas <alganet@gmail.com>
+#
+# SPDX-License-Identifier: ISC
+
+# The single build. CI, the website deploy and the npm release all call this
+# instead of each carrying their own copy of the pipeline: a push to main used
+# to run the whole ~1 GB toolchain install and PHP compile twice, and a tag ran
+# it a third time, with caching configured in only one of the three.
+name: Build
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    # A hung emcc link would otherwise sit on a runner for GitHub's 6h default.
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config python3 git curl zip
+
+      # The SDK pin is the only thing the emsdk cache depends on. Keying it on
+      # the whole of env.sh threw away a ~1 GB download every time a C library
+      # version or hash changed, which is most edits to that file.
+      - name: Read pinned toolchain version
+        id: pins
+        run: |
+          . scripts/env.sh
+          echo "emsdk=${EMSDK_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Emscripten SDK
+        uses: actions/cache@v4
+        with:
+          path: build/emsdk
+          key: emsdk-${{ runner.os }}-${{ steps.pins.outputs.emsdk }}
+
+      # The C libraries only change when their pinned versions or the build
+      # recipe do; env.sh holds the versions and hashes, deps.sh the recipe.
+      # No restore-keys here: a partially matching sysroot is worse than none.
+      - name: Cache WASM sysroot
+        uses: actions/cache@v4
+        with:
+          path: build/sysroot
+          key: sysroot-${{ runner.os }}-${{ hashFiles('scripts/env.sh', 'scripts/deps.sh') }}
+
+      # Stale tarballs are safe to reuse here: fetch.sh verifies every file
+      # against its pinned SHA-256 and re-downloads on mismatch.
+      - name: Cache downloaded sources
+        uses: actions/cache@v4
+        with:
+          path: |
+            sources/*.tar.gz
+            sources/*.tar.xz
+            sources/*.zip
+          key: sources-${{ runner.os }}-${{ hashFiles('scripts/env.sh') }}
+          restore-keys: |
+            sources-${{ runner.os }}-
+
+      - run: ./scripts/setup.sh
+      - run: ./scripts/fetch.sh
+      - run: ./scripts/apply-patches.sh
+      - run: ./scripts/deps.sh
+      - run: ./scripts/build.sh
+
+      # The point of the whole pipeline: a build nobody ran is not a build.
+      # This gates the website deploy and the npm publish alike.
+      - name: Test
+        run: npm test
+
+      # package.json promises dist/php.d.ts; make sure build.sh actually put it
+      # there before anything downstream consumes the tree.
+      - name: Verify package contents
+        run: |
+          for f in dist/php.js dist/php.wasm dist/php.d.ts; do
+            [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
+          done
+          npm pack --dry-run
+
+      # vendor.zip stopped being committed and is generated now, so the demo
+      # needs a vendor/ to zip. Without this the deployed page 404s on
+      # assets/vendor.zip and main.php's require of vendor/autoload.php never
+      # runs — the demo dies before it prints anything.
+      - name: Install composer deps
+        run: composer install --no-interaction --no-progress
+
+      - run: ./scripts/package-web.sh
+
+      - name: Verify web bundle
+        run: |
+          for f in web/assets/php.js web/assets/php.wasm web/assets/vendor.zip web/assets/main.php; do
+            [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
+          done
+
+      - name: Report artifact size
+        run: |
+          ls -l dist/
+          gzip -c dist/php.wasm | wc -c | awk '{print "php.wasm gzipped: " $1 " bytes"}'
+
+      - name: Upload npm dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+      - name: Upload web demo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: web/
+          retention-days: 7

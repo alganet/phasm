@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas <alganet@gmail.com>
+#
+# SPDX-License-Identifier: ISC
+
 name: CI
 
 on:
@@ -7,63 +11,42 @@ on:
     branches: [ main ]
   workflow_dispatch: {}
 
+# Superseded PR pushes are worth cancelling; a main run that may be mid-deploy
+# is not.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build
+    uses: ./.github/workflows/build.yml
+
+  # The website used to be its own workflow, which meant every push to main
+  # built the whole toolchain twice and deployed a bundle whose tests had never
+  # run. It is a consumer of the build now, not a second copy of it.
+  deploy:
+    name: Deploy website
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
-      contents: read
+      # actions-gh-pages pushes a commit to the gh-pages branch; it does not
+      # use the Pages API, so `pages: write` was never doing anything here.
+      contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: 'lts/*'
+          name: web
+          path: web-dist
 
-      - name: Install deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config python3 git curl zip
-
-      # The Emscripten SDK is ~1GB and identical for every run at a given pin,
-      # so key the cache on the pinned version alone.
-      - name: Cache Emscripten SDK
-        uses: actions/cache@v4
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: build/emsdk
-          key: emsdk-${{ runner.os }}-${{ hashFiles('scripts/env.sh') }}
-
-      # The C libraries only change when their pinned versions or the build
-      # recipe do; env.sh holds the versions and hashes, deps.sh the recipe.
-      - name: Cache WASM sysroot
-        uses: actions/cache@v4
-        with:
-          path: build/sysroot
-          key: sysroot-${{ runner.os }}-${{ hashFiles('scripts/env.sh', 'scripts/deps.sh') }}
-
-      - name: Cache downloaded sources
-        uses: actions/cache@v4
-        with:
-          path: |
-            sources/*.tar.gz
-            sources/*.tar.xz
-            sources/*.zip
-          key: sources-${{ runner.os }}-${{ hashFiles('scripts/env.sh') }}
-
-      - run: ./scripts/setup.sh
-      - run: ./scripts/fetch.sh
-      - run: ./scripts/apply-patches.sh
-      - run: ./scripts/deps.sh
-      - run: ./scripts/build.sh
-
-      # The point of the whole pipeline: a build nobody ran is not a build.
-      - name: Test
-        run: npm test
-
-      - name: Report artifact size
-        run: ls -l dist/ && gzip -c dist/php.wasm | wc -c | awk '{print "php.wasm gzipped: " $1 " bytes"}'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web-dist
+          publish_branch: gh-pages
