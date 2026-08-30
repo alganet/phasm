@@ -54,10 +54,17 @@ jobs:
       # The C libraries only change when their pinned versions or the build
       # recipe do; env.sh holds the versions and hashes, deps.sh the recipe.
       # No restore-keys here: a partially matching sysroot is worse than none.
+      #
+      # The path is deps.sh's SYSROOT_DIR, which is "${BUILD_DIR}/sysroot" with
+      # BUILD_DIR=build/php-wasm — not build/sysroot, which is where this used
+      # to point and where nothing has ever been written. actions/cache does not
+      # fail on a path that does not exist; it saves nothing and restores
+      # nothing, so the step reported success on every run while zlib, libiconv,
+      # oniguruma and sqlite were rebuilt from source every time.
       - name: Cache WASM sysroot
         uses: actions/cache@v4
         with:
-          path: build/sysroot
+          path: build/php-wasm/sysroot
           key: sysroot-${{ runner.os }}-${{ hashFiles('scripts/env.sh', 'scripts/deps.sh') }}
 
       # Stale tarballs are safe to reuse here: fetch.sh verifies every file
