@@ -55,4 +55,15 @@ if [[ -z "${EMSDK_ENV:-}" && -f "${DEFAULT_EMSDK_ENV}" ]]; then
 else
 	EMSDK_ENV="${EMSDK_ENV:-}"
 fi
-EMCC_FLAGS="${EMCC_FLAGS:--O2 -s MODULARIZE=1 -s EXPORT_NAME='Phasm' -s EXPORTED_RUNTIME_METHODS=['FS','callMain'] -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1}"
+# Codegen and packaging knobs. Override these to experiment (-O0 for a
+# debuggable build, -Oz to chase size).
+EMCC_FLAGS="${EMCC_FLAGS:--O2 -s MODULARIZE=1 -s EXPORT_NAME='Phasm' -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1}"
+
+# The embedding ABI, appended AFTER any override rather than living inside it:
+# a build without phasm_run and the glue that marshals into it is not a phasm
+# build, and overriding EMCC_FLAGS for an unrelated experiment should not
+# silently produce one. EXPORTED_FUNCTIONS replaces the default ['_main']
+# outright, so _main has to be named here or callMain() disappears with it;
+# _malloc/_free are what src/phasm-glue.js allocates its packed argv through.
+EMCC_ABI_FLAGS="-s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_malloc','_free'] --post-js ${ROOT_DIR}/src/phasm-glue.js"
+EMCC_FLAGS="${EMCC_FLAGS} ${EMCC_ABI_FLAGS}"
