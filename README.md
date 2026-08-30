@@ -33,7 +33,7 @@ const php = await Phasm({
 });
 
 php.FS.writeFile("/hello.php", `<?php echo "Hello from PHP!\\n"; ?>`);
-php.callMain(["hello.php"]);
+php.phasmRun(["hello.php"]);
 ```
 
 ## Browser
@@ -48,7 +48,7 @@ php.callMain(["hello.php"]);
     printErr: (text) => console.error(text),
   }).then((php) => {
     php.FS.writeFile("/hello.php", '<?php echo "Hello from PHP!\\n"; ?>');
-    php.callMain(["hello.php"]);
+    php.phasmRun(["hello.php"]);
   });
 </script>
 ```
@@ -77,22 +77,33 @@ options and returns a promise that resolves to the initialized module:
 | `printErr(text)` | Callback for stderr output.                             |
 | `stdin()`        | Callback to provide stdin input. Return `null` for EOF. |
 
-The resolved module exposes `callMain()` to run PHP scripts and `FS` for
+The resolved module exposes `phasmRun()` to run PHP scripts and `FS` for
 filesystem access.
 
-**One run per module.** The CLI SAPI's `main()` does full init *and* shutdown,
-so state leaks across repeated `callMain()` calls on a single instance and it
-will eventually crash. Create a fresh module per run.
+```js
+php.phasmRun(["script.php", "arg"], { cwd: "/project", env: { APP_ENV: "dev" } });
+```
+
+It returns the exit status, and `cwd` and `env` apply to that call alone.
+
+**One instance, many runs.** phasm builds its own SAPI (`sapi/phasm`) rather
+than the stock CLI, so `phasmRun()` runs a full request per call without ever
+exiting the process: the exit status is per call, errors go to stderr, and a
+fatal error or `exit()` leaves the module usable. Booting PHP costs ~70 ms and a
+warm call ~1 ms, so reuse the instance.
+
+`callMain()` is still there and still one-shot — it re-enters the CLI's `main()`,
+which ends in `exit()`. Pick one entry point per module; they cannot be mixed.
 
 ## Virtual Filesystem
 
 Phasm uses Emscripten's virtual filesystem. Write PHP files before calling
-`callMain()`:
+`phasmRun()`:
 
 ```js
 php.FS.writeFile("/app.php", '<?php echo "works"; ?>');
 php.FS.writeFile("/data.json", JSON.stringify({ key: "value" }));
-php.callMain(["app.php"]);
+php.phasmRun(["app.php"]);
 ```
 
 See the [Emscripten File System API](https://emscripten.org/docs/api_reference/Filesystem-API.html) for the full reference.

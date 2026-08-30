@@ -44,10 +44,14 @@ round-trips (including binary content), that stdin/stdout/stderr and exit codes
 behave, and that a fatal error is loud. Those are the things a dependency bump
 or a changed `configure` flag can quietly break.
 
-Each test gets a fresh module instance. The CLI SAPI's `main()` does full init
-*and* shutdown, so state leaks across repeated `callMain()` calls on one
-instance — `test/helper.mjs` is where that changes if phasm ever grows a
-re-entrant SAPI.
+`test/sapi.test.mjs` covers the other half: the embedding contract that
+`sapi/phasm` exists to provide — 200 calls on one instance, per-call exit codes,
+errors on stderr, per-call cwd and env, and no state carried between calls.
+
+The whole suite shares ONE module instance (`test/helper.mjs`), which is itself
+the regression test: through the stock CLI's `main()` the same suite would latch
+its exit status on the first non-zero one and stop working entirely at call
+~104. `fresh: true` opts a test out.
 
 ## Pinning and reproducibility
 
@@ -99,7 +103,8 @@ scripts/
   serve.mjs            # Static dev server (headers + correct MIME types)
 
 patches/               # Emscripten compatibility patches for PHP
-src/                   # Hand-written package sources (php.d.ts)
+sapi/phasm/            # The re-entrant SAPI, copied into php-src at build time
+src/                   # Hand-written package sources (php.d.ts, phasm-glue.js)
 test/                  # Test suite (node --test)
 sources/               # Downloaded source trees (gitignored)
 build/                 # Intermediate build artifacts (gitignored)
@@ -121,7 +126,12 @@ See `scripts/env.sh` for the full list:
 | `LIBICONV_VERSION`     | `1.16`                           | libiconv version            |
 | `SQLITE_AMALG_VERSION` | `3380500`                        | SQLite amalgamation version |
 | `ONIGURUMA_VERSION`    | `6.9.4`                          | Oniguruma version           |
-| `EMCC_FLAGS`           | `-O2 -s EXPORT_NAME='Phasm' ...` | Emscripten compiler flags   |
+| `EMCC_FLAGS`           | `-O2 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags    |
+
+Overriding `EMCC_FLAGS` replaces the codegen defaults only. The flags that
+make the artifact a phasm build — the exported entry points and the glue in
+`src/phasm-glue.js` — are appended afterwards and cannot be dropped by an
+override, because a module without them has no `phasmRun()` to call.
 
 ## Enabling PHP Extensions
 
