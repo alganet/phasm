@@ -8,9 +8,10 @@
  * here. Anything else you pass is forwarded to the Emscripten module untouched.
  */
 export interface PhasmOptions {
-  /** Set true to prevent automatic execution on load, then use callMain(). */
+  /** Set true to prevent automatic execution on load, then use phasmRun(). */
   noInitialRun?: boolean;
-  /** CLI arguments, e.g. ["script.php"]. argv[0] is supplied for you. */
+  /** CLI arguments for the automatic run, e.g. ["script.php"]. Ignored when
+   *  noInitialRun is set — pass arguments to phasmRun() instead. */
   arguments?: string[];
   /** Called once per line of stdout. */
   print?: (text: string) => void;
@@ -46,15 +47,46 @@ export interface PhasmFS {
   [key: string]: unknown;
 }
 
+/** Options for a single `phasmRun()` invocation. */
+export interface PhasmRunOptions {
+  /** Working directory for this call. Restored afterwards. */
+  cwd?: string;
+  /** Environment for this call only; cleared before the next one. */
+  env?: Record<string, string>;
+}
+
 /** The initialized module `Phasm()` resolves to. */
 export interface PhasmModule {
   /**
    * Run PHP. `args` is argv without argv[0] — `["hello.php"]` runs that file,
    * `["-r", "echo 1;"]` runs a snippet. Returns the exit status.
    *
-   * Note: the module is built with NO_EXIT_RUNTIME, and repeated calls share
-   * one PHP process lifetime — state leaks between them. Treat it as one run
-   * per module instance until phasm grows a proper re-entrant SAPI.
+   * This is the re-entrant entry point: call it as many times as you like on
+   * one warm instance. It never exits the process, so the status is per call
+   * and a fatal error or `exit()` leaves the module usable.
+   *
+   * Errors go to stderr, and PHP_SAPI reports "cli" so that CLI tools which
+   * gate on it (composer.phar, phpunit.phar) agree to run.
+   *
+   * Collect output the way Emscripten collects it — an `FS.init()` sink, or
+   * `print`/`printErr` if line buffering is acceptable.
+   */
+  phasmRun(args: string[], opts?: PhasmRunOptions): number;
+  /**
+   * Start PHP explicitly with ini settings that apply for the life of the
+   * instance, as newline-separated `name=value` lines. `phasmRun()` starts PHP
+   * on first use without them, so this is only needed to pass settings —
+   * per-call `-d` is not supported on this path.
+   *
+   * Returns 0, or -1 if this module has already run `callMain()`.
+   */
+  phasmStartup(ini?: string): number;
+  /**
+   * Run PHP once through the CLI's main(), as a plain program.
+   *
+   * Legacy and one-shot: main() ends in exit(), which latches the status for
+   * every later call and eventually kills the instance. Mutually exclusive
+   * with `phasmRun()` — pick one per module. New code wants `phasmRun()`.
    */
   callMain(args: string[]): number;
   /** Emscripten's in-memory filesystem. */
@@ -68,7 +100,7 @@ export interface PhasmModule {
  * ```js
  * const php = await Phasm({ noInitialRun: true, print: console.log });
  * php.FS.writeFile('/hello.php', '<?php echo "hi";');
- * php.callMain(['hello.php']);
+ * php.phasmRun(['hello.php']);
  * ```
  */
 declare function Phasm(options?: PhasmOptions): Promise<PhasmModule>;
