@@ -227,9 +227,18 @@ int phasm_startup(const char *ini)
  * `mark` is the lowest descriptor that was free before the request, so anything
  * at or above it is something the request opened. That alone would not make
  * closing safe: persistent resources — a persistent PDO handle, say — outlive a
- * request on purpose and would sit in the same range. So only descriptors that
- * are demonstrably duplicates of fd 0, 1 or 2 are reclaimed, and the first one
- * that is not ends the run.
+ * request on purpose and would sit in the same range. So the test is positive
+ * rather than positional: only descriptors that are demonstrably duplicates of
+ * fd 0, 1 or 2 are closed, and everything else is left exactly as it was.
+ *
+ * The whole window is scanned, because the range is not contiguous and the
+ * interesting descriptors are not at the front of it. Running a script file
+ * opens it at `mark` and closes it at request shutdown, which leaves a *hole*
+ * there with the three std dups above it — so a scan that stopped at the first
+ * unused descriptor reclaimed nothing at all for `php script.php` and `php -f`,
+ * the two most ordinary ways to invoke PHP. Nor can it stop at the first live
+ * non-dup: a persistent handle opened before the std streams sits in front of
+ * them and would hide them the same way.
  */
 static void phasm_reclaim_std_dups(int mark)
 {
@@ -245,7 +254,7 @@ static void phasm_reclaim_std_dups(int mark)
 		int is_std_dup = 0;
 
 		if (fstat(fd, &st) != 0) {
-			break; /* not open: nothing left to reclaim */
+			continue; /* a hole, not the end of the range */
 		}
 
 		for (int i = 0; i < 3 && !is_std_dup; i++) {
@@ -254,11 +263,9 @@ static void phasm_reclaim_std_dups(int mark)
 				&& st.st_ino == std_stat[i].st_ino;
 		}
 
-		if (!is_std_dup) {
-			break; /* somebody else's descriptor; leave it alone */
+		if (is_std_dup) {
+			close(fd);
 		}
-
-		close(fd);
 	}
 }
 /* }}} */
