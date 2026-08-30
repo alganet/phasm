@@ -64,16 +64,36 @@ describe('repeated invocation', opts, () => {
   // to exit, a leak of three descriptors per call for one that is not. The SAPI
   // reclaims them, and this is what proves it: the count is exact, so the test
   // fails on the very first leaked descriptor rather than at the cliff.
-  test('does not leak file descriptors across calls', async () => {
-    const mod = await sharedModule();
-    const live = () => mod.FS.streams.filter(Boolean).length;
+  //
+  // Every invocation mode gets its own case, because the reclaim is a scan of
+  // the descriptors above a mark and each mode leaves that range in a different
+  // shape. Running a script file is the one that matters most and was the one
+  // getting through: PHP opens the script at the mark and closes it at
+  // shutdown, so the leaked descriptors sit *above a hole* — and a scan that
+  // stopped at the first unused descriptor reclaimed nothing at all, for
+  // exactly the invocation the README documents.
+  const MODES = {
+    '-r': () => evalPhp('echo 1;'),
+    'a script file': () => php(['/fd.php'], { files: { '/fd.php': '<?php echo 1;' } }),
+    '-f': () => php(['-f', '/fd.php'], { files: { '/fd.php': '<?php echo 1;' } }),
+    'a script reading stdin': () => php(['/fd-in.php'], {
+      files: { '/fd-in.php': '<?php echo trim(stream_get_contents(STDIN));' },
+      stdin: 'x',
+    }),
+  };
 
-    await evalPhp('echo 1;'); // let one-time registrations settle
-    const before = live();
-    for (let i = 0; i < 100; i++) await evalPhp('echo 1;');
+  for (const [mode, run] of Object.entries(MODES)) {
+    test(`does not leak file descriptors across calls (${mode})`, async () => {
+      const mod = await sharedModule();
+      const live = () => mod.FS.streams.filter(Boolean).length;
 
-    assert.equal(live(), before, `open descriptors went from ${before} to ${live()} over 100 calls`);
-  });
+      await run(); // let one-time registrations settle
+      const before = live();
+      for (let i = 0; i < 100; i++) await run();
+
+      assert.equal(live(), before, `open descriptors went from ${before} to ${live()} over 100 calls`);
+    });
+  }
 
   // Reclaiming descriptors has to be surgical. A persistent connection outlives
   // its request by design and its descriptor sits in exactly the range the
@@ -97,9 +117,11 @@ describe('repeated invocation', opts, () => {
   // What the leak actually broke, and why it was worth finding: past ~1365
   // calls the descriptor table filled, PHP gave up registering the standard
   // streams, and STDIN/STDOUT/STDERR stopped existing — with no error until a
-  // script touched one.
+  // script touched one. Driven through a script file, because that is the mode
+  // that leaked and therefore the only one that ever reached saturation.
   test('the standard streams still exist after 1500 calls', async () => {
-    for (let i = 0; i < 1500; i++) await evalPhp('echo 1;');
+    const files = { '/fd-soak.php': '<?php echo 1;' };
+    for (let i = 0; i < 1500; i++) await php(['/fd-soak.php'], { files });
 
     const r = await evalPhp('var_dump(defined("STDIN"), defined("STDOUT"), defined("STDERR"));');
     assert.equal(r.stdout.match(/bool\(true\)/g)?.length, 3, `got ${JSON.stringify(r.stdout)}`);
