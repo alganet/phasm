@@ -30,6 +30,14 @@ fi
 
 mkdir -p "${BUILD_DIR}" "${DIST_DIR}"
 
+# The phasm SAPI lives in this repo, not in a patch: it is our source, and a
+# patch would have to be rebased at every PHP bump for no benefit. Copy it in
+# before buildconf, which is what discovers sapi/*/config.m4. fetch.sh runs
+# `git reset --hard` on php-src, and that leaves untracked files alone, so this
+# survives a re-fetch and is refreshed here on every build regardless.
+rm -rf "${PHP_SRC_DIR}/sapi/phasm"
+cp -R "${ROOT_DIR}/sapi/phasm" "${PHP_SRC_DIR}/sapi/phasm"
+
 cd "${PHP_SRC_DIR}"
 
 ./buildconf --force || true
@@ -68,7 +76,12 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--disable-cgi \
 	--with-zip \
 	--enable-calendar \
-	--enable-cli \
+	`# The phasm SAPI replaces the CLI rather than joining it: sapi/phasm's` \
+	`# phasm.c includes sapi/cli/php_cli.c to reuse its argument handling, so` \
+	`# php_cli.c must belong to exactly one translation unit. What ships is the` \
+	`# CLI, plus entry points that can be called more than once.` \
+	--disable-cli \
+	--enable-phasm \
 	--enable-ctype \
 	--enable-filter \
 	--enable-fileinfo \
@@ -88,18 +101,20 @@ emmake make -j"$(nproc)" EMCC_CFLAGS="${EMCC_FLAGS}"
 
 popd >/dev/null
 
-if [[ -f "${BUILD_DIR}/sapi/cli/php.wasm" ]]; then
-	if [[ -f "${BUILD_DIR}/sapi/cli/php.js" ]]; then
-		cp "${BUILD_DIR}/sapi/cli/php.js" "${DIST_DIR}/php.js"
-	elif [[ -f "${BUILD_DIR}/sapi/cli/php" ]]; then
-		cp "${BUILD_DIR}/sapi/cli/php" "${DIST_DIR}/php.js"
+SAPI_OUT_DIR="${BUILD_DIR}/sapi/phasm"
+
+if [[ -f "${SAPI_OUT_DIR}/php.wasm" ]]; then
+	if [[ -f "${SAPI_OUT_DIR}/php.js" ]]; then
+		cp "${SAPI_OUT_DIR}/php.js" "${DIST_DIR}/php.js"
+	elif [[ -f "${SAPI_OUT_DIR}/php" ]]; then
+		cp "${SAPI_OUT_DIR}/php" "${DIST_DIR}/php.js"
 	else
-		echo "Build output not found. Expected php.js or php wrapper in sapi/cli."
+		echo "Build output not found. Expected php.js or php wrapper in sapi/phasm."
 		exit 1
 	fi
-	cp "${BUILD_DIR}/sapi/cli/php.wasm" "${DIST_DIR}/php.wasm"
+	cp "${SAPI_OUT_DIR}/php.wasm" "${DIST_DIR}/php.wasm"
 else
-	echo "Build output not found. Expected sapi/cli/php.wasm."
+	echo "Build output not found. Expected sapi/phasm/php.wasm."
 	exit 1
 fi
 
