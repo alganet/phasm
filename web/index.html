@@ -163,27 +163,22 @@ echo 'Hello World!' . PHP_EOL;
 			script.onload = async () => {
 				statusEl.textContent = "Initializing...";
 				try {
-					// One module instance per run: the CLI SAPI's main() does full
-					// init AND shutdown, so state leaks across callMain() calls.
-					// Booting per run keeps each one clean.
-					const boot = () => {
-						const out = sink(null), errOut = sink("err");
-						return Phasm({
-							noInitialRun: true,
-							preRun: [(m) => m.FS.init(
-								() => null,
-								(c) => out.push(c),
-								(c) => errOut.push(c),
-							)],
-						}).then((m) => {
-							// Anything PHP wrote without a trailing newline is
-							// still sitting in the buffer when it exits.
-							m.flushOutput = () => { out.flush(); errOut.flush(); };
-							return m;
-						});
-					};
-
-					const php = await boot();
+					// One instance for the whole page. phasmRun() enters the
+					// phasm SAPI, which runs a full request per call without ever
+					// exiting the process, so nothing leaks between runs and the
+					// 34 MiB module is instantiated once rather than per click.
+					const out = sink(null), errOut = sink("err");
+					const php = await Phasm({
+						noInitialRun: true,
+						preRun: [(m) => m.FS.init(
+							() => null,
+							(c) => out.push(c),
+							(c) => errOut.push(c),
+						)],
+					});
+					// Anything PHP wrote without a trailing newline is still
+					// sitting in the buffer when the call returns.
+					const flushOutput = () => { out.flush(); errOut.flush(); };
 
 					const vendorRes = await fetch('assets/vendor.zip');
 					if (!vendorRes.ok) throw new Error('Failed to fetch vendor.zip: ' + vendorRes.status);
@@ -194,8 +189,8 @@ echo 'Hello World!' . PHP_EOL;
 					php.FS.writeFile('/main.php', await mainRes.text());
 
 					statusEl.textContent = "Ready";
-					php.callMain(["main.php"]);
-					php.flushOutput();
+					php.phasmRun(["main.php"]);
+					flushOutput();
 
 					runBtn.disabled = false;
 					runBtn.onclick = async () => {
@@ -203,11 +198,10 @@ echo 'Hello World!' . PHP_EOL;
 						statusEl.textContent = "Running...";
 						outputEl.textContent = "";
 						try {
-							const run = await boot();
-							run.FS.writeFile('/user.php', getSource());
-							const code = run.callMain(["user.php"]);
-							run.flushOutput();
-							statusEl.textContent = `Finished (exit ${code ?? 0})`;
+							php.FS.writeFile('/user.php', getSource());
+							const code = php.phasmRun(["user.php"]);
+							flushOutput();
+							statusEl.textContent = `Finished (exit ${code})`;
 						} catch (err) {
 							write(`Failed to run: ${err && err.stack || err}`, "err");
 							statusEl.textContent = "Failed";
