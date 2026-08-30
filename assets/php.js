@@ -6327,6 +6327,15 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
 
 
 
+  
+  
+  var stringToNewUTF8 = (str) => {
+      var size = lengthBytesUTF8(str) + 1;
+      var ret = _malloc(size);
+      if (ret) stringToUTF8(str, ret, size);
+      return ret;
+    };
+
 
 
   FS.createPreloadedFile = FS_createPreloadedFile;
@@ -6361,6 +6370,7 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
 
 // Begin runtime exports
   Module['callMain'] = callMain;
+  Module['stringToNewUTF8'] = stringToNewUTF8;
   Module['FS'] = FS;
   // End runtime exports
   // Begin JS library exports
@@ -6394,6 +6404,7 @@ var _php_time,
   __efree_48,
   _zend_register_internal_interface,
   _zend_declare_typed_class_constant,
+  _free,
   _zend_register_internal_class_with_flags,
   _zend_class_implements,
   _zend_declare_typed_property,
@@ -9243,7 +9254,6 @@ var _php_time,
   __emalloc_128,
   _php_info_print_css,
   _zend_list_delete,
-  _php_clear_stat_cache,
   _php_check_open_basedir_ex,
   _php_stream_dirent_alphasortr,
   _php_stream_dirent_alphasort,
@@ -9272,6 +9282,7 @@ var _php_time,
   _php_copy_file,
   _php_get_temporary_directory,
   _php_get_gid_by_name,
+  _php_clear_stat_cache,
   _php_get_uid_by_name,
   _realpath_cache_del,
   _realpath_cache_size,
@@ -10354,6 +10365,8 @@ var _php_time,
   _php_cli_get_shell_callbacks,
   _sapi_cli_single_write,
   _main,
+  _phasm_startup,
+  _phasm_run,
   _locale_charset,
   _libiconv_open_into,
   _libiconvctl,
@@ -11038,6 +11051,7 @@ function assignWasmExports(wasmExports) {
   __efree_48 = Module['__efree_48'] = wasmExports['_efree_48'];
   _zend_register_internal_interface = Module['_zend_register_internal_interface'] = wasmExports['zend_register_internal_interface'];
   _zend_declare_typed_class_constant = Module['_zend_declare_typed_class_constant'] = wasmExports['zend_declare_typed_class_constant'];
+  _free = Module['_free'] = wasmExports['free'];
   _zend_register_internal_class_with_flags = Module['_zend_register_internal_class_with_flags'] = wasmExports['zend_register_internal_class_with_flags'];
   _zend_class_implements = Module['_zend_class_implements'] = wasmExports['zend_class_implements'];
   _zend_declare_typed_property = Module['_zend_declare_typed_property'] = wasmExports['zend_declare_typed_property'];
@@ -11148,7 +11162,7 @@ function assignWasmExports(wasmExports) {
   _php_pcre2_code_free = Module['_php_pcre2_code_free'] = wasmExports['php_pcre2_code_free'];
   _php_pcre2_compile = Module['_php_pcre2_compile'] = wasmExports['php_pcre2_compile'];
   _php_pcre2_config = Module['_php_pcre2_config'] = wasmExports['php_pcre2_config'];
-  _malloc = wasmExports['malloc'];
+  _malloc = Module['_malloc'] = wasmExports['malloc'];
   _php_pcre2_general_context_create = Module['_php_pcre2_general_context_create'] = wasmExports['php_pcre2_general_context_create'];
   _php_pcre2_compile_context_create = Module['_php_pcre2_compile_context_create'] = wasmExports['php_pcre2_compile_context_create'];
   _php_pcre2_match_context_create = Module['_php_pcre2_match_context_create'] = wasmExports['php_pcre2_match_context_create'];
@@ -13887,7 +13901,6 @@ function assignWasmExports(wasmExports) {
   __emalloc_128 = Module['__emalloc_128'] = wasmExports['_emalloc_128'];
   _php_info_print_css = Module['_php_info_print_css'] = wasmExports['php_info_print_css'];
   _zend_list_delete = Module['_zend_list_delete'] = wasmExports['zend_list_delete'];
-  _php_clear_stat_cache = Module['_php_clear_stat_cache'] = wasmExports['php_clear_stat_cache'];
   _php_check_open_basedir_ex = Module['_php_check_open_basedir_ex'] = wasmExports['php_check_open_basedir_ex'];
   _php_stream_dirent_alphasortr = Module['_php_stream_dirent_alphasortr'] = wasmExports['php_stream_dirent_alphasortr'];
   _php_stream_dirent_alphasort = Module['_php_stream_dirent_alphasort'] = wasmExports['php_stream_dirent_alphasort'];
@@ -13916,6 +13929,7 @@ function assignWasmExports(wasmExports) {
   _php_copy_file = Module['_php_copy_file'] = wasmExports['php_copy_file'];
   _php_get_temporary_directory = Module['_php_get_temporary_directory'] = wasmExports['php_get_temporary_directory'];
   _php_get_gid_by_name = Module['_php_get_gid_by_name'] = wasmExports['php_get_gid_by_name'];
+  _php_clear_stat_cache = Module['_php_clear_stat_cache'] = wasmExports['php_clear_stat_cache'];
   _php_get_uid_by_name = Module['_php_get_uid_by_name'] = wasmExports['php_get_uid_by_name'];
   _realpath_cache_del = Module['_realpath_cache_del'] = wasmExports['realpath_cache_del'];
   _realpath_cache_size = Module['_realpath_cache_size'] = wasmExports['realpath_cache_size'];
@@ -14998,6 +15012,8 @@ function assignWasmExports(wasmExports) {
   _php_cli_get_shell_callbacks = Module['_php_cli_get_shell_callbacks'] = wasmExports['php_cli_get_shell_callbacks'];
   _sapi_cli_single_write = Module['_sapi_cli_single_write'] = wasmExports['sapi_cli_single_write'];
   _main = Module['_main'] = wasmExports['__main_argc_argv'];
+  _phasm_startup = Module['_phasm_startup'] = wasmExports['phasm_startup'];
+  _phasm_run = Module['_phasm_run'] = wasmExports['phasm_run'];
   _locale_charset = Module['_locale_charset'] = wasmExports['locale_charset'];
   _libiconv_open_into = Module['_libiconv_open_into'] = wasmExports['libiconv_open_into'];
   _libiconvctl = Module['_libiconvctl'] = wasmExports['libiconvctl'];
@@ -16135,6 +16151,80 @@ wasmExports = await (createWasm());
 run();
 
 // end include: postamble.js
+
+// include: /home/runner/work/phasm/phasm/src/phasm-glue.js
+// SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas <alganet@gmail.com>
+//
+// SPDX-License-Identifier: ISC
+
+// Linked into the module by --post-js (see scripts/env.sh), which places this
+// inside the MODULARIZE factory after the runtime is up and before the factory
+// resolves. So Module.phasmRun exists by the time the caller has a module.
+//
+// This is only argv/cwd/env marshalling. It lives in the artifact rather than
+// in each consumer because the packed-string calling convention is an
+// implementation detail of sapi/phasm/phasm.c, and nobody should have to
+// re-derive it. Output is still collected the way Emscripten collects it — via
+// FS.init() sinks the caller swaps per invocation.
+
+/**
+ * Pack strings the way phasm_run() reads them: NUL-terminated, back to back.
+ * stringToUTF8 writes embedded NULs verbatim, so one conversion does it.
+ * Returns 0 for an empty list, which the C side reads as "none".
+ */
+function phasmPackStrings(list) {
+  if (!list.length) return 0;
+  return stringToNewUTF8(list.join('\0') + '\0');
+}
+
+/**
+ * Run PHP once on this instance. `args` is argv without argv[0].
+ *
+ * Unlike callMain(), this can be called any number of times: it never exits the
+ * process, the exit status is per call, and cwd and env apply to this call
+ * only. The two entry points are mutually exclusive — a module that has run
+ * callMain() cannot use phasmRun() and vice versa.
+ *
+ * @param {string[]} args
+ * @param {{cwd?: string, env?: Record<string, string>}} [opts]
+ * @returns {number} the exit status
+ */
+Module['phasmRun'] = function (args, opts) {
+  opts = opts || {};
+
+  const argv = ['php'].concat(args || []).map(String);
+  const env = Object.entries(opts.env || {}).map(([k, v]) => `${k}=${v}`);
+
+  const argvPtr = phasmPackStrings(argv);
+  const envPtr = phasmPackStrings(env);
+  const cwdPtr = opts.cwd ? stringToNewUTF8(opts.cwd) : 0;
+
+  try {
+    return _phasm_run(argvPtr, argv.length, cwdPtr, envPtr, env.length);
+  } finally {
+    if (argvPtr) _free(argvPtr);
+    if (envPtr) _free(envPtr);
+    if (cwdPtr) _free(cwdPtr);
+  }
+};
+
+/**
+ * Start PHP explicitly, with optional ini settings for the life of the
+ * instance. phasmRun() does this on first use with no settings, so this is only
+ * needed to pass ini — per-call `-d` is not supported on this path.
+ *
+ * @param {string} [ini] newline-separated "name=value" lines
+ * @returns {number} 0 on success, -1 if this module already ran callMain()
+ */
+Module['phasmStartup'] = function (ini) {
+  const iniPtr = ini ? stringToNewUTF8(ini) : 0;
+  try {
+    return _phasm_startup(iniPtr);
+  } finally {
+    if (iniPtr) _free(iniPtr);
+  }
+};
+// end include: /home/runner/work/phasm/phasm/src/phasm-glue.js
 
 // include: postamble_modularize.js
 // In MODULARIZE mode we wrap the generated code in a factory function
