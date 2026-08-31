@@ -97,8 +97,14 @@ static int phasm_started = 0;
  * resumes in JS, so nothing after the trapping line runs — not the epilogue,
  * not zend_end_try(), not php_request_shutdown(). The reachable one is deep
  * recursion hitting the *JS engine's* wasm frame limit, which no emcc flag
- * sizes (see TODO §4.9); `json_encode()` over a few thousand levels of nesting
- * reaches it, and so would any C recursion an extension does.
+ * sizes and no wasm program can read.
+ *
+ * The recursion guard above turns most of that into an ordinary PHP error, and
+ * deliberately not all of it: it can only fire where php-src has a check, so
+ * `unserialize()` with its `max_depth` switched off still gets here, recursion
+ * that exhausts the module's memory still gets here, and so does anything at
+ * all once an embedder sets zend.max_allowed_stack_size=-1. This path is what
+ * makes those survivable rather than what makes them rare.
  *
  * The instance survives that — measurably — but it is left mid-request, so the
  * next call's startup redeclares what the abandoned one already registered and
@@ -1097,6 +1103,27 @@ static void phasm_response_reset(void)
 }
 
 /*
+ * End a request, however it ended, with the status recorded where
+ * phasm_response_status() reads it.
+ *
+ * The recording is the point. phasm_handle_request() returns the status, and
+ * the JS glue uses that return value — but phasm_response_status() is an
+ * exported entry point of its own, and a caller reaching the wasm directly has
+ * no other way to ask. It used to be assigned only where a request had actually
+ * run, so every refusal left it at the 0 that phasm_response_reset() had
+ * cleared it to — and 0 is not "no status" in this ABI, it is the *decline*
+ * that tells an embedder to serve the path as a static file. A 403 read back
+ * as "serve it yourself" is the source disclosure the refusal existed to
+ * prevent.
+ */
+static int phasm_request_done(int status)
+{
+	phasm_call_epilogue();
+	phasm_resp_status = status;
+	return status;
+}
+
+/*
  * Run one HTTP request and record the response. `uri` is the request target
  * including any query string; `packed_headers` is `header_count` NUL-terminated
  * "Name: value" entries back to back; `body` may be NULL.
@@ -1127,10 +1154,10 @@ int phasm_handle_request(const char *method, const char *uri,
 	phasm_response_reset();
 
 	if (!phasm_started && phasm_startup(NULL) != 0) {
-		return 500;
+		return phasm_request_done(500);
 	}
 	if (method == NULL || uri == NULL || docroot == NULL) {
-		return 500;
+		return phasm_request_done(500);
 	}
 
 	memset(&r, 0, sizeof(r));
@@ -1164,13 +1191,11 @@ int phasm_handle_request(const char *method, const char *uri,
 	 * this that stays true as the code around it changes.
 	 */
 	if (strlen(path) != decoded_len) {
-		phasm_call_epilogue();
-		return 400;
+		return phasm_request_done(400);
 	}
 
 	if (path[0] != '/' || phasm_path_escapes(path)) {
-		phasm_call_epilogue();
-		return 403;
+		return phasm_request_done(403);
 	}
 
 	/* Only after the refusal above, so normalisation can never be the thing
@@ -1190,8 +1215,7 @@ int phasm_handle_request(const char *method, const char *uri,
 
 		script = phasm_call_own(malloc(need));
 		if (script == NULL) {
-			phasm_call_epilogue();
-			return 500;
+			return phasm_request_done(500);
 		}
 		memcpy(script, docroot, droot_len);
 		strcpy(script + droot_len, path);
@@ -1208,8 +1232,7 @@ int phasm_handle_request(const char *method, const char *uri,
 			 * embedder can serve the index.html sitting right beside it, but
 			 * only if it is handed the request back. */
 			if (stat(script, &st) != 0 || !S_ISREG(st.st_mode)) {
-				phasm_call_epilogue();
-				return 0;
+				return phasm_request_done(0);
 			}
 		} else if (path[strlen(path) - 1] == '/') {
 			/* A trailing slash asks for a directory, and POSIX answers ENOTDIR
@@ -1219,18 +1242,15 @@ int phasm_handle_request(const char *method, const char *uri,
 			 * to serve /app.php as a static file, i.e. to hand out the source.
 			 * 404 is both the POSIX answer and the safe one. `path` always
 			 * starts with '/', so indexing its last byte is safe. */
-			phasm_call_epilogue();
-			return 404;
+			return phasm_request_done(404);
 		}
 	}
 
 	if (stat(script, &st) != 0 || !S_ISREG(st.st_mode)) {
-		phasm_call_epilogue();
-		return 404;
+		return phasm_request_done(404);
 	}
 	if (!phasm_has_php_suffix(script)) {
-		phasm_call_epilogue();
-		return 0; /* not ours — the embedder serves it */
+		return phasm_request_done(0); /* not ours — the embedder serves it */
 	}
 
 	/* SCRIPT_NAME is the resolved script's own path, which is `path` except
@@ -1238,8 +1258,7 @@ int phasm_handle_request(const char *method, const char *uri,
 	 * to strip its own prefix needs the difference. */
 	script_name = phasm_call_own(strdup(script + droot_len));
 	if (script_name == NULL) {
-		phasm_call_epilogue();
-		return 500;
+		return phasm_request_done(500);
 	}
 
 	r.method = method;
@@ -1379,11 +1398,7 @@ int phasm_handle_request(const char *method, const char *uri,
 	 * overwritten by the next call: it is parsed, and `php -r
 	 * 'print_r($_COOKIE);'` after a request prints whatever the allocator has
 	 * since put in that freed buffer. */
-	phasm_call_epilogue();
-
-	phasm_resp_status = status;
-
-	return status;
+	return phasm_request_done(status);
 }
 /* }}} */
 
