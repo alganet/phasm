@@ -43,6 +43,263 @@ var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIR
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
+// include: /home/runner/work/phasm/phasm/src/phasm-stdio.js
+// SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas <alganet@gmail.com>
+//
+// SPDX-License-Identifier: ISC
+
+// Linked into the module by --pre-js (see scripts/env.sh), which places this
+// inside the MODULARIZE factory right after `var Module = moduleArg` — before
+// the runtime starts. The timing is the entire point: Emscripten wires fd 0, 1
+// and 2 up exactly once, during runtime init, from Module.stdin/stdout/stderr,
+// and afterwards they cannot be re-pointed without closing them. src/phasm-glue.js
+// runs at the other end (--post-js), by which time it is far too late.
+//
+// WHY THE MODULE CLAIMS THE STANDARD STREAMS
+//
+// PHP writes to descriptors like any other program — echo, `php -v`, a warning,
+// a fatal, the SAPI's own usage errors. So run() returning {stdout, stderr,
+// exitCode} needs the descriptors themselves, per call. There is no higher
+// place to intercept: the server hook (sapi_module.ub_write) sees what PHP
+// prints and none of what argument handling prints, and Emscripten's
+// print/printErr are LINE buffered — they fire only on a newline and hand back
+// the line with it stripped, so `php -r 'echo 42;'` delivers nothing at all.
+//
+// Every embedder was therefore hand-rolling the same preRun FS.init() recipe,
+// and it has three traps in it: the line buffering above, sinks that are global
+// when the interesting thing is which call produced what, and the swap-per-call
+// dance re-entrancy needs. Doing it here means run() works on a module built
+// the ordinary way, and nobody re-derives the recipe.
+//
+// Nothing is taken away. Output produced when no run() is in flight — which is
+// everything callMain() and phasmRun() produce — is delegated to whatever the
+// embedder passed, reproducing Emscripten's own behaviour byte for byte, so
+// print, printErr and stdin keep working exactly as they did.
+
+var phasmStdio = (() => {
+  const decoder = new TextDecoder();
+  const EMPTY = new Uint8Array(0);
+
+  // Read before we overwrite them: these are the embedder's, straight off the
+  // options object it passed to the factory.
+  const embedderStdin = Module['stdin'];
+  const embedderStdout = Module['stdout'];
+  const embedderStderr = Module['stderr'];
+
+  /** The call in flight, or null when the module is idle. */
+  let active = null;
+
+  /**
+   * Whether fd 0/1/2 actually ended up ours. False when the embedder called
+   * FS.init() itself or passed noFSInit, in which case run() refuses rather
+   * than returning empty output and letting it look like PHP printed nothing.
+   */
+  let claimed = false;
+
+  /**
+   * Emscripten's default tty: a byte at a time in, one string per newline out,
+   * NULs dropped, and a null flushes. Delegation reproduces it exactly, because
+   * it is what the embedder is getting today.
+   */
+  function lineBuffered(write) {
+    const pending = [];
+    return (charCode) => {
+      if (charCode === null || charCode === 10) {
+        write(decoder.decode(Uint8Array.from(pending)));
+        pending.length = 0;
+      } else if (charCode !== 0) {
+        pending.push(charCode);
+      }
+    };
+  }
+
+  // Emscripten's own defaults for the two, resolved per line so that an
+  // embedder which assigns print later still gets it.
+  const idleStdout = embedderStdout
+    || lineBuffered((text) => (Module['print'] || console.log)(text));
+  const idleStderr = embedderStderr
+    || lineBuffered((text) => (Module['printErr'] || console.error)(text));
+
+  /**
+   * A growable byte buffer.
+   *
+   * Emscripten hands a device one byte per call, so a call's output arrives
+   * byte by byte no matter what; what must not also be per-byte is the storage.
+   * A plain array of numbers costs an ~8-byte slot each, and a `php app.php >
+   * big.json` through a shell builtin is megabytes — 8 MiB of output held ~400
+   * MB that way. Doubling into a Uint8Array keeps it at the size of the output.
+   */
+  function byteBuffer() {
+    let bytes = new Uint8Array(256);
+    let length = 0;
+
+    return {
+      get length() { return length; },
+      push(byte) {
+        if (length === bytes.length) {
+          const grown = new Uint8Array(bytes.length * 2);
+          grown.set(bytes);
+          bytes = grown;
+        }
+        bytes[length++] = byte;
+      },
+      /** A view for reading now. Only valid until the next push(). */
+      view() { return bytes.subarray(0, length); },
+      /** An owned copy, for handing to someone who keeps it. */
+      take() { return bytes.slice(0, length); },
+      reset() { length = 0; },
+    };
+  }
+
+  /** Hand `onOutput` everything buffered for one channel, if anything is. */
+  function flush(call, channel) {
+    const pending = channel === 'stdout' ? call.pendingOut : call.pendingErr;
+    if (!pending.length) return;
+    call.onOutput(pending.take(), channel);
+    pending.reset();
+  }
+
+  function collector(channel) {
+    return (charCode) => {
+      const call = active;
+      if (!call) return (channel === 'stdout' ? idleStdout : idleStderr)(charCode);
+
+      // A null is Emscripten's flush signal, not a byte. Everything else is
+      // one, NULs included: PHP is as likely to be writing a PNG as a page, and
+      // the tty's habit of dropping zero bytes would corrupt it.
+      if (charCode === null) {
+        if (call.onOutput) flush(call, channel);
+        return;
+      }
+      if (call.collect) (channel === 'stdout' ? call.out : call.err).push(charCode);
+      if (call.onOutput) {
+        (channel === 'stdout' ? call.pendingOut : call.pendingErr).push(charCode);
+        // Per line, so a long-running script reports as it goes. Output with no
+        // newlines in it at all is one chunk at the end, which is the right
+        // answer for a binary response and the wrong one for a progress bar.
+        if (charCode === 10) flush(call, channel);
+      }
+    };
+  }
+
+  const stdoutRouter = collector('stdout');
+  const stderrRouter = collector('stderr');
+
+  /**
+   * One byte of stdin, or null for EOF — the shape FS.createDevice() reads.
+   * `undefined` is EAGAIN there, so it is never returned.
+   *
+   * A call that named no stdin of its own falls through to the embedder's,
+   * which is what makes run() a strict addition: a module wired to a terminal
+   * or a ring still reaches it.
+   */
+  function stdinRouter() {
+    const call = active;
+    if (!call || !call.stdin) return embedderStdin ? embedderStdin() : null;
+
+    const src = call.stdin;
+    while (src.pos >= src.bytes.length) {
+      if (!src.pull) return null;
+      // Chunked, and only when PHP actually asks. Draining up front would park
+      // an interactive shell on a `php -v` that never reads a byte.
+      const more = src.pull(65536);
+      if (!more || !more.length) {
+        src.pull = null;
+        return null;
+      }
+      src.bytes = more;
+      src.pos = 0;
+    }
+    return src.bytes[src.pos++];
+  }
+
+  Module['stdin'] = stdinRouter;
+  Module['stdout'] = stdoutRouter;
+  Module['stderr'] = stderrRouter;
+
+  // Did the routers above actually become fd 0/1/2? FS.init() is the one place
+  // that decides, whether it is called by the runtime or by an embedder's own
+  // preRun hook, and it resolves its arguments against Module.* exactly as
+  // repeated here. Wrapping it is the only answer that is not a guess.
+  //
+  // This hook goes first so that it is installed before any embedder hook can
+  // call FS.init; FS is a hoisted var, undefined until the module body runs,
+  // which is why the wrapping happens here and not above.
+  let preRuns = Module['preRun'];
+  if (typeof preRuns === 'function') preRuns = [preRuns];
+  Module['preRun'] = [() => {
+    const initialize = FS.init;
+    FS.init = function (input, output, error) {
+      claimed = (input ?? Module['stdin']) === stdinRouter
+        && (output ?? Module['stdout']) === stdoutRouter
+        && (error ?? Module['stderr']) === stderrRouter;
+      FS.init = initialize;
+      return initialize.call(FS, input, output, error);
+    };
+  }].concat(preRuns || []);
+
+  function toBytes(data) {
+    if (data == null) return EMPTY;
+    return typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  }
+
+  return {
+    /** Whether run() can capture on this module at all. */
+    get claimed() { return claimed; },
+
+    /**
+     * Start capturing. `opts` takes `stdin` (bytes, a string, or a pull
+     * function returning bytes and an empty result for EOF), `onOutput` and
+     * `collect`.
+     */
+    begin(opts) {
+      if (!claimed) {
+        throw new Error(
+          'phasm: this module cannot capture output, because its standard streams '
+          + 'were claimed elsewhere — an FS.init() of your own, or noFSInit. Drop '
+          + 'that: the module installs its own stdio, and per-call capture is what '
+          + 'run() is for.',
+        );
+      }
+      if (active) {
+        throw new Error('phasm: a call is already in flight on this module; capture does not nest.');
+      }
+
+      const stdin = typeof opts.stdin === 'function'
+        ? { bytes: EMPTY, pos: 0, pull: opts.stdin }
+        : opts.stdin != null
+          ? { bytes: toBytes(opts.stdin), pos: 0, pull: null }
+          : null;
+
+      active = {
+        collect: opts.collect !== false,
+        onOutput: opts.onOutput || null,
+        stdin,
+        out: byteBuffer(),
+        err: byteBuffer(),
+        pendingOut: byteBuffer(),
+        pendingErr: byteBuffer(),
+      };
+    },
+
+    /** Stop capturing and return what the call produced. Always paired with begin(). */
+    end() {
+      const call = active;
+      active = null;
+      if (call.onOutput) {
+        // Output that never ended in a newline is still buffered here, and it
+        // is the common case: `php -r 'echo 42;'`.
+        flush(call, 'stdout');
+        flush(call, 'stderr');
+      }
+      return {
+        stdout: call.collect ? decoder.decode(call.out.view()) : '',
+        stderr: call.collect ? decoder.decode(call.err.view()) : '',
+      };
+    },
+  };
+})();
+// end include: /home/runner/work/phasm/phasm/src/phasm-stdio.js
 
 
 var arguments_ = [];
@@ -16173,13 +16430,15 @@ run();
 
 // Linked into the module by --post-js (see scripts/env.sh), which places this
 // inside the MODULARIZE factory after the runtime is up and before the factory
-// resolves. So Module.phasmRun exists by the time the caller has a module.
+// resolves. So Module.run exists by the time the caller has a module.
 //
-// This is only argv/cwd/env marshalling. It lives in the artifact rather than
-// in each consumer because the packed-string calling convention is an
-// implementation detail of sapi/phasm/phasm.c, and nobody should have to
-// re-derive it. Output is still collected the way Emscripten collects it — via
-// FS.init() sinks the caller swaps per invocation.
+// This is the embedding API: run() and phasmHandleRequest() are what an
+// embedder should reach for, and phasmRun() is the primitive underneath them.
+// It lives in the artifact rather than in each consumer because the
+// packed-string calling convention is an implementation detail of
+// sapi/phasm/phasm.c, and nobody should have to re-derive it — the same reason
+// src/phasm-stdio.js owns the standard streams, which is where the output
+// run() returns comes from.
 
 /**
  * Pack strings the way phasm_run() reads them: NUL-terminated, back to back.
@@ -16240,6 +16499,104 @@ Module['phasmRun'] = function (args, opts) {
     if (envPtr) _free(envPtr);
     if (cwdPtr) _free(cwdPtr);
   }
+};
+
+/** Create every missing directory above `path`, `mkdir -p` fashion. */
+function phasmMkdirp(path) {
+  const parts = path.split('/').slice(0, -1).filter(Boolean);
+  let dir = path.charAt(0) === '/' ? '' : '.';
+  for (const part of parts) {
+    dir += `/${part}`;
+    try {
+      FS.mkdir(dir);
+    } catch (e) {
+      /* already there, or a file is in the way — writeFile reports that one */
+    }
+  }
+}
+
+/** Where `run({script})` puts the script, mirroring wasi-sh's /main.sh. */
+const PHASM_MAIN = '/main.php';
+
+/**
+ * Run PHP once and collect everything it produced.
+ *
+ * ```js
+ * const { stdout, stderr, exitCode } = php.run({ code: 'echo 6 * 7;' });
+ * ```
+ *
+ * The result is `wasi-sh`'s: {stdout, stderr, exitCode}, from options with the
+ * same names and meanings, so a shell run and a PHP run compose without an
+ * adapter between them. It returns synchronously — the instance is already
+ * warm and PHP is a wasm frame below the call — and awaiting it anyway is
+ * harmless, which keeps the two interchangeable in ordinary code.
+ *
+ * Everything here is per call: `env` and `cwd` are gone by the next one, output
+ * belongs to this call alone, and stdin is refilled. What survives is the
+ * filesystem, the instance and its ini.
+ *
+ * @param {{args?: string[], code?: string, script?: string,
+ *          files?: Record<string, string|Uint8Array>,
+ *          stdin?: string|Uint8Array|((max: number) => Uint8Array|null),
+ *          cwd?: string, env?: Record<string, string>,
+ *          onOutput?: (bytes: Uint8Array, channel: 'stdout'|'stderr') => void,
+ *          collect?: boolean}} [options]
+ * @returns {{stdout: string, stderr: string, exitCode: number}}
+ */
+Module['run'] = function (options) {
+  options = options || {};
+
+  for (const [path, content] of Object.entries(options.files || {})) {
+    phasmMkdirp(path);
+    FS.writeFile(path, content);
+  }
+
+  if (typeof options.script === 'string') {
+    FS.writeFile(PHASM_MAIN, options.script);
+  }
+
+  // argv wins where it is given, as it does in wasi-sh: `script` is a file that
+  // was mounted, and mounting it is worth doing even when something else runs.
+  let args = options.args;
+  if (!args) {
+    if (typeof options.code === 'string') args = ['-r', options.code];
+    else if (typeof options.script === 'string') args = [PHASM_MAIN];
+    else args = [];
+  }
+
+  const captured = Module['phasmCapture'](
+    () => Module['phasmRun'](args, { cwd: options.cwd, env: options.env }),
+    options,
+  );
+
+  return { stdout: captured.stdout, stderr: captured.stderr, exitCode: captured.value };
+};
+
+/**
+ * Run `fn` with the module's stdout, stderr and stdin routed to this call.
+ *
+ * The primitive under run(), exposed because it is the only way to collect
+ * output from anything run() does not cover — a warning raised during
+ * phasmHandleRequest(), or a one-shot callMain().
+ *
+ * @param {() => any} fn
+ * @param {{stdin?: string|Uint8Array|((max: number) => Uint8Array|null),
+ *          onOutput?: (bytes: Uint8Array, channel: 'stdout'|'stderr') => void,
+ *          collect?: boolean}} [opts]
+ * @returns {{stdout: string, stderr: string, value: any}}
+ */
+Module['phasmCapture'] = function (fn, opts) {
+  phasmStdio.begin(opts || {});
+
+  let value;
+  let captured;
+  try {
+    value = fn();
+  } finally {
+    captured = phasmStdio.end();
+  }
+
+  return { stdout: captured.stdout, stderr: captured.stderr, value };
 };
 
 /**
@@ -16353,7 +16710,7 @@ Module['phasmStartup'] = function (ini) {
 // phasmRun() throws too. phasm_startup() already refuses the opposite order;
 // this is the same refusal in the direction Emscripten owns, and it has to live
 // here because callMain() is a JS function that never reaches C.
-let phasmCallMainUsed = false;
+let phasmCallMainCalled = false;
 
 const phasmCallMain = Module['callMain'];
 if (phasmCallMain) {
@@ -16364,9 +16721,23 @@ if (phasmCallMain) {
         + 'module has already started PHP. Use phasmRun().',
       );
     }
-    phasmCallMainUsed = true;
+    phasmCallMainCalled = true;
     return phasmCallMain.apply(this, arguments);
   };
+}
+
+/**
+ * Has this module run the CLI's main(), by either route?
+ *
+ * The wrapper above only sees the explicit route. A module built without
+ * `noInitialRun` runs main() by itself at startup — through Emscripten's own
+ * internal callMain, which never consults Module.callMain — so the wrapper is
+ * blind to exactly the case an embedder does not realise it asked for. Read
+ * rather than latched, because with a `setStatus` handler that automatic run is
+ * deferred past this file.
+ */
+function phasmDidCallMain() {
+  return phasmCallMainCalled || (!!Module['calledRun'] && !Module['noInitialRun']);
 }
 
 // The same refusal in the other direction. The C side already declines — it
@@ -16376,12 +16747,14 @@ if (phasmCallMain) {
 // a fatal. Silently returning "something went wrong" for a mistake this
 // structural is the one case worth an exception.
 function phasmRefuseAfterCallMain(what) {
-  if (phasmCallMainUsed) {
-    throw new Error(
-      `phasm: ${what} and callMain() are mutually exclusive, and this module `
-      + 'has already run callMain(). Create a new module.',
-    );
-  }
+  if (!phasmDidCallMain()) return;
+
+  throw new Error(
+    `phasm: ${what} and callMain() are mutually exclusive, and this module has `
+    + 'already run callMain()'
+    + (phasmCallMainCalled ? '' : ' — it was built without noInitialRun, so it ran main() at startup')
+    + '. Create a new module.',
+  );
 }
 // end include: /home/runner/work/phasm/phasm/src/phasm-glue.js
 
