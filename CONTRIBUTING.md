@@ -139,7 +139,7 @@ See `scripts/env.sh` for the full list:
 | `ONIGURUMA_VERSION`    | `6.9.10`                         | Oniguruma version           |
 | `LIBXML2_VERSION`      | `2.15.3`                         | libxml2 version             |
 | `EMCC_FLAGS`           | `-O2 -g0 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags |
-| `PHASM_STACK_SIZE`     | `4MB`                            | C stack for the module      |
+| `PHASM_STACK_SIZE`     | `8MB`                            | C stack for the module      |
 
 Overriding `EMCC_FLAGS` replaces the codegen defaults only. The flags that
 make the artifact a phasm build — the exported entry points, the two JS halves,
