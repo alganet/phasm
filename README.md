@@ -145,6 +145,39 @@ consulted whenever no `run()` is in flight, so they keep behaving as they always
 did. Installing your own `FS.init()` sinks still works and still wins — `run()`
 then says it cannot capture, rather than reporting that PHP printed nothing.
 
+## Caching compiled scripts
+
+opcache is built in and does nothing until you name a directory for it to cache
+into. Two settings, both required, and the directory has to exist before PHP
+starts:
+
+```js
+const php = await Phasm();
+php.FS.mkdir("/cache");
+php.phasmStartup("opcache.file_cache=/cache\nopcache.file_cache_only=1");
+```
+
+`file_cache_only` is not optional here. opcache normally caches into shared
+memory and treats the file cache as a second tier; wasm has no shared memory to
+offer it, so without this the accelerator finds no backend and switches itself
+off. A file cache is the only mode this build has.
+
+What it buys, over 80 files of ~500 KiB: **first run 31 ms → 10 ms, and every
+run after ~13 ms → ~5 ms.** Compiled scripts are ordinary files, so a cache
+directory in a [shared or persistent store](#sharing-a-filesystem) survives the
+instance that filled it — that is what makes the first number a cold page load
+rather than a warm one. Budget for the size: the cache runs several times larger
+than the source it was compiled from (3.3 MiB for that 510 KiB).
+
+Entries are keyed by a build id, so a cache is only ever read back by the exact
+`php.wasm` that wrote it; a cache built against an older release is ignored, not
+mis-read. Sources are validated by timestamp, so **the store has to keep real
+mtimes** — against one that reports `0` for everything, nothing is ever cached
+and nothing says so. A file is cacheable from the second after it was written,
+which is what keeps an edit from being shadowed by the entry compiled from the
+version before it; set `opcache.validate_timestamps=0` if a project is genuinely
+read-only and you want that check gone.
+
 ## As a shell command
 
 `run()` is what a shell needs, and it is deliberately not PHP's own vocabulary —
