@@ -398,6 +398,16 @@ describe('phasmRun', opts, () => {
     assert.equal((await evalPhp('echo "fine";')).stdout, 'fine');
   });
 
+  // The packing is NUL-delimited, so a NUL inside an argument is not merely
+  // unsupported — it truncates the argument at the NUL and PHP fails somewhere
+  // else entirely. Refusing it keeps the failure at the call site.
+  test('refuses an argument containing a NUL rather than truncating it', async () => {
+    const mod = await sharedModule();
+    assert.throws(() => mod.phasmRun(['-r', 'echo "a\0b";']), /NUL/);
+    assert.throws(() => mod.phasmRun(['-r', 'echo 1;'], { env: { X: 'a\0b' } }), /NUL/);
+    assert.equal((await evalPhp('echo "fine";')).stdout, 'fine', 'a refused call disturbed the next one');
+  });
+
   // callMain() re-enters main(), which starts the module — on an instance that
   // already has one running that traps and takes every later phasmRun() with
   // it. The docs call the two entry points mutually exclusive; this is the
