@@ -479,6 +479,32 @@ describe('repeated requests', opts, () => {
     assert.equal(command.stdout, '0:[]', 'a command inherited the request\'s cookies');
   });
 
+  // A session is the first thing in server mode that needs both halves of the
+  // SAPI in one request: the Cookie header on the way in, and a Set-Cookie
+  // through the send_headers hook on the way out. It is also where a
+  // re-entrant SAPI would show a leak most plainly — a third request with no
+  // cookie must start over, not inherit the session the other two share.
+  test('a session survives from one request to the next', async () => {
+    await site({
+      '/counter.php':
+        '<?php @mkdir("/sess"); ini_set("session.save_path", "/sess");'
+        + 'session_start(); $_SESSION["n"] = ($_SESSION["n"] ?? 0) + 1; echo $_SESSION["n"];',
+    });
+
+    const first = await serve({ url: '/counter.php', docroot: DOCROOT });
+    assert.equal(first.text, '1');
+
+    const [setCookie] = first.headers.getSetCookie();
+    assert.match(setCookie ?? '', /^PHPSESSID=/, 'session_start() sent no session cookie');
+    const cookie = setCookie.split(';')[0];
+
+    const second = await serve({ url: '/counter.php', docroot: DOCROOT, headers: { Cookie: cookie } });
+    assert.equal(second.text, '2', 'the session did not come back with the cookie');
+
+    const stranger = await serve({ url: '/counter.php', docroot: DOCROOT });
+    assert.equal(stranger.text, '1', 'a request with no cookie inherited someone else\'s session');
+  });
+
   // do_cli() sets SAPI_OPTION_NO_CHDIR for the CLI and nothing clears it, so
   // whether a request ran in the script's directory used to depend on whether
   // any command had ever run on the instance.

@@ -22,6 +22,19 @@ if [[ ! -d "${PHP_SRC_DIR}/.git" ]]; then
 	exit 1
 fi
 
+# ext/phar's path scanner is generated from a .re by re2c, and php-src's git
+# tree does not carry the generated file the way a release tarball does. When
+# re2c is missing, configure sets `RE2C = exit 0;` and the generation rule
+# quietly succeeds while producing nothing — so the build dies hundreds of lines
+# later on "no such file or directory: ext/phar/phar_path_check.c", which names
+# neither phar nor re2c. CONTRIBUTING.md lists it and CI installs it; this is
+# for the machine that skipped a line.
+if ! command -v re2c >/dev/null 2>&1; then
+	echo "re2c not found. ext/phar's scanner is generated from a .re file and"
+	echo "cannot be built without it. See CONTRIBUTING.md for the package list."
+	exit 1
+fi
+
 # Ensure libzip is built for WASM; build it unless already present
 if [[ ! -f "${BUILD_DIR}/sysroot/lib/libzip.a" ]]; then
 	echo "libzip not found for WASM in ${BUILD_DIR}/sysroot. Run ./scripts/deps.sh first."
@@ -52,6 +65,14 @@ export ICONV_LIBS="-L${BUILD_DIR}/sysroot/lib -liconv"
 # Oniguruma for ext/mbstring
 export ONIG_CFLAGS="-I${BUILD_DIR}/sysroot/include"
 export ONIG_LIBS="-L${BUILD_DIR}/sysroot/lib -lonig"
+# zlib for ext/zlib. Unlike the others this one is not a bespoke variable:
+# PHP_SETUP_ZLIB is a PKG_CHECK_MODULES call, and pkg-config's own convention is
+# that a pre-set <MODULE>_CFLAGS/<MODULE>_LIBS pair short-circuits the probe. So
+# these two lines are what keep a cross build from asking the host's pkg-config
+# about the host's zlib. The library itself has been in the sysroot all along —
+# deps.sh builds it because libzip needs it — and only the extension was missing.
+export ZLIB_CFLAGS="-I${BUILD_DIR}/sysroot/include"
+export ZLIB_LIBS="-L${BUILD_DIR}/sysroot/lib -lz"
 # SQLite (headers + static lib installed into sysroot by scripts/deps.sh)
 export SQLITE_CFLAGS="-I${BUILD_DIR}/sysroot/include"
 export SQLITE_LIBS="-L${BUILD_DIR}/sysroot/lib -lsqlite3"
@@ -62,6 +83,8 @@ echo "ICONV_CFLAGS=${ICONV_CFLAGS}"
 echo "ICONV_LIBS=${ICONV_LIBS}"
 echo "ONIG_CFLAGS=${ONIG_CFLAGS}"
 echo "ONIG_LIBS=${ONIG_LIBS}"
+echo "ZLIB_CFLAGS=${ZLIB_CFLAGS}"
+echo "ZLIB_LIBS=${ZLIB_LIBS}"
 echo "SQLITE_CFLAGS=${SQLITE_CFLAGS}"
 echo "SQLITE_LIBS=${SQLITE_LIBS}"
 
@@ -75,6 +98,11 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--disable-fiber-asm \
 	--disable-cgi \
 	--with-zip \
+	`# The zlib LIBRARY has been built and linked since the beginning, because` \
+	`# libzip depends on it; the zlib EXTENSION was never enabled, so gzencode,` \
+	`# the compress.zlib:// wrapper and phar's compressed archives were all` \
+	`# missing while the code to do the work was already in the binary.` \
+	--with-zlib \
 	--enable-calendar \
 	`# The phasm SAPI replaces the CLI rather than joining it: sapi/phasm's` \
 	`# phasm.c includes sapi/cli/php_cli.c to reuse its argument handling, so` \
@@ -92,6 +120,18 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--enable-mbstring \
 	--enable-pcntl \
 	--enable-pdo \
+	`# phar is the one that makes tooling exist. composer.phar, phpunit.phar` \
+	`# and php-cs-fixer.phar are single-file archives with a PHP stub, so` \
+	`# without this extension they are not slow or degraded — they simply do` \
+	`# not run, and the "offline phpunit in the terminal" deliverable is` \
+	`# unreachable. It needs hash and spl, both always-on, and it reads a` \
+	`# compressed archive only when zlib is linked, which is why the two are` \
+	`# enabled together.` \
+	--enable-phar \
+	`# session is a platform requirement of Laravel and of most real apps, and` \
+	`# it costs nothing here: the default files handler writes to save_path,` \
+	`# which is an ordinary directory in the store phasm already mounts.` \
+	--enable-session \
 	--with-sqlite3 \
 	--with-pdo-sqlite \
 	--enable-static \
