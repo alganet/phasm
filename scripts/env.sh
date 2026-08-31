@@ -55,9 +55,25 @@ if [[ -z "${EMSDK_ENV:-}" && -f "${DEFAULT_EMSDK_ENV}" ]]; then
 else
 	EMSDK_ENV="${EMSDK_ENV:-}"
 fi
-# Codegen and packaging knobs. Override these to experiment (-O0 for a
-# debuggable build, -Oz to chase size).
-EMCC_FLAGS="${EMCC_FLAGS:--O2 -s MODULARIZE=1 -s EXPORT_NAME='Phasm' -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1}"
+# Codegen and packaging knobs. Override these to experiment (`-O0 -g` for a
+# debuggable build). `-Oz` and `-flto` were both measured against `-O2` and
+# neither earns its place: `-Oz` takes 1.6% off the gzipped wasm for 2.4% of the
+# interpreter's throughput, and `-flto` makes the wasm 8% *bigger* here for no
+# runtime gain at all.
+#
+# `-g0` is load-bearing, not tidiness. PHP's configure puts `-g` in CFLAGS, so
+# every object carried DWARF into the link and the shipped wasm was two thirds
+# debug info: 35.3 MB where 12.0 MB is the code. Worse, emcc says so and gives
+# up — "running limited binaryen optimizations because DWARF info requested" —
+# because the post-link optimizer cannot keep line tables honest across the
+# transforms it wants to make. So the debug info was costing size twice: its own
+# bulk, and the optimization it suppressed. It is also the figure that gates the
+# demo, since gzipped is what a first-time visitor downloads.
+#
+# `ENVIRONMENT` drops the runtime detection for targets this build has no story
+# for. `node` stays: the suite and CI run there, and a build nobody can test is
+# the one thing worse than a slightly larger one.
+EMCC_FLAGS="${EMCC_FLAGS:--O2 -g0 -s MODULARIZE=1 -s EXPORT_NAME='Phasm' -s ENVIRONMENT=web,worker,node -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1}"
 
 # The embedding ABI, appended AFTER any override rather than living inside it:
 # a build without phasm_run and the glue that marshals into it is not a phasm

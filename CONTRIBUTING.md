@@ -136,12 +136,18 @@ See `scripts/env.sh` for the full list:
 | `LIBICONV_VERSION`     | `1.19`                           | libiconv version            |
 | `SQLITE_AMALG_VERSION` | `3530400`                        | SQLite amalgamation version |
 | `ONIGURUMA_VERSION`    | `6.9.10`                         | Oniguruma version           |
-| `EMCC_FLAGS`           | `-O2 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags    |
+| `EMCC_FLAGS`           | `-O2 -g0 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags |
 
 Overriding `EMCC_FLAGS` replaces the codegen defaults only. The flags that
-make the artifact a phasm build — the exported entry points and the two JS
-halves — are appended afterwards and cannot be dropped by an override, because
-a module without them has no `run()` to call.
+make the artifact a phasm build — the exported entry points, the two JS halves
+and `INVOKE_RUN=0` — are appended afterwards and cannot be dropped by an
+override, because a module without them has no `run()` to call.
+
+`-g0` is in the defaults for size, not tidiness: PHP's own configure puts `-g`
+in `CFLAGS`, and the DWARF that produces was two thirds of the shipped wasm —
+and made emcc skip its post-link optimizations on top ("running limited
+binaryen optimizations because DWARF info requested"). Drop it back in with
+`EMCC_FLAGS="-O0 -g ..."` when you need to debug the C.
 
 The halves are not interchangeable. `src/phasm-stdio.js` goes in with
 `--pre-js`, which lands before the runtime starts: the only moment fd 0, 1 and
