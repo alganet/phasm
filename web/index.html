@@ -152,8 +152,8 @@ echo 'Hello World!' . PHP_EOL;
 					// One instance for the whole page. run() enters the phasm
 					// SAPI, which runs a full request per call without ever
 					// exiting the process, so nothing leaks between runs and the
-					// 34 MiB module is instantiated once rather than per click.
-					const php = await Phasm({ noInitialRun: true });
+					// module is instantiated once rather than per click.
+					const php = await Phasm();
 
 					const vendorRes = await fetch('assets/vendor.zip');
 					if (!vendorRes.ok) throw new Error('Failed to fetch vendor.zip: ' + vendorRes.status);

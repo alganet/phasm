@@ -59,6 +59,19 @@ describe('run()', opts, () => {
 
     assert.deepEqual(php.run({ code: 'echo "second";' }).stdout, 'second');
   });
+
+  // A module that runs main() by itself has spent the one entry point that ends
+  // in exit() before the embedder has a reference to it, and every run() after
+  // that refuses. That used to be what `await Phasm()` produced, and the cure
+  // was a `noInitialRun` flag the caller had to know to pass. INVOKE_RUN=0 in
+  // the link is the cure that needs nothing from the caller — so what is
+  // asserted here is that the plainest possible embedding works at all.
+  test('runs on a module created with no options at all', async () => {
+    const php = await freshModule();
+
+    assert.equal(php.run({ code: 'echo 6 * 7;' }).stdout, '42');
+    assert.equal(php.run({ code: 'echo "again";' }).stdout, 'again');
+  });
 });
 
 // ─── what to run ─────────────────────────────────────────────────────────────
@@ -347,16 +360,6 @@ describe('phasmCapture()', opts, () => {
     assert.throws(() => php.run({ code: 'echo 1;' }), /standard streams were claimed/);
   });
 
-  // An automatic initial run goes through Emscripten's own internal callMain,
-  // which never consults Module.callMain — so the wrapper that refuses the
-  // explicit route cannot see this one, and the module it leaves behind is
-  // exactly the spent instance the SAPI exists to avoid.
-  test('refuses on a module that ran main() at startup by itself', async () => {
-    const php = await freshModule({ noInitialRun: false, arguments: ['-r', 'echo 1;'] });
-
-    assert.throws(() => php.run({ code: 'echo 2;' }), /mutually exclusive/);
-    assert.throws(() => php.run({ code: 'echo 2;' }), /without noInitialRun/);
-  });
 });
 
 // ─── holding on to output ────────────────────────────────────────────────────

@@ -89,7 +89,7 @@ export interface MountOptions {
  *
  * ```ts
  * const store = memoryFs({ '/app/index.php': '<?php echo "hi";' });
- * const php = await Phasm({ noInitialRun: true });
+ * const php = await Phasm();
  * await mountStore(php, store, { path: '/app' });
  *
  * php.run({ args: ['/app/index.php'] }).stdout;   // 'hi'

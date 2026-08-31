@@ -51,10 +51,16 @@ async function loadFactory() {
 /**
  * A brand-new instance. `options` reaches the factory untouched, which is how
  * the tests about the module's own stdio get a module wired their way.
+ *
+ * Nothing is passed by default, and that is deliberate: the build links with
+ * INVOKE_RUN=0, so a module makes no run of its own and the whole suite is
+ * driving the same plain `Phasm()` a reader of the README would write. It used
+ * to pass `noInitialRun: true` here, which meant the one shape nobody tested
+ * was the default one — and that shape was broken.
  */
 export async function freshModule(options) {
   const Phasm = await loadFactory();
-  return Phasm({ noInitialRun: true, ...options });
+  return Phasm({ ...options });
 }
 
 let shared;
