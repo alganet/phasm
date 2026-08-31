@@ -11,7 +11,7 @@
  * import { memoryFs } from 'wasi-sh/fs';
  *
  * const store = memoryFs({ '/app/index.php': '<?php echo "hi";' });
- * const php = await Phasm({ noInitialRun: true });
+ * const php = await Phasm();
  * await mountStore(php, store, { path: '/app' });
  *
  * php.run({ args: ['/app/index.php'] }).stdout;   // 'hi'
@@ -107,7 +107,7 @@ let mountSeq = 0;
 /**
  * Mount `store` into `php`'s filesystem.
  *
- * @param {object} php a module from `Phasm({ noInitialRun: true })`
+ * @param {object} php a module from `Phasm()`
  * @param {object} store a synchronous store in wasi-sh's `fs` contract shape
  * @param {object} options
  * @param {string} options.path where the store appears in PHP's filesystem;

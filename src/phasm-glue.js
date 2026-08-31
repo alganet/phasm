@@ -300,33 +300,23 @@ if (phasmCallMain) {
   };
 }
 
-/**
- * Has this module run the CLI's main(), by either route?
- *
- * The wrapper above only sees the explicit route. A module built without
- * `noInitialRun` runs main() by itself at startup — through Emscripten's own
- * internal callMain, which never consults Module.callMain — so the wrapper is
- * blind to exactly the case an embedder does not realise it asked for. Read
- * rather than latched, because with a `setStatus` handler that automatic run is
- * deferred past this file.
- */
-function phasmDidCallMain() {
-  return phasmCallMainCalled || (!!Module['calledRun'] && !Module['noInitialRun']);
-}
-
 // The same refusal in the other direction. The C side already declines — it
 // checks sapi_module.name and gives up — but it can only report that as an
 // ordinary failure status, and 255 from phasmRun() is indistinguishable from
 // `php -l` on a parse error while 500 from a request is indistinguishable from
 // a fatal. Silently returning "something went wrong" for a mistake this
 // structural is the one case worth an exception.
+//
+// The wrapper above is the whole answer because it is the only route: the build
+// links with INVOKE_RUN=0 (see scripts/env.sh), so nothing calls main() unless
+// an embedder asks for it by name. That flag is what made `await Phasm()` with
+// no options a working instance instead of one that had already spent its main()
+// before the caller got it.
 function phasmRefuseAfterCallMain(what) {
-  if (!phasmDidCallMain()) return;
+  if (!phasmCallMainCalled) return;
 
   throw new Error(
     `phasm: ${what} and callMain() are mutually exclusive, and this module has `
-    + 'already run callMain()'
-    + (phasmCallMainCalled ? '' : ' — it was built without noInitialRun, so it ran main() at startup')
-    + '. Create a new module.',
+    + 'already run callMain(). Create a new module.',
   );
 }

@@ -26,7 +26,7 @@ what the binary actually links, so it cannot drift again.
 ```js
 import Phasm from "@alganet/phasm";
 
-const php = await Phasm({ noInitialRun: true });
+const php = await Phasm();
 
 const { stdout, stderr, exitCode } = php.run({
   script: `<?php echo "Hello from PHP!\\n";`,
@@ -39,7 +39,7 @@ const { stdout, stderr, exitCode } = php.run({
 <script src="https://unpkg.com/@alganet/phasm/dist/php.js"></script>
 <pre id="output"></pre>
 <script>
-  Phasm({ noInitialRun: true }).then((php) => {
+  Phasm().then((php) => {
     const { stdout } = php.run({ code: 'echo "Hello from PHP!";' });
     document.getElementById("output").textContent = stdout;
   });
@@ -56,7 +56,7 @@ declared, no `@types` package needed. The subpaths carry their own: `Store` and
 ```ts
 import Phasm, { type PhasmModule, type PhasmRunResult } from "@alganet/phasm";
 
-const php: PhasmModule = await Phasm({ noInitialRun: true });
+const php: PhasmModule = await Phasm();
 const result: PhasmRunResult = php.run({ code: "echo 1;" });
 ```
 
@@ -112,8 +112,7 @@ options and returns a promise that resolves to the initialized module:
 
 | Option           | Description                                             |
 |------------------|---------------------------------------------------------|
-| `noInitialRun`   | Set `true` to prevent automatic execution on load.      |
-| `arguments`      | Array of CLI arguments (e.g. `["script.php"]`).         |
+| `arguments`      | Default CLI arguments for a bare `callMain()`.          |
 | `print(text)`    | Callback for stdout produced outside `run()`.           |
 | `printErr(text)` | Callback for stderr produced outside `run()`.           |
 | `stdin()`        | Callback to provide stdin input. Return `null` for EOF. |
@@ -223,7 +222,7 @@ import { mountStore } from "@alganet/phasm/mount";
 import { memoryFs } from "wasi-sh/fs";
 
 const store = memoryFs({ "/app/index.php": '<?php echo "hi";' });
-const php = await Phasm({ noInitialRun: true });
+const php = await Phasm();
 await mountStore(php, store, { path: "/app" });
 
 php.run({ args: ["/app/index.php"] }).stdout; // 'hi'

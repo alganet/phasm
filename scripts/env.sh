@@ -70,5 +70,11 @@ EMCC_FLAGS="${EMCC_FLAGS:--O2 -s MODULARIZE=1 -s EXPORT_NAME='Phasm' -s ALLOW_ME
 # starts, which is the only moment the standard streams can still be claimed;
 # --post-js lands after it, which is the only moment the exported functions
 # exist. src/phasm-stdio.js needs the first and src/phasm-glue.js the second.
-EMCC_ABI_FLAGS="-s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8','UTF8ToString','HEAPU8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_phasm_is_started','_phasm_handle_request','_phasm_response_status','_phasm_response_headers','_phasm_response_body','_phasm_response_body_length','_malloc','_free'] --pre-js ${ROOT_DIR}/src/phasm-stdio.js --post-js ${ROOT_DIR}/src/phasm-glue.js"
+#
+# INVOKE_RUN=0 belongs here for the same reason phasm_run does. A module that
+# runs main() on its own has spent the one entry point that ends in exit(), and
+# every phasmRun() afterwards refuses — so `await Phasm()` with no options used
+# to produce an instance that could not run PHP, and the fix was a `noInitialRun`
+# flag the embedder had to know to pass. The build knows.
+EMCC_ABI_FLAGS="-s INVOKE_RUN=0 -s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8','UTF8ToString','HEAPU8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_phasm_is_started','_phasm_handle_request','_phasm_response_status','_phasm_response_headers','_phasm_response_body','_phasm_response_body_length','_malloc','_free'] --pre-js ${ROOT_DIR}/src/phasm-stdio.js --post-js ${ROOT_DIR}/src/phasm-glue.js"
 EMCC_FLAGS="${EMCC_FLAGS} ${EMCC_ABI_FLAGS}"

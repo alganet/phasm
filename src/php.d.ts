@@ -8,10 +8,9 @@
  * here. Anything else you pass is forwarded to the Emscripten module untouched.
  */
 export interface PhasmOptions {
-  /** Set true to prevent automatic execution on load, then use phasmRun(). */
-  noInitialRun?: boolean;
-  /** CLI arguments for the automatic run, e.g. ["script.php"]. Ignored when
-   *  noInitialRun is set — pass arguments to phasmRun() instead. */
+  /** Default arguments for a bare `callMain()`. There is no automatic run to
+   *  configure: the module is built with INVOKE_RUN=0, so a fresh instance has
+   *  spent nothing and `run()` is what invokes PHP. */
   arguments?: string[];
   /** Called once per line of stdout, for output produced outside `run()`. */
   print?: (text: string) => void;
@@ -230,7 +229,7 @@ export interface PhasmModule {
  * Create and initialize a PHP module.
  *
  * ```js
- * const php = await Phasm({ noInitialRun: true });
+ * const php = await Phasm();
  * const { stdout } = php.run({ script: '<?php echo "hi";' });
  * ```
  */
