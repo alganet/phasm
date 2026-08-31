@@ -113,7 +113,11 @@ export async function php(args, opts = {}) {
     mod.FS.writeFile(path, content);
   }
 
-  const exitCode = mod.phasmRun(args, { cwd: opts.cwd, env: opts.env });
+  // The legacy one-shot path, for the tests that are about it. It ends in
+  // exit(), so the instance is spent afterwards — hence `fresh`.
+  const exitCode = opts.viaCallMain
+    ? mod.callMain(args)
+    : mod.phasmRun(args, { cwd: opts.cwd, env: opts.env });
 
   const dec = new TextDecoder();
   return {
