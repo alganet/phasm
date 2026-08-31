@@ -65,9 +65,18 @@ export async function freshModule(options) {
 
 let shared;
 
-/** The instance the whole suite shares. Exposed for tests that measure it. */
-export async function sharedModule() {
-  if (!shared) shared = await freshModule();
+/**
+ * The instance the whole suite shares. Exposed for tests that measure it.
+ *
+ * The promise is cached, not the module. Awaiting first and assigning after
+ * meant two concurrent callers each got past the guard and booted one — and the
+ * suite does run `serve()` under Promise.all, so a fan-out that landed before
+ * the first boot finished would have split the suite across instances. Every
+ * test that asserts something about accumulated state on the shared module
+ * would then have passed by not being tested.
+ */
+export function sharedModule() {
+  if (!shared) shared = freshModule();
   return shared;
 }
 
