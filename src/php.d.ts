@@ -55,6 +55,36 @@ export interface PhasmRunOptions {
   env?: Record<string, string>;
 }
 
+/** One HTTP request for `phasmHandleRequest()`. */
+export interface PhasmRequest {
+  /** Request target, path and query string — e.g. `/blog/?page=2`. */
+  url: string;
+  /** Defaults to `"GET"`. */
+  method?: string;
+  /** Request headers. `Cookie` and `Content-Type` are handed to PHP directly;
+   *  the rest arrive as `$_SERVER['HTTP_*']`. */
+  headers?: Record<string, string>;
+  /** Request body. Drives `$_POST`, `php://input` and `$_FILES`. */
+  body?: Uint8Array;
+  /** Directory the path is resolved against. Defaults to `"/"`. */
+  docroot?: string;
+  /** Environment for this request only, as with `phasmRun()`. */
+  env?: Record<string, string>;
+}
+
+/** What PHP produced for a `PhasmRequest`. */
+export interface PhasmResponse {
+  /** The HTTP status, or `0` when the path is not a PHP script — a decline,
+   *  not an error: serve that file from the filesystem yourself. */
+  status: number;
+  /** Response headers as `[name, value]` pairs, repeats included — HTTP headers
+   *  are not a map, and `Set-Cookie` legitimately appears more than once.
+   *  `new Headers(res.headers)` accepts this shape directly. */
+  headers: [string, string][];
+  /** The body as bytes, so binary responses survive. */
+  body: Uint8Array;
+}
+
 /** The initialized module `Phasm()` resolves to. */
 export interface PhasmModule {
   /**
@@ -75,6 +105,21 @@ export interface PhasmModule {
    * calling convention is NUL-delimited, so it would arrive truncated.
    */
   phasmRun(args: string[], opts?: PhasmRunOptions): number;
+  /**
+   * Handle one HTTP request and return the response.
+   *
+   * A full PHP request cycle, not a command with superglobals filled in after
+   * the fact — so `header()`, `http_response_code()`, `$_GET`, `$_POST`,
+   * `$_COOKIE`, `php://input` and `$_FILES` all behave as they do under any
+   * other web SAPI, because PHP's own machinery produces them.
+   *
+   * The shape is the web platform's on purpose: a service worker can pass a
+   * `Request` almost straight in and build a `Response` almost straight out.
+   *
+   * Shares the instance with `phasmRun()` — commands and requests interleave
+   * freely on one warm module and one filesystem.
+   */
+  phasmHandleRequest(req: PhasmRequest): PhasmResponse;
   /**
    * Start PHP explicitly with ini settings that apply for the life of the
    * instance, as newline-separated `name=value` lines. `phasmRun()` starts PHP

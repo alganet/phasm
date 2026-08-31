@@ -96,6 +96,54 @@ warm call ~1 ms, so reuse the instance.
 which ends in `exit()`. Pick one entry point per module; they cannot be mixed,
 and each refuses the call rather than leaving you with a dead instance.
 
+## Serving HTTP
+
+`phasmHandleRequest()` runs a real PHP request rather than a command, so
+`header()`, status codes and the superglobals work as they do under any other
+web SAPI — because PHP's own request machinery produces them, rather than them
+being filled in afterwards:
+
+```js
+const res = php.phasmHandleRequest({
+  method: "POST",
+  url: "/blog/?page=2",
+  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  body: new TextEncoder().encode("title=hello"),
+  docroot: "/site",
+});
+// { status, headers, body } — body is bytes, so images survive
+```
+
+The path resolves under `docroot`, a directory resolves to its `index.php`, and
+a missing one is a 404. A status of **0** means the path is not a PHP script:
+that is a decline rather than an error, and the caller should serve the file
+itself — PHP has no business deciding that a `.css` file is `text/css`.
+
+Resolution stops there: the path names a script or it does not. There is no
+`PATH_INFO` split and no front-controller rewrite, so `/users/1` is a 404 rather
+than `/index.php` with `PATH_INFO=/users/1`. That is the caller's decision to
+make, the same way declining a `.css` file is — a framework that wants every
+request to reach one script asks for it directly:
+
+```js
+let res = php.phasmHandleRequest({ url, docroot: "/site" });
+if (res.status === 404) {
+  res = php.phasmHandleRequest({ url: `/index.php?${query}`, docroot: "/site" });
+}
+```
+
+The shape is the web platform's on purpose, so a service worker can pass a
+`Request` almost straight in and build a `Response` almost straight out —
+`headers` comes back as `[name, value]` pairs, which `new Headers()` accepts and
+which keeps repeated `Set-Cookie` headers intact. Requests and `phasmRun()`
+commands share one instance and one filesystem.
+
+One inherited default worth knowing: phasm takes the CLI's `output_buffering=0`,
+so the headers are committed as soon as a script echoes anything, and a
+`register_shutdown_function()` that calls `header()` after that is too late.
+Pass `phasmStartup("output_buffering=4096")` before the first call for the
+behaviour php-fpm gives you.
+
 ## Virtual Filesystem
 
 Phasm uses Emscripten's virtual filesystem. Write PHP files before calling

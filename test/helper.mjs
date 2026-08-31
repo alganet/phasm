@@ -130,7 +130,52 @@ export async function evalPhp(code, opts) {
   return php(['-r', code], opts);
 }
 
-function mkdirp(FS, dir) {
+/**
+ * Handle one HTTP request on the shared instance.
+ *
+ * `body` may be a string for convenience; the module takes bytes either way.
+ * `text` is the decoded body, alongside the raw `body` — most assertions want
+ * the former and the ones about binary responses need the latter.
+ *
+ * The module returns headers as pairs because HTTP headers repeat; `headers` is
+ * those pairs in a `Headers`, which is what a service worker would build anyway
+ * and what makes `getSetCookie()` available. `rawHeaders` keeps the pairs for
+ * the tests that need to see exactly what came back.
+ *
+ * @param {{url: string, method?: string, headers?: Record<string,string>,
+ *          body?: string|Uint8Array, docroot?: string,
+ *          env?: Record<string,string>, fresh?: boolean}} req
+ * @returns {Promise<{status: number, headers: Headers,
+ *                    rawHeaders: [string,string][], body: Uint8Array, text: string}>}
+ */
+export async function serve(req) {
+  const mod = req.fresh ? await makeModule() : await sharedModule();
+  const body = typeof req.body === 'string' ? new TextEncoder().encode(req.body) : req.body;
+
+  if (req.ini) {
+    const rc = mod.phasmStartup(req.ini);
+    if (rc !== 0) throw new Error(`phasmStartup(${JSON.stringify(req.ini)}) returned ${rc}`);
+  }
+
+  // A fresh instance has a fresh filesystem, so anything it must serve has to
+  // be written into it rather than into the one the suite shares.
+  for (const [path, content] of Object.entries(req.files || {})) {
+    const slash = path.lastIndexOf('/');
+    if (slash > 0) mkdirp(mod.FS, path.slice(0, slash));
+    mod.FS.writeFile(path, content);
+  }
+
+  const res = mod.phasmHandleRequest({ ...req, body });
+  return {
+    status: res.status,
+    headers: new Headers(res.headers),
+    rawHeaders: res.headers,
+    body: res.body,
+    text: new TextDecoder().decode(res.body),
+  };
+}
+
+export function mkdirp(FS, dir) {
   const parts = dir.split('/').filter(Boolean);
   let cur = '';
   for (const p of parts) {

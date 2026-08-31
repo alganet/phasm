@@ -48,6 +48,11 @@ or a changed `configure` flag can quietly break.
 `sapi/phasm` exists to provide — 200 calls on one instance, per-call exit codes,
 errors on stderr, per-call cwd and env, and no state carried between calls.
 
+`test/server.test.mjs` covers server mode — routing, `header()`, status codes
+and the superglobals. Those tests are mostly about proving PHP's own request
+machinery is doing the work, since the alternative to a real request cycle is
+faking `$_SERVER` and hoping.
+
 The whole suite shares ONE module instance (`test/helper.mjs`), which is itself
 the regression test: through the stock CLI's `main()` the same suite would latch
 its exit status on the first non-zero one and stop working entirely at call
