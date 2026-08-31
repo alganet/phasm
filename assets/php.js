@@ -259,7 +259,7 @@ function updateMemoryViews() {
   var b = wasmMemory.buffer;
   HEAP8 = new Int8Array(b);
   HEAP16 = new Int16Array(b);
-  HEAPU8 = new Uint8Array(b);
+  Module['HEAPU8'] = HEAPU8 = new Uint8Array(b);
   HEAPU16 = new Uint16Array(b);
   HEAP32 = new Int32Array(b);
   HEAPU32 = new Uint32Array(b);
@@ -6338,6 +6338,7 @@ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
 
 
 
+
   FS.createPreloadedFile = FS_createPreloadedFile;
   FS.preloadFile = FS_preloadFile;
   FS.staticInit();;
@@ -6370,6 +6371,7 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
 
 // Begin runtime exports
   Module['callMain'] = callMain;
+  Module['UTF8ToString'] = UTF8ToString;
   Module['stringToNewUTF8'] = stringToNewUTF8;
   Module['FS'] = FS;
   // End runtime exports
@@ -10368,6 +10370,11 @@ var _php_time,
   _phasm_startup,
   _phasm_run,
   _phasm_is_started,
+  _phasm_handle_request,
+  _phasm_response_status,
+  _phasm_response_headers,
+  _phasm_response_body,
+  _phasm_response_body_length,
   _locale_charset,
   _libiconv_open_into,
   _libiconvctl,
@@ -15016,6 +15023,11 @@ function assignWasmExports(wasmExports) {
   _phasm_startup = Module['_phasm_startup'] = wasmExports['phasm_startup'];
   _phasm_run = Module['_phasm_run'] = wasmExports['phasm_run'];
   _phasm_is_started = Module['_phasm_is_started'] = wasmExports['phasm_is_started'];
+  _phasm_handle_request = Module['_phasm_handle_request'] = wasmExports['phasm_handle_request'];
+  _phasm_response_status = Module['_phasm_response_status'] = wasmExports['phasm_response_status'];
+  _phasm_response_headers = Module['_phasm_response_headers'] = wasmExports['phasm_response_headers'];
+  _phasm_response_body = Module['_phasm_response_body'] = wasmExports['phasm_response_body'];
+  _phasm_response_body_length = Module['_phasm_response_body_length'] = wasmExports['phasm_response_body_length'];
   _locale_charset = Module['_locale_charset'] = wasmExports['locale_charset'];
   _libiconv_open_into = Module['_libiconv_open_into'] = wasmExports['libiconv_open_into'];
   _libiconvctl = Module['_libiconvctl'] = wasmExports['libiconvctl'];
@@ -16230,6 +16242,90 @@ Module['phasmRun'] = function (args, opts) {
 };
 
 /**
+ * Handle one HTTP request and return the response.
+ *
+ * The shape is deliberately the web platform's, so a service worker can pass
+ * `request.method`, `request.url`'s path and `request.headers` straight in and
+ * build a `Response` straight out.
+ *
+ * `body` is bytes, and so is the body that comes back: a response is as likely
+ * to be a PNG as a page, and a round trip through a string would corrupt it.
+ *
+ * A status of 0 means the path resolved to something that is not a PHP script.
+ * That is a decline, not an error — serve it from the filesystem yourself.
+ * Deciding that a `.css` file is `text/css` is the embedder's job, not PHP's.
+ *
+ * Response headers come back as [name, value] pairs, repeats included.
+ *
+ * @param {{method?: string, url: string, headers?: Record<string, string>,
+ *          body?: Uint8Array, docroot?: string, env?: Record<string, string>}} req
+ * @returns {{status: number, headers: [string, string][], body: Uint8Array}}
+ */
+Module['phasmHandleRequest'] = function (req) {
+  const method = String(req.method || 'GET');
+  const url = String(req.url);
+  const docroot = String(req.docroot || '/');
+  const headers = Object.entries(req.headers || {}).map(([k, v]) => `${k}: ${v}`);
+  const env = Object.entries(req.env || {}).map(([k, v]) => `${k}=${v}`);
+
+  phasmRejectNuls([method, url, docroot], 'the request');
+  phasmRejectNuls(headers, 'a header');
+  phasmRejectNuls(env, 'an environment entry');
+
+  const methodPtr = stringToNewUTF8(method);
+  const urlPtr = stringToNewUTF8(url);
+  const docrootPtr = stringToNewUTF8(docroot);
+  const headersPtr = phasmPackStrings(headers);
+  const envPtr = phasmPackStrings(env);
+
+  // The body is copied into the module's heap because PHP reads it during the
+  // request, and a JS-side view could be detached by a heap growth mid-call.
+  const bodyBytes = req.body || new Uint8Array(0);
+  const bodyPtr = bodyBytes.length ? _malloc(bodyBytes.length) : 0;
+  if (bodyPtr) HEAPU8.set(bodyBytes, bodyPtr);
+
+  let status;
+  try {
+    status = _phasm_handle_request(
+      methodPtr, urlPtr, headersPtr, headers.length,
+      bodyPtr, bodyBytes.length, docrootPtr, envPtr, env.length,
+    );
+  } finally {
+    _free(methodPtr);
+    _free(urlPtr);
+    _free(docrootPtr);
+    if (headersPtr) _free(headersPtr);
+    if (envPtr) _free(envPtr);
+    if (bodyPtr) _free(bodyPtr);
+  }
+
+  // Copied out for the same reason the body was copied in: these point into the
+  // module's heap and the next call frees them.
+  const len = _phasm_response_body_length();
+  const ptr = _phasm_response_body();
+  const body = len > 0 && ptr
+    ? new Uint8Array(HEAPU8.subarray(ptr, ptr + len))
+    : new Uint8Array(0);
+
+  // Pairs rather than an object, because HTTP headers are not a map: Set-Cookie
+  // legitimately repeats, and neither collapsing choice survives it. Keeping the
+  // last one loses cookies; joining with ", " produces a single header a browser
+  // reads as one cookie whose value contains the rest — and it cannot be split
+  // back out, because an Expires date has a comma in it. `new Headers(pairs)`
+  // takes this shape directly, which is where a service worker is going anyway.
+  const sent = [];
+  const raw = UTF8ToString(_phasm_response_headers());
+  for (const line of raw.split('\n')) {
+    const colon = line.indexOf(':');
+    if (colon > 0) {
+      sent.push([line.slice(0, colon).trim(), line.slice(colon + 1).trim()]);
+    }
+  }
+
+  return { status, headers: sent, body };
+};
+
+/**
  * Start PHP explicitly, with optional ini settings for the life of the
  * instance. phasmRun() does this on first use with no settings, so this is only
  * needed to pass ini — per-call `-d` is not supported on this path.
@@ -16264,6 +16360,7 @@ if (phasmCallMain) {
     return phasmCallMain.apply(this, arguments);
   };
 }
+
 // end include: /home/runner/work/phasm/phasm/src/phasm-glue.js
 
 // include: postamble_modularize.js
