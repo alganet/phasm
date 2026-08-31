@@ -137,11 +137,13 @@ See `scripts/env.sh` for the full list:
 | `SQLITE_AMALG_VERSION` | `3530400`                        | SQLite amalgamation version |
 | `ONIGURUMA_VERSION`    | `6.9.10`                         | Oniguruma version           |
 | `EMCC_FLAGS`           | `-O2 -g0 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags |
+| `PHASM_STACK_SIZE`     | `4MB`                            | C stack for the module      |
 
 Overriding `EMCC_FLAGS` replaces the codegen defaults only. The flags that
-make the artifact a phasm build — the exported entry points, the two JS halves
-and `INVOKE_RUN=0` — are appended afterwards and cannot be dropped by an
-override, because a module without them has no `run()` to call.
+make the artifact a phasm build — the exported entry points, the two JS halves,
+`INVOKE_RUN=0` and the stack size — are appended afterwards and cannot be
+dropped by an override, because a module without them has no `run()` to call or
+no first call to make.
 
 `-g0` is in the defaults for size, not tidiness: PHP's own configure puts `-g`
 in `CFLAGS`, and the DWARF that produces was two thirds of the shipped wasm —
