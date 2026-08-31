@@ -49,7 +49,14 @@ if test "$PHP_PHASM" != "no"; then
     [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1],
     [PHP_PHASM_OBJS])
 
-  BUILD_PHASM="\$(LIBTOOL) --tag=CC --mode=link \$(CC) -export-dynamic \$(CFLAGS_CLEAN) \$(EXTRA_CFLAGS) \$(EXTRA_LDFLAGS_PROGRAM) \$(LDFLAGS) \$(PHP_RPATHS) \$(PHP_GLOBAL_OBJS:.lo=.o) \$(PHP_BINARY_OBJS:.lo=.o) \$(PHP_PHASM_OBJS:.lo=.o) \$(EXTRA_LIBS) \$(ZEND_EXTRA_LIBS) -o \$(SAPI_PHASM_PATH)"
+  dnl No -export-dynamic, which sapi/cli's equivalent line does carry. It is
+  dnl there so a dynamically loaded Zend extension can resolve PHPAPI symbols
+  dnl against the running binary — a thing that cannot happen here, since
+  dnl nothing dlopens anything into a wasm module. What it does instead is tell
+  dnl wasm-ld to export every non-hidden symbol, which costs twice: ~6,000
+  dnl symbols are pinned as roots so the linker cannot drop the code behind
+  dnl them, and Emscripten then emits a JS assignment per export.
+  BUILD_PHASM="\$(LIBTOOL) --tag=CC --mode=link \$(CC) \$(CFLAGS_CLEAN) \$(EXTRA_CFLAGS) \$(EXTRA_LDFLAGS_PROGRAM) \$(LDFLAGS) \$(PHP_RPATHS) \$(PHP_GLOBAL_OBJS:.lo=.o) \$(PHP_BINARY_OBJS:.lo=.o) \$(PHP_PHASM_OBJS:.lo=.o) \$(EXTRA_LIBS) \$(ZEND_EXTRA_LIBS) -o \$(SAPI_PHASM_PATH)"
 
   PHP_SUBST([SAPI_PHASM_PATH])
   PHP_SUBST([BUILD_PHASM])
