@@ -18,7 +18,7 @@
 
 import { test, before, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { php, evalPhp, sharedModule, haveBuild, NO_BUILD_MSG } from './helper.mjs';
+import { php, evalPhp, sharedModule, freshModule, haveBuild, NO_BUILD_MSG } from './helper.mjs';
 
 const SKIP = !haveBuild();
 before((t) => { if (SKIP) t.diagnostic(NO_BUILD_MSG); });
@@ -374,6 +374,177 @@ describe('isolation', opts, () => {
     await evalPhp('ob_start(); echo "buffered";');
     const r = await evalPhp('echo "clean";');
     assert.equal(r.stdout, 'clean');
+  });
+});
+
+// ─── surviving a wasm trap ───────────────────────────────────────────────────
+
+/**
+ * A script that traps rather than failing.
+ *
+ * Deep recursion is the only way ordinary PHP reaches one: the limit it hits is
+ * the *JS engine's* wasm frame stack, which no emcc flag sizes and which
+ * ZEND_CHECK_STACK_LIMIT cannot guard here — configure decides that one by
+ * running a probe, and a cross build cannot run one. So there is no "maximum
+ * function nesting level" fatal to produce; the call simply stops existing.
+ * json_encode() over a few thousand levels is the cheapest way there.
+ *
+ * The depth is far past the cliff on purpose. It is not a number to tune: a
+ * value that only just trapped would start passing the day a build got faster
+ * or an engine grew its budget, and the test would go green while testing
+ * nothing.
+ */
+const TRAPPING_SCRIPT =
+  '$a = []; for ($i = 0; $i < 20000; $i++) { $a = [$a]; }'
+  + ' echo strlen(json_encode($a, 0, 100000));';
+
+describe('surviving a trap', opts, () => {
+  /** Run the trapping script and assert it really did trap. */
+  function trap(mod) {
+    assert.throws(
+      () => mod.run({ code: TRAPPING_SCRIPT }),
+      RangeError,
+      'the script was supposed to exhaust the engine\'s wasm frame stack',
+    );
+  }
+
+  // The one this exists for. A trap destroys the guest's frames and resumes in
+  // JS, so php_request_shutdown() never runs — and the abandoned request's
+  // constants are still registered when the next one starts. Left alone the
+  // instance keeps working while printing "Constant PHP_CLI_PROCESS_TITLE
+  // already defined" on stderr for every later call, which for a shell builtin
+  // means one bad script costs the whole session.
+  test('the next call is clean, not merely alive', async () => {
+    const mod = await freshModule();
+    mod.run({ code: 'echo "warm";' });
+
+    trap(mod);
+
+    const after = mod.run({ code: 'echo "alive";' });
+    assert.equal(after.stdout, 'alive');
+    assert.equal(after.exitCode, 0);
+    assert.equal(after.stderr, '', 'the abandoned request left warnings behind');
+  });
+
+  test('and stays clean, call after call', async () => {
+    const mod = await freshModule();
+    trap(mod);
+
+    for (let i = 0; i < 10; i++) {
+      const r = mod.run({ code: 'echo "ok";' });
+      assert.equal(r.stderr, '', `call ${i + 1} after the trap`);
+    }
+  });
+
+  test('repeated traps do not accumulate', async () => {
+    const mod = await freshModule();
+
+    for (let i = 0; i < 5; i++) {
+      trap(mod);
+      const r = mod.run({ code: 'echo "ok";' });
+      assert.equal(r.stdout, 'ok', `after trap ${i + 1}`);
+      assert.equal(r.stderr, '', `after trap ${i + 1}`);
+    }
+  });
+
+  // The C stack pointer is a wasm global lowered on entry and raised on return,
+  // so a trap — which skips every return — strands it. Nothing reports that:
+  // this build has no STACK_OVERFLOW_CHECK, so the leak is silent until the
+  // stack runs out thousands of traps later and the module starts overwriting
+  // itself. Asserting the pointer directly is the only way to see it while it
+  // is still a bug rather than a corruption.
+  test('a trapped call gives the C stack back', async () => {
+    const mod = await freshModule();
+    mod.run({ code: 'echo "warm";' });
+
+    const idle = mod.phasmStackPointer();
+    assert.ok(idle > 0, 'expected a stack pointer to compare against');
+
+    for (let i = 1; i <= 5; i++) {
+      trap(mod);
+      assert.equal(
+        mod.phasmStackPointer(), idle,
+        `the C stack pointer did not come back after trap ${i}`,
+      );
+    }
+
+    mod.run({ code: 'echo "ok";' });
+    assert.equal(mod.phasmStackPointer(), idle, 'an ordinary call after the traps moved it');
+  });
+
+  test('the exit status is still per call afterwards', async () => {
+    const mod = await freshModule();
+    trap(mod);
+
+    assert.equal(mod.run({ code: 'exit(3);' }).exitCode, 3);
+    assert.equal(mod.run({ code: 'echo "x";' }).exitCode, 0);
+  });
+
+  // The epilogue a normal call runs at its end has no end to run at here, so
+  // everything in it has to be reachable from the recovery path too. These are
+  // the three that are observable.
+  test('a trapped call leaks no descriptors', async () => {
+    const mod = await freshModule();
+    mod.run({ code: 'echo "warm";' });
+    const before = mod.FS.streams.filter(Boolean).length;
+
+    for (let i = 0; i < 3; i++) trap(mod);
+
+    assert.equal(mod.FS.streams.filter(Boolean).length, before);
+  });
+
+  test('a trapped call does not leave its cwd behind', async () => {
+    const mod = await freshModule();
+    mod.FS.mkdir('/work');
+
+    assert.throws(() => mod.run({ code: TRAPPING_SCRIPT, cwd: '/work' }), RangeError);
+
+    assert.equal(mod.run({ code: 'echo getcwd();' }).stdout, '/');
+  });
+
+  test('a trapped call does not leave its environment behind', async () => {
+    const mod = await freshModule();
+
+    assert.throws(
+      () => mod.run({ code: TRAPPING_SCRIPT, env: { PHASM_TRAP: 'yes' } }),
+      RangeError,
+    );
+
+    assert.equal(mod.run({ code: 'var_export(getenv("PHASM_TRAP"));' }).stdout, 'false');
+  });
+
+  // The one case where finishing the abandoned request is worse than refusing
+  // to. A trap inside php_request_shutdown() — reachable, because that is where
+  // register_shutdown_function() callbacks and __destruct() run — cannot be
+  // recovered by running the shutdown again: it would re-run those callbacks
+  // and destructors against a request that is already half torn down. So the
+  // instance is declared spent, and every entry point says which it is instead
+  // of failing somewhere less obvious.
+  test("a trap inside PHP's own shutdown spends the instance, and says so", async () => {
+    const mod = await freshModule();
+    mod.run({ code: 'echo "warm";' });
+
+    // The script itself finishes; the callback traps during shutdown.
+    assert.throws(
+      () => mod.run({ code: `register_shutdown_function(function () { ${TRAPPING_SCRIPT} }); echo "body";` }),
+      RangeError,
+    );
+
+    assert.throws(() => mod.run({ code: 'echo "x";' }), /no longer usable/);
+    assert.throws(() => mod.phasmHandleRequest({ url: '/x.php' }), /no longer usable/);
+    assert.throws(() => mod.phasmRun(['-v']), /no longer usable/);
+  });
+
+  // The instances above are fresh so that a regression names itself instead of
+  // cascading. This one is the claim an embedder actually cares about: the
+  // shared instance the rest of this suite runs on takes a trap and carries on.
+  test('the instance the whole suite shares survives one', async () => {
+    const mod = await sharedModule();
+
+    trap(mod);
+
+    assert.equal((await evalPhp('echo "suite still fine";')).stdout, 'suite still fine');
+    assert.equal((await evalPhp('echo 1;')).stderr, '');
   });
 });
 

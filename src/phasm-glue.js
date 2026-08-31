@@ -30,6 +30,87 @@ function phasmPackStrings(list) {
   return stringToNewUTF8(list.join('\0') + '\0');
 }
 
+/**
+ * Run one entry point into the SAPI, and put the instance back together if a
+ * wasm trap unwinds out of it.
+ *
+ * A trap — deep recursion reaching the JS engine's wasm frame limit is the one
+ * a script can reach, and no emcc flag sizes that stack — resumes here with the
+ * guest's frames gone and PHP still mid-request. Left alone the instance keeps
+ * working and prints "Constant PHP_CLI_PROCESS_TITLE already defined" on stderr
+ * for every later call, so one bad script costs the rest of the session.
+ * phasm_recover() finishes the abandoned request; see the note there for why
+ * finishing it is safe rather than merely hopeful.
+ *
+ * The error is re-thrown either way: this call did fail, and a caller that
+ * learned otherwise would report success for a script that never finished.
+ *
+ * Recovery covers more than it looks like it should — a script that recurses
+ * until the module is out of memory comes back too, because the arena it could
+ * not allocate in is the abandoned request's own and the shutdown is what
+ * releases it. The one case it cannot cover is a trap raised *during* that
+ * shutdown, and there the instance is marked spent and says so rather than
+ * leaving every later call to fail somewhere less obvious.
+ */
+let phasmSpent = null;
+
+function phasmEnter(fn) {
+  if (phasmSpent) throw phasmSpent;
+
+  // The C stack pointer is a wasm global that each function lowers on entry and
+  // raises on return. A trap skips every return, so it stays wherever the
+  // deepest abandoned frame left it — and the next call lowers it again from
+  // there. That leak is cumulative and completely silent: this build has no
+  // STACK_OVERFLOW_CHECK, so the end of it is not a diagnosable crash but the
+  // memory corruption scripts/env.sh sizes STACK_SIZE against. Restoring it is
+  // also what gives phasm_recover() a stack to run PHP's shutdown on.
+  const stack = stackSave();
+
+  try {
+    return fn();
+  } catch (trap) {
+    stackRestore(stack);
+
+    let recovered = -1;
+    try {
+      recovered = _phasm_recover();
+    } catch (e) {
+      // Recovery trapped in its turn, which strands the stack pointer again.
+      stackRestore(stack);
+      recovered = -1;
+    }
+
+    // -1 is phasm_recover() declining rather than failing: the trap came from
+    // inside PHP's own request shutdown, and running that again would re-run
+    // shutdown functions and destructors on a half-freed request. Refusing from
+    // here on is the honest answer, and it is a far narrower one than refusing
+    // after every trap — an ordinary script recursing too deep never lands here.
+    if (recovered < 0) {
+      phasmSpent = new Error(
+        'phasm: this instance is no longer usable. A call trapped while PHP was '
+        + 'shutting the request down, which cannot be finished a second time. '
+        + 'Create a new module.',
+      );
+      phasmSpent.cause = trap;
+    }
+
+    throw trap;
+  }
+}
+
+/**
+ * The C stack pointer, for asserting that a trapped call gave it back.
+ *
+ * Diagnostic rather than API: nothing an embedder does should need it. It is
+ * exposed because the leak it detects is invisible until the corruption it
+ * causes surfaces somewhere unrelated, which is not a thing a test can wait for.
+ *
+ * @returns {number}
+ */
+Module['phasmStackPointer'] = function () {
+  return stackSave();
+};
+
 /** Checked before anything is allocated, so a rejected call leaks nothing. */
 function phasmRejectNuls(list, what) {
   for (const s of list) {
@@ -67,7 +148,7 @@ Module['phasmRun'] = function (args, opts) {
   const cwdPtr = opts.cwd ? stringToNewUTF8(opts.cwd) : 0;
 
   try {
-    return _phasm_run(argvPtr, argv.length, cwdPtr, envPtr, env.length);
+    return phasmEnter(() => _phasm_run(argvPtr, argv.length, cwdPtr, envPtr, env.length));
   } finally {
     if (argvPtr) _free(argvPtr);
     if (envPtr) _free(envPtr);
@@ -220,10 +301,10 @@ Module['phasmHandleRequest'] = function (req) {
 
   let status;
   try {
-    status = _phasm_handle_request(
+    status = phasmEnter(() => _phasm_handle_request(
       methodPtr, urlPtr, headersPtr, headers.length,
       bodyPtr, bodyBytes.length, docrootPtr, envPtr, env.length,
-    );
+    ));
   } finally {
     _free(methodPtr);
     _free(urlPtr);

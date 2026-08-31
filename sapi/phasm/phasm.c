@@ -87,6 +87,62 @@ static int phasm_started = 0;
 /* Upper bound on descriptors reclaimed after a request; see phasm_run(). */
 #define PHASM_FD_RECLAIM_MAX 64
 
+/* {{{ what a call is in the middle of */
+
+/*
+ * A wasm trap does not unwind like a C error: it destroys the frames and
+ * resumes in JS, so nothing after the trapping line runs — not the epilogue,
+ * not zend_end_try(), not php_request_shutdown(). The reachable one is deep
+ * recursion hitting the *JS engine's* wasm frame limit, which no emcc flag
+ * sizes (see TODO §4.9); `json_encode()` over a few thousand levels of nesting
+ * reaches it, and so would any C recursion an extension does.
+ *
+ * The instance survives that — measurably — but it is left mid-request, so the
+ * next call's startup redeclares what the abandoned one already registered and
+ * every later call prints "Constant PHP_CLI_PROCESS_TITLE already defined" on
+ * stderr, forever. One bad script would put that on every `php` for the rest of
+ * a shell session.
+ *
+ * So a call's epilogue cannot live in its own frame. Everything the epilogue
+ * needs is kept here instead, and phasm_recover() runs it from a live stack
+ * after the trap. Calls do not nest — the guest is a synchronous frame below
+ * the host — so one set of these is all there is to keep.
+ */
+
+/* The lowest descriptor that was free when the call started; -1 when idle. */
+static int phasm_call_fd_mark = -1;
+
+/* Where the call was asked to run, so a trapped chdir() does not become the
+ * next call's starting directory. */
+static char phasm_call_cwd[MAXPATHLEN];
+static int phasm_call_cwd_saved = 0;
+
+/*
+ * Allocations the call owns. Freeing these in the epilogue rather than at each
+ * return is not tidiness: on the trap path there is no return to free them at,
+ * and one of them is pointed to by SG(request_info), which the *next* call
+ * reads. Four is the most any one call holds (argv, path, script, script_name).
+ */
+static void *phasm_call_owned[4];
+static int phasm_call_owned_count = 0;
+
+static void *phasm_call_own(void *p)
+{
+	if (p != NULL && phasm_call_owned_count < (int) (sizeof(phasm_call_owned) / sizeof(*phasm_call_owned))) {
+		phasm_call_owned[phasm_call_owned_count++] = p;
+	}
+	return p;
+}
+
+static void phasm_call_free_owned(void)
+{
+	while (phasm_call_owned_count > 0) {
+		free(phasm_call_owned[--phasm_call_owned_count]);
+		phasm_call_owned[phasm_call_owned_count] = NULL;
+	}
+}
+/* }}} */
+
 /* {{{ ini defaults */
 
 /*
@@ -302,6 +358,65 @@ static void phasm_reclaim_std_dups(int mark)
 }
 /* }}} */
 
+/* {{{ the end of a call, wherever it ends */
+
+/*
+ * Everything both entry points do once their request is over, in one place so
+ * that phasm_recover() can do it too. Idempotent, and safe on a call that never
+ * got far enough to set any of it.
+ *
+ * The pointer clearing is the part that is not merely tidy. php_self and
+ * script_filename are file-statics in php_cli.c that outlive the request and
+ * point into argv; SG(request_info) holds the request's uri, script and cookie
+ * data the same way. All of it is freed by phasm_call_free_owned() below or by
+ * the caller the moment the call returns, and the *next* call reads it —
+ * sapi_cli_register_variables() calls strlen() on it to build $_SERVER, and
+ * sapi_activate() re-parses cookie_data. Clearing them first is what makes
+ * freeing them safe.
+ */
+static void phasm_call_epilogue(void)
+{
+	if (phasm_call_fd_mark >= 0) {
+		phasm_reclaim_std_dups(phasm_call_fd_mark);
+		phasm_call_fd_mark = -1;
+	}
+
+	if (phasm_call_cwd_saved) {
+		(void) VCWD_CHDIR(phasm_call_cwd);
+		phasm_call_cwd_saved = 0;
+	}
+
+	php_self = "";
+	script_filename = "";
+
+	/* A file-static in php_cli.c that the -R and -F line modes read. It is set
+	 * per request by cli_register_file_handles(), so if registration ever fails
+	 * those modes would otherwise reach into the previous call's freed stream. */
+	s_in_process = NULL;
+
+	SG(request_info).path_translated = NULL;
+	SG(request_info).argc = 0;
+	SG(request_info).argv = NULL;
+	SG(request_info).request_method = NULL;
+	SG(request_info).request_uri = NULL;
+	SG(request_info).query_string = NULL;
+	SG(request_info).content_type = NULL;
+	SG(request_info).content_length = 0;
+	SG(request_info).cookie_data = NULL;
+
+	/* do_cli() points this at a php_cli_server_context on its own stack and
+	 * leaves it there, and phasm_handle_request() points it at a frame that is
+	 * equally gone by now. Nothing dereferences it before the next call
+	 * overwrites it, but sapi_activate() *branches* on it — `if
+	 * (SG(server_context))` is what decides whether a request re-reads its
+	 * cookies — so leaving a stale non-NULL pointer here is one refactor away
+	 * from mattering. */
+	SG(server_context) = NULL;
+
+	phasm_call_free_owned();
+}
+/* }}} */
+
 /* {{{ options that were main()'s job */
 
 /*
@@ -397,7 +512,7 @@ int phasm_run(char *packed_argv, int argc, const char *cwd, const char *packed_e
 		return 255;
 	}
 
-	char **argv = calloc((size_t) argc + 1, sizeof(char *));
+	char **argv = phasm_call_own(calloc((size_t) argc + 1, sizeof(char *)));
 	if (argv == NULL) {
 		return 255;
 	}
@@ -413,35 +528,28 @@ int phasm_run(char *packed_argv, int argc, const char *cwd, const char *packed_e
 	 * chdir()s — whether the embedder asked for it or the script did it — would
 	 * silently become the starting directory of the next one. The embedder is
 	 * the only thing that gets to say where a call runs. */
-	char saved_cwd[MAXPATHLEN];
-	bool cwd_saved = VCWD_GETCWD(saved_cwd, sizeof(saved_cwd)) != NULL;
+	phasm_call_cwd_saved = VCWD_GETCWD(phasm_call_cwd, sizeof(phasm_call_cwd)) != NULL;
 
 	if (cwd != NULL && *cwd != '\0' && VCWD_CHDIR(cwd) != 0) {
 		fprintf(stderr, "php: cannot change directory to %s\n", cwd);
-		free(argv);
+		phasm_call_epilogue();
 		return 255;
 	}
 
 	int early_status = 0;
 	if (phasm_check_options(argc, argv, &early_status)) {
-		if (cwd_saved) {
-			(void) VCWD_CHDIR(saved_cwd);
-		}
-		free(argv);
+		phasm_call_epilogue();
 		return early_status;
 	}
 
 	/* dup() hands back the lowest free descriptor, so this marks the boundary
 	 * between what the embedder already had open and what the request is about
 	 * to open. See phasm_reclaim_std_dups(). */
-	int fd_mark = dup(STDIN_FILENO);
-	if (fd_mark >= 0) {
-		close(fd_mark);
+	phasm_call_fd_mark = dup(STDIN_FILENO);
+	if (phasm_call_fd_mark >= 0) {
+		close(phasm_call_fd_mark);
 	}
 
-	/* A file-static in php_cli.c that the -R and -F line modes read. It is set
-	 * per request by cli_register_file_handles(), so if registration ever fails
-	 * those modes would otherwise reach into the previous call's freed stream. */
 	s_in_process = NULL;
 
 	/* Nothing in the request cycle zeroes this, so a previous exit(3) would
@@ -461,35 +569,7 @@ int phasm_run(char *packed_argv, int argc, const char *cwd, const char *packed_e
 		status = do_cli(argc, argv);
 	} zend_end_try();
 
-	if (fd_mark >= 0) {
-		phasm_reclaim_std_dups(fd_mark);
-	}
-
-	if (cwd_saved) {
-		(void) VCWD_CHDIR(saved_cwd);
-	}
-
-	/* Everything below points into argv, which is about to be freed by the
-	 * caller — php_self and script_filename are file-statics in php_cli.c that
-	 * survive the request, and do_cli only resets php_self, only on the branch
-	 * that has no script file. Left alone, the next call's
-	 * sapi_cli_register_variables() calls strlen() on freed memory to build
-	 * $_SERVER. Their initial values are the empty string, so that is what they
-	 * go back to. */
-	php_self = "";
-	script_filename = "";
-	SG(request_info).path_translated = NULL;
-	SG(request_info).argc = 0;
-	SG(request_info).argv = NULL;
-	free(argv);
-
-	/* do_cli() points this at a php_cli_server_context on its own stack and
-	 * leaves it there, so by now it names a dead frame. Nothing dereferences it
-	 * before the next call overwrites it, but sapi_activate() *branches* on it —
-	 * `if (SG(server_context))` is what decides whether a request re-reads its
-	 * cookies — so leaving a stale non-NULL pointer here is one refactor away
-	 * from mattering. */
-	SG(server_context) = NULL;
+	phasm_call_epilogue();
 
 	return status;
 }
@@ -552,14 +632,6 @@ typedef struct {
 	size_t body_len;
 	size_t body_read;
 
-	/* Response. These are filled during the request but read after it, so they
-	 * are allocated persistently — smart_str's default is the request allocator,
-	 * and php_request_shutdown() frees that whole arena. Getting this wrong does
-	 * not fail where the response is read; it corrupts the heap and takes the
-	 * *next* request down inside php_request_shutdown(). Hence the _ex() calls
-	 * and the matching smart_str_free_ex() in phasm_response_reset(). */
-	smart_str out;
-	smart_str headers;
 	int status;
 } phasm_request;
 
@@ -568,20 +640,35 @@ static phasm_request *phasm_req(void)
 	return (phasm_request *) SG(server_context);
 }
 
-/* The response outlives the call so JS can read it before freeing it. */
+/*
+ * The response. These are filled during the request but read after it, so they
+ * are allocated persistently — smart_str's default is the request allocator,
+ * and php_request_shutdown() frees that whole arena. Getting this wrong does
+ * not fail where the response is read; it corrupts the heap and takes the
+ * *next* request down inside php_request_shutdown(). Hence the _ex() calls and
+ * the matching smart_str_free_ex() in phasm_response_reset().
+ *
+ * They are file-statics rather than fields of the request above for the same
+ * reason the call state is: a trap leaves that struct's frame unreachable, and
+ * buffers that were going to be handed over at the end of a call that has no
+ * end are simply leaked.
+ */
 static smart_str phasm_resp_body = {0};
 static smart_str phasm_resp_headers = {0};
 static int phasm_resp_status = 0;
 
 /* {{{ the swapped hooks */
 
+/*
+ * Writing to the response buffer directly, with no reference to the request:
+ * php_request_shutdown() flushes output, and phasm_recover() runs that shutdown
+ * for a request whose struct is gone. Returning anything less than asked for
+ * would be read as a dropped connection, and php_handle_aborted_connection()
+ * answers that with zend_bailout() — into a jmp_buf the trap already destroyed.
+ */
 static size_t phasm_ub_write(const char *str, size_t str_length)
 {
-	phasm_request *r = phasm_req();
-	if (r == NULL) {
-		return 0;
-	}
-	smart_str_appendl_ex(&r->out, str, str_length, 1);
+	smart_str_appendl_ex(&phasm_resp_body, str, str_length, 1);
 	return str_length;
 }
 
@@ -615,19 +702,19 @@ static int phasm_send_headers(sapi_headers_struct *sapi_headers)
 	sapi_header_struct *h;
 	zend_llist_position pos;
 
-	if (r == NULL || SG(request_info).no_headers) {
+	if (SG(request_info).no_headers) {
 		return SAPI_HEADER_SENT_SUCCESSFULLY;
 	}
 
-	if (SG(sapi_headers).http_response_code != 0) {
+	if (r != NULL && SG(sapi_headers).http_response_code != 0) {
 		r->status = SG(sapi_headers).http_response_code;
 	}
 
 	h = (sapi_header_struct *) zend_llist_get_first_ex(&sapi_headers->headers, &pos);
 	while (h != NULL) {
 		if (h->header_len > 0) {
-			smart_str_appendl_ex(&r->headers, h->header, h->header_len, 1);
-			smart_str_appendc_ex(&r->headers, '\n', 1);
+			smart_str_appendl_ex(&phasm_resp_headers, h->header, h->header_len, 1);
+			smart_str_appendc_ex(&phasm_resp_headers, '\n', 1);
 		}
 		h = (sapi_header_struct *) zend_llist_get_next_ex(&sapi_headers->headers, &pos);
 	}
@@ -768,6 +855,68 @@ static void phasm_register_variables(zval *track_vars_array)
 
 /* }}} */
 
+/* {{{ swapping the hooks in and out */
+
+/*
+ * A request needs different plumbing from a command, and swapping these for the
+ * duration of one request is how it gets it without a second sapi_module_struct
+ * (see the note above). They are saved here rather than in the request's own
+ * frame so that phasm_recover() can put them back after a trap — an instance
+ * left with the request hooks installed sends every later command's output into
+ * a response buffer nobody reads.
+ */
+static struct {
+	size_t (*ub_write)(const char *, size_t);
+	void (*flush)(void *);
+	int (*header_handler)(sapi_header_struct *, sapi_header_op_enum, sapi_headers_struct *);
+	int (*send_headers)(sapi_headers_struct *);
+	size_t (*read_post)(char *, size_t);
+	char *(*read_cookies)(void);
+	void (*register_server_variables)(zval *);
+	int installed;
+} phasm_saved_hooks;
+
+static void phasm_hooks_install(void)
+{
+	phasm_saved_hooks.ub_write = sapi_module.ub_write;
+	phasm_saved_hooks.flush = sapi_module.flush;
+	phasm_saved_hooks.header_handler = sapi_module.header_handler;
+	phasm_saved_hooks.send_headers = sapi_module.send_headers;
+	phasm_saved_hooks.read_post = sapi_module.read_post;
+	phasm_saved_hooks.read_cookies = sapi_module.read_cookies;
+	phasm_saved_hooks.register_server_variables = sapi_module.register_server_variables;
+	phasm_saved_hooks.installed = 1;
+
+	sapi_module.ub_write = phasm_ub_write;
+	sapi_module.flush = phasm_flush;
+	/* NULL means "keep it", which is the default every server SAPI relies on.
+	 * The CLI installs a handler that returns 0 instead — that is how `header()`
+	 * comes to be accepted and discarded in a command line, and left in place it
+	 * drops every header before it ever reaches the list send_headers walks. */
+	sapi_module.header_handler = NULL;
+	sapi_module.send_headers = phasm_send_headers;
+	sapi_module.read_post = phasm_read_post;
+	sapi_module.read_cookies = phasm_read_cookies;
+	sapi_module.register_server_variables = phasm_register_variables;
+}
+
+static void phasm_hooks_restore(void)
+{
+	if (!phasm_saved_hooks.installed) {
+		return;
+	}
+	sapi_module.ub_write = phasm_saved_hooks.ub_write;
+	sapi_module.flush = phasm_saved_hooks.flush;
+	sapi_module.header_handler = phasm_saved_hooks.header_handler;
+	sapi_module.send_headers = phasm_saved_hooks.send_headers;
+	sapi_module.read_post = phasm_saved_hooks.read_post;
+	sapi_module.read_cookies = phasm_saved_hooks.read_cookies;
+	sapi_module.register_server_variables = phasm_saved_hooks.register_server_variables;
+	phasm_saved_hooks.installed = 0;
+}
+
+/* }}} */
+
 /* {{{ resolving the script */
 
 /*
@@ -881,20 +1030,8 @@ int phasm_handle_request(const char *method, const char *uri,
 	char *script_name = NULL;
 	const char *query = NULL;
 	size_t decoded_len = 0;
-	char saved_cwd[MAXPATHLEN];
-	bool cwd_saved;
 	struct stat st;
-	int fd_mark;
 	int status;
-
-	/* saved hooks */
-	size_t (*saved_ub_write)(const char *, size_t);
-	void (*saved_flush)(void *);
-	int (*saved_header_handler)(sapi_header_struct *, sapi_header_op_enum, sapi_headers_struct *);
-	int (*saved_send_headers)(sapi_headers_struct *);
-	size_t (*saved_read_post)(char *, size_t);
-	char *(*saved_read_cookies)(void);
-	void (*saved_register_variables)(zval *);
 
 	phasm_response_reset();
 
@@ -915,7 +1052,7 @@ int phasm_handle_request(const char *method, const char *uri,
 		size_t path_len = q != NULL ? (size_t) (q - uri) : strlen(uri);
 
 		query = q != NULL ? q + 1 : NULL;
-		path = malloc(path_len + 1);
+		path = phasm_call_own(malloc(path_len + 1));
 		if (path == NULL) {
 			return 500;
 		}
@@ -936,12 +1073,12 @@ int phasm_handle_request(const char *method, const char *uri,
 	 * this that stays true as the code around it changes.
 	 */
 	if (strlen(path) != decoded_len) {
-		free(path);
+		phasm_call_epilogue();
 		return 400;
 	}
 
 	if (path[0] != '/' || phasm_path_escapes(path)) {
-		free(path);
+		phasm_call_epilogue();
 		return 403;
 	}
 
@@ -960,9 +1097,9 @@ int phasm_handle_request(const char *method, const char *uri,
 			droot_len--;
 		}
 
-		script = malloc(need);
+		script = phasm_call_own(malloc(need));
 		if (script == NULL) {
-			free(path);
+			phasm_call_epilogue();
 			return 500;
 		}
 		memcpy(script, docroot, droot_len);
@@ -980,8 +1117,7 @@ int phasm_handle_request(const char *method, const char *uri,
 			 * embedder can serve the index.html sitting right beside it, but
 			 * only if it is handed the request back. */
 			if (stat(script, &st) != 0 || !S_ISREG(st.st_mode)) {
-				free(script);
-				free(path);
+				phasm_call_epilogue();
 				return 0;
 			}
 		} else if (path[strlen(path) - 1] == '/') {
@@ -992,30 +1128,26 @@ int phasm_handle_request(const char *method, const char *uri,
 			 * to serve /app.php as a static file, i.e. to hand out the source.
 			 * 404 is both the POSIX answer and the safe one. `path` always
 			 * starts with '/', so indexing its last byte is safe. */
-			free(script);
-			free(path);
+			phasm_call_epilogue();
 			return 404;
 		}
 	}
 
 	if (stat(script, &st) != 0 || !S_ISREG(st.st_mode)) {
-		free(script);
-		free(path);
+		phasm_call_epilogue();
 		return 404;
 	}
 	if (!phasm_has_php_suffix(script)) {
-		free(script);
-		free(path);
+		phasm_call_epilogue();
 		return 0; /* not ours — the embedder serves it */
 	}
 
 	/* SCRIPT_NAME is the resolved script's own path, which is `path` except
 	 * where index.php was appended to a directory — and a router that reads it
 	 * to strip its own prefix needs the difference. */
-	script_name = strdup(script + droot_len);
+	script_name = phasm_call_own(strdup(script + droot_len));
 	if (script_name == NULL) {
-		free(script);
-		free(path);
+		phasm_call_epilogue();
 		return 500;
 	}
 
@@ -1061,33 +1193,15 @@ int phasm_handle_request(const char *method, const char *uri,
 
 	phasm_env_apply(packed_env, envc);
 
-	cwd_saved = VCWD_GETCWD(saved_cwd, sizeof(saved_cwd)) != NULL;
+	phasm_call_cwd_saved = VCWD_GETCWD(phasm_call_cwd, sizeof(phasm_call_cwd)) != NULL;
 	(void) VCWD_CHDIR(docroot);
 
-	fd_mark = dup(STDIN_FILENO);
-	if (fd_mark >= 0) {
-		close(fd_mark);
+	phasm_call_fd_mark = dup(STDIN_FILENO);
+	if (phasm_call_fd_mark >= 0) {
+		close(phasm_call_fd_mark);
 	}
 
-	saved_ub_write = sapi_module.ub_write;
-	saved_flush = sapi_module.flush;
-	saved_header_handler = sapi_module.header_handler;
-	saved_send_headers = sapi_module.send_headers;
-	saved_read_post = sapi_module.read_post;
-	saved_read_cookies = sapi_module.read_cookies;
-	saved_register_variables = sapi_module.register_server_variables;
-
-	sapi_module.ub_write = phasm_ub_write;
-	sapi_module.flush = phasm_flush;
-	/* NULL means "keep it", which is the default every server SAPI relies on.
-	 * The CLI installs a handler that returns 0 instead — that is how `header()`
-	 * comes to be accepted and discarded in a command line, and left in place it
-	 * drops every header before it ever reaches the list send_headers walks. */
-	sapi_module.header_handler = NULL;
-	sapi_module.send_headers = phasm_send_headers;
-	sapi_module.read_post = phasm_read_post;
-	sapi_module.read_cookies = phasm_read_cookies;
-	sapi_module.register_server_variables = phasm_register_variables;
+	phasm_hooks_install();
 
 	/* do_cli() sets this for the CLI and nothing clears it, so a request that
 	 * followed any command inherited "do not chdir to the script's directory" —
@@ -1165,44 +1279,18 @@ int phasm_handle_request(const char *method, const char *uri,
 		}
 	}
 
-	SG(server_context) = NULL;
-	SG(request_info).request_method = NULL;
-	SG(request_info).request_uri = NULL;
-	SG(request_info).query_string = NULL;
-	SG(request_info).path_translated = NULL;
-	SG(request_info).content_type = NULL;
-	SG(request_info).content_length = 0;
-	/* The one that is not merely tidy. cookie_data points into the packed
-	 * headers, which the caller frees the moment this returns — and
-	 * sapi_activate() only refreshes it `if (SG(server_context))`, which no
-	 * command has. So a leftover pointer is not overwritten by the next call: it
-	 * is parsed, and `php -r 'print_r($_COOKIE);'` after a request prints
-	 * whatever the allocator has since put in that freed buffer. */
-	SG(request_info).cookie_data = NULL;
+	phasm_hooks_restore();
 
-	sapi_module.ub_write = saved_ub_write;
-	sapi_module.flush = saved_flush;
-	sapi_module.header_handler = saved_header_handler;
-	sapi_module.send_headers = saved_send_headers;
-	sapi_module.read_post = saved_read_post;
-	sapi_module.read_cookies = saved_read_cookies;
-	sapi_module.register_server_variables = saved_register_variables;
+	/* SG(request_info).cookie_data is the piece of the epilogue below that is
+	 * not merely tidy: it points into the packed headers, which the caller frees
+	 * the moment this returns — and sapi_activate() only refreshes it `if
+	 * (SG(server_context))`, which no command has. So a leftover pointer is not
+	 * overwritten by the next call: it is parsed, and `php -r
+	 * 'print_r($_COOKIE);'` after a request prints whatever the allocator has
+	 * since put in that freed buffer. */
+	phasm_call_epilogue();
 
-	if (fd_mark >= 0) {
-		phasm_reclaim_std_dups(fd_mark);
-	}
-	if (cwd_saved) {
-		(void) VCWD_CHDIR(saved_cwd);
-	}
-
-	/* Hand the buffers over wholesale; r's copies die with the frame. */
-	phasm_resp_body = r.out;
-	phasm_resp_headers = r.headers;
 	phasm_resp_status = status;
-
-	free(script_name);
-	free(script);
-	free(path);
 
 	return status;
 }
@@ -1242,4 +1330,98 @@ int phasm_response_body_length(void)
 	return phasm_resp_body.s != NULL ? (int) ZSTR_LEN(phasm_resp_body.s) : 0;
 }
 
+/* }}} */
+
+/* {{{ phasm_recover */
+
+/*
+ * Finish a call a wasm trap abandoned.
+ *
+ * A trap is not an error PHP can see. It destroys the wasm frames and resumes
+ * in JS, so the call's zend_end_try() never runs, its epilogue never runs, and
+ * — the part that is visible to a user — php_request_shutdown() never runs. The
+ * instance keeps working, which is the trap in the other sense: the next call
+ * succeeds while printing "Constant PHP_CLI_PROCESS_TITLE already defined" and
+ * the same for STDIN, STDOUT and STDERR, because the abandoned request's
+ * constants are still registered. That is then true of every `php` for the rest
+ * of the session.
+ *
+ * Two shapes were possible, and the second is only defensible if the first is
+ * unsafe: finish the abandoned request, or declare the instance spent. Finishing
+ * it is safe, and php_request_shutdown() is where the evidence is — it opens by
+ * setting EG(current_execute_data) to NULL, with a comment that it "points into
+ * nirvana", and every step after that is individually wrapped in zend_try. It is
+ * written to be reachable after a bailout, which is very nearly this. The
+ * remaining hazard is ours rather than PHP's, and it is handled below.
+ *
+ * src/phasm-glue.js calls this from the catch around every entry point, and
+ * declares the instance spent if it does not return cleanly — so "refuse" is
+ * still the answer where recovery genuinely cannot work, and is not the answer
+ * to the ordinary case of one script recursing too deep.
+ *
+ * Returns 1 if a request was finished, 0 if there was nothing to finish, and
+ * -1 if it cannot be finished safely.
+ */
+EMSCRIPTEN_KEEPALIVE
+int phasm_recover(void)
+{
+	int finished = 0;
+
+	if (!phasm_started) {
+		return 0;
+	}
+
+	/*
+	 * The one case where finishing the request is worse than refusing to: the
+	 * trap came from *inside* php_request_shutdown(), which is reachable because
+	 * step 1 runs register_shutdown_function() callbacks and step 2 runs
+	 * __destruct(), both of them arbitrary userland code that can recurse as
+	 * deep as anything else. Running the shutdown again from the top would run
+	 * those callbacks and destructors a second time, on a request that is
+	 * already half torn down — side effects duplicated, against state that is
+	 * partly freed.
+	 *
+	 * SG(sapi_started) cannot tell that apart, because the shutdown only clears
+	 * it at step 12. This flag can: php_request_shutdown() raises it on entry,
+	 * and init_executor() clears it at the next request's zend_activate(), so it
+	 * means precisely "a shutdown was in progress and did not finish".
+	 *
+	 * Nothing is cleaned up on the way out, deliberately: the caller's answer to
+	 * -1 is to stop using the instance, and unwinding state a half-run shutdown
+	 * may still hold is exactly the guessing this branch exists to refuse.
+	 */
+	if (SG(sapi_started) && (EG(flags) & EG_FLAGS_IN_SHUTDOWN)) {
+		return -1;
+	}
+
+	/*
+	 * The hazard that is ours: zend_first_try's jmp_buf is a local of the frame
+	 * the trap destroyed, and EG(bailout) still points at it. Any zend_bailout()
+	 * from here on — and php_request_shutdown() runs shutdown functions and
+	 * destructors, which is arbitrary userland code — would longjmp into a dead
+	 * stack. NULL is how "no handler installed" is spelled, and every zend_try
+	 * inside the shutdown installs its own over it.
+	 */
+	EG(bailout) = NULL;
+
+	/*
+	 * The server-mode request struct is a local of that same frame. Clearing it
+	 * before the shutdown is what keeps the hooks off it while output is flushed
+	 * — they are written to work without it, which is why phasm_ub_write() takes
+	 * no reference to the request at all.
+	 */
+	SG(server_context) = NULL;
+
+	if (SG(sapi_started)) {
+		zend_first_try {
+			php_request_shutdown(NULL);
+		} zend_end_try();
+		finished = 1;
+	}
+
+	phasm_hooks_restore();
+	phasm_call_epilogue();
+
+	return finished;
+}
 /* }}} */
