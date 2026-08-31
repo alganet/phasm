@@ -109,11 +109,11 @@ scripts/
 
 patches/               # Emscripten compatibility patches for PHP
 sapi/phasm/            # The re-entrant SAPI, copied into php-src at build time
-src/                   # Hand-written package sources (php.d.ts, phasm-glue.js)
+src/                   # Hand-written package sources (the JS halves, types, builtin)
 test/                  # Test suite (node --test)
 sources/               # Downloaded source trees (gitignored)
 build/                 # Intermediate build artifacts (gitignored)
-dist/                  # Final npm output (php.js + php.wasm + php.d.ts)
+dist/                  # Final npm output (php.js + php.wasm + the .d.ts and builtin)
 web/                   # Live demo website
 ```
 
@@ -134,9 +134,15 @@ See `scripts/env.sh` for the full list:
 | `EMCC_FLAGS`           | `-O2 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags    |
 
 Overriding `EMCC_FLAGS` replaces the codegen defaults only. The flags that
-make the artifact a phasm build — the exported entry points and the glue in
-`src/phasm-glue.js` — are appended afterwards and cannot be dropped by an
-override, because a module without them has no `phasmRun()` to call.
+make the artifact a phasm build — the exported entry points and the two JS
+halves — are appended afterwards and cannot be dropped by an override, because
+a module without them has no `run()` to call.
+
+The halves are not interchangeable. `src/phasm-stdio.js` goes in with
+`--pre-js`, which lands before the runtime starts: the only moment fd 0, 1 and
+2 can still be claimed, and therefore the only way `run()` can hand back what
+one call printed. `src/phasm-glue.js` goes in with `--post-js`, which lands
+after it, when the exported entry points it marshals into exist.
 
 ## Enabling PHP Extensions
 

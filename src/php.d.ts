@@ -13,12 +13,18 @@ export interface PhasmOptions {
   /** CLI arguments for the automatic run, e.g. ["script.php"]. Ignored when
    *  noInitialRun is set — pass arguments to phasmRun() instead. */
   arguments?: string[];
-  /** Called once per line of stdout. */
+  /** Called once per line of stdout, for output produced outside `run()`. */
   print?: (text: string) => void;
-  /** Called once per line of stderr. */
+  /** Called once per line of stderr, for output produced outside `run()`. */
   printErr?: (text: string) => void;
-  /** Return the next character code of stdin, or null for EOF. */
+  /** Return the next character code of stdin, or null for EOF. Consulted for
+   *  calls that name no stdin of their own. */
   stdin?: () => number | null;
+  /** Raw stdout, a character code at a time, for output produced outside
+   *  `run()`. Takes precedence over `print` and is not line buffered. */
+  stdout?: (charCode: number | null) => void;
+  /** Raw stderr, likewise, taking precedence over `printErr`. */
+  stderr?: (charCode: number | null) => void;
   /** Override where php.wasm is fetched from. */
   locateFile?: (path: string, prefix: string) => string;
   [key: string]: unknown;
@@ -48,11 +54,57 @@ export interface PhasmFS {
 }
 
 /** Options for a single `phasmRun()` invocation. */
-export interface PhasmRunOptions {
+export interface PhasmCallOptions {
   /** Working directory for this call. Restored afterwards. */
   cwd?: string;
   /** Environment for this call only; cleared before the next one. */
   env?: Record<string, string>;
+}
+
+/** Which of a call's two output streams a chunk came from. */
+export type PhasmOutputChannel = 'stdout' | 'stderr';
+
+/** How a call's stdio is routed. Shared by `run()` and `phasmCapture()`. */
+export interface PhasmCaptureOptions {
+  /** Fed to the call, then EOF. A function is asked for more bytes only when
+   *  PHP actually reads, and an empty result ends the stream — which is what
+   *  keeps a command that never touches stdin from blocking on it. */
+  stdin?: string | Uint8Array | ((max: number) => Uint8Array | null);
+  /** Output as it happens, a line at a time and whatever is left at the end.
+   *  Bytes, not text, so binary output survives. */
+  onOutput?: (bytes: Uint8Array, channel: PhasmOutputChannel) => void;
+  /** Set false to skip buffering — `stdout` and `stderr` then come back empty.
+   *  For an `onOutput` that already has somewhere to put the bytes. */
+  collect?: boolean;
+}
+
+/** Options for `run()` — `wasi-sh`'s vocabulary, so the two compose. */
+export interface PhasmRunOptions extends PhasmCallOptions, PhasmCaptureOptions {
+  /** Full argv after argv[0], e.g. `["-r", "echo 1;"]`. Wins over `code` and
+   *  `script`. */
+  args?: string[];
+  /** Sugar for `["-r", code]`: a snippet, no `<?php` tag. */
+  code?: string;
+  /** PHP source mounted at `/main.php` and run — a file, so it opens with
+   *  `<?php`. Written even when `args` says to run something else. */
+  script?: string;
+  /** Written before the run; missing parent directories are created. */
+  files?: Record<string, string | Uint8Array>;
+}
+
+/** What `run()` collected. The shape `wasi-sh`'s own `run()` returns. */
+export interface PhasmRunResult {
+  stdout: string;
+  stderr: string;
+  /** PHP's exit status for this call alone. */
+  exitCode: number;
+}
+
+/** What `phasmCapture()` collected, around whatever the callback returned. */
+export interface PhasmCaptured<T> {
+  stdout: string;
+  stderr: string;
+  value: T;
 }
 
 /** One HTTP request for `phasmHandleRequest()`. */
@@ -88,6 +140,35 @@ export interface PhasmResponse {
 /** The initialized module `Phasm()` resolves to. */
 export interface PhasmModule {
   /**
+   * Run PHP once and collect everything it produced.
+   *
+   * ```js
+   * const { stdout, stderr, exitCode } = php.run({ code: 'echo 6 * 7;' });
+   * ```
+   *
+   * Options and result are `wasi-sh`'s, so a shell run and a PHP run compose
+   * without an adapter between them. It returns synchronously — the instance is
+   * warm and PHP is a wasm frame below the call — and awaiting it anyway is
+   * harmless, which keeps the two interchangeable.
+   *
+   * Everything is per call: `env` and `cwd` are gone by the next one, the
+   * output is this call's alone, stdin is refilled. The filesystem, the
+   * instance and its ini survive.
+   *
+   * Throws if the module cannot capture output, which happens only when its
+   * standard streams were claimed elsewhere — an `FS.init()` of your own, or
+   * `noFSInit`.
+   */
+  run(options?: PhasmRunOptions): PhasmRunResult;
+  /**
+   * Run `fn` with the module's stdout, stderr and stdin routed to this call.
+   *
+   * The primitive under `run()`, exposed because it is the only way to collect
+   * output from what `run()` does not cover — a warning raised during
+   * `phasmHandleRequest()`, or a one-shot `callMain()`.
+   */
+  phasmCapture<T>(fn: () => T, opts?: PhasmCaptureOptions): PhasmCaptured<T>;
+  /**
    * Run PHP. `args` is argv without argv[0] — `["hello.php"]` runs that file,
    * `["-r", "echo 1;"]` runs a snippet. Returns the exit status.
    *
@@ -98,13 +179,14 @@ export interface PhasmModule {
    * Errors go to stderr, and PHP_SAPI reports "cli" so that CLI tools which
    * gate on it (composer.phar, phpunit.phar) agree to run.
    *
-   * Collect output the way Emscripten collects it — an `FS.init()` sink, or
-   * `print`/`printErr` if line buffering is acceptable.
+   * The primitive under `run()`, which is what most callers want: this one
+   * returns the status and leaves the output wherever the module's stdio
+   * points. Reach for it when you are routing stdio yourself.
    *
    * Throws if an argument, an `env` value or `cwd` contains a NUL byte: the
    * calling convention is NUL-delimited, so it would arrive truncated.
    */
-  phasmRun(args: string[], opts?: PhasmRunOptions): number;
+  phasmRun(args: string[], opts?: PhasmCallOptions): number;
   /**
    * Handle one HTTP request and return the response.
    *
@@ -148,9 +230,8 @@ export interface PhasmModule {
  * Create and initialize a PHP module.
  *
  * ```js
- * const php = await Phasm({ noInitialRun: true, print: console.log });
- * php.FS.writeFile('/hello.php', '<?php echo "hi";');
- * php.phasmRun(['hello.php']);
+ * const php = await Phasm({ noInitialRun: true });
+ * const { stdout } = php.run({ script: '<?php echo "hi";' });
  * ```
  */
 declare function Phasm(options?: PhasmOptions): Promise<PhasmModule>;
