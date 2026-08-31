@@ -169,6 +169,82 @@ if [[ ! -f "${SYSROOT_DIR}/lib/libsqlite3.a" ]]; then
     popd >/dev/null
 fi
 
+# libxml2 (ext/libxml, and through it dom, simplexml, xml and xmlwriter)
+LIBXML2_TAR="libxml2-${LIBXML2_VERSION}.tar.xz"
+if [[ ! -d "${SRC_DIR}/libxml2-${LIBXML2_VERSION}" ]]; then
+    if [[ -f "${SRC_DIR}/${LIBXML2_TAR}" ]]; then
+        echo "Extracting libxml2 into ${SRC_DIR}..."
+        tar -xf "${SRC_DIR}/${LIBXML2_TAR}" -C "${SRC_DIR}"
+    else
+        echo "libxml2 source not found in ${SRC_DIR}. Run ./scripts/fetch.sh to download sources." >&2
+        exit 1
+    fi
+fi
+if [[ ! -f "${SYSROOT_DIR}/lib/libxml2.a" ]]; then
+    echo "Building libxml2 for WASM..."
+    pushd "${SRC_DIR}/libxml2-${LIBXML2_VERSION}" >/dev/null
+    mkdir -p build && pushd build >/dev/null
+
+    # Everything switched off below is either impossible in this target or
+    # unreachable from PHP, and libxml2 is large enough that each one is real
+    # download:
+    #
+    #   THREADS   this build is fork-free and single-threaded; the locking is
+    #             pure overhead and drags in pthread stubs.
+    #   MODULES   dlopen, which does not exist here.
+    #   ZLIB      already off by default in 2.15, and 2.15 also made
+    #             XML_PARSE_UNZIP mandatory for compressed input — a flag PHP
+    #             never sets, so linking zlib in would buy nothing.
+    #   CATALOG   resolves external identifiers through /etc/xml/catalog, a
+    #             file no browser VFS has; nothing in php-src calls the
+    #             catalog API.
+    #   DEBUG     debugXML.c, xmlDebugDump* and the xmllint shell; php-src
+    #             references none of it.
+    #   ICU       an ICU-sized dependency for encodings iconv already covers.
+    #
+    # Everything left ON is surfaced by PHP: XPath and XPointer (XInclude
+    # resolves an xpointer attribute through it), C14N (DOMNode::C14N), XSD and
+    # RelaxNG validation, the writer (xmlwriter *is* the writer), HTML parsing
+    # (DOMDocument::loadHTML) and SAX1 (the expat-compat layer in ext/xml).
+    #
+    # READER is the one that looks droppable and is not. ext/xmlreader is
+    # deliberately not built, but ext/libxml/image_svg.c pulls SVG dimensions
+    # with xmlTextReader — so switching it off would break getimagesize() on an
+    # SVG, in ext/standard, nowhere near anything named XML.
+    #
+    # ICONV stays on and is deliberately not pointed at the sysroot's GNU
+    # libiconv: Emscripten's libc carries musl's iconv, so find_package(Iconv)
+    # finds it built in and libxml2 costs no extra library for non-UTF-8
+    # documents. The two coexist in the final link because GNU libiconv only
+    # ever defines libiconv_* symbols, never iconv_open.
+    #
+    # CMAKE_BUILD_TYPE is not optional here. With it unset — which is what
+    # emcmake leaves — CMake passes no -O flag at all and the whole library
+    # compiles at -O0, which for a parser this size is both slower and much
+    # bigger. Release with -O2 rather than its default -O3 matches what the
+    # PHP objects are built with (see EMCC_FLAGS in env.sh).
+    emcmake cmake .. \
+        -DCMAKE_INSTALL_PREFIX="${SYSROOT_DIR}" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DLIBXML2_WITH_PROGRAMS=OFF \
+        -DLIBXML2_WITH_TESTS=OFF \
+        -DLIBXML2_WITH_PYTHON=OFF \
+        -DLIBXML2_WITH_THREADS=OFF \
+        -DLIBXML2_WITH_MODULES=OFF \
+        -DLIBXML2_WITH_ZLIB=OFF \
+        -DLIBXML2_WITH_CATALOG=OFF \
+        -DLIBXML2_WITH_DEBUG=OFF \
+        -DLIBXML2_WITH_ICU=OFF \
+        -DLIBXML2_WITH_ICONV=ON
+
+    emmake make -j"$(nproc)"
+    emmake make install
+    popd >/dev/null
+    popd >/dev/null
+fi
+
 pushd "libzip-${LIBZIP_VERSION}" >/dev/null
 mkdir -p build
 pushd build >/dev/null

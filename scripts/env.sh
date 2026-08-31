@@ -38,6 +38,21 @@ SQLITE_SHA256="${SQLITE_SHA256:-1e71ddf93849c6a6ecf58b827c0692073d2dd7ee40196158
 # whose bytes are not a stable artifact to pin a hash against.
 ONIGURUMA_VERSION="${ONIGURUMA_VERSION:-6.9.10}"
 ONIGURUMA_SHA256="${ONIGURUMA_SHA256:-2a5cfc5ae259e4e97f86b68dfffc152cdaffe94e2060b770cb827238d769fc05}"
+# libxml2 (used by ext/libxml, and therefore by dom, simplexml, xml and
+# xmlwriter). 2.15 is the series upstream still fixes: 2.14's last release is
+# 2.14.6 from Sep 2025, which predates the five CVE fixes in 2.15.2 and the
+# five in 2.15.3. It is also the series that REMOVED the built-in HTTP client
+# and LZMA support — neither reachable from a wasm build, both otherwise dead
+# weight in the download.
+#
+# php-src's LIBXML_VERSION guards stop at 21400, so 2.15 is newer than anything
+# ext/libxml explicitly knows about. The only thing php-src names that 2.15
+# removed is xmlNanoHTTP*, and only in php_libxml2.def, a Windows-only export
+# list this build never reads.
+#
+# The download path is derived from the version: 2.15.3 lives under 2.15/.
+LIBXML2_VERSION="${LIBXML2_VERSION:-2.15.3}"
+LIBXML2_SHA256="${LIBXML2_SHA256:-78262a6e7ac170d6528ebfe2efccdf220191a5af6a6cd61ea4a9a9a5042c7a07}"
 
 # Pin the Emscripten SDK. `emsdk install latest` moves under you: every CI run
 # and every contributor gets whatever shipped most recently, so a build that
