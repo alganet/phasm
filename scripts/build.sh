@@ -122,4 +122,11 @@ fi
 # every published release shipped a types field aimed at a missing file.
 cp "${ROOT_DIR}/src/php.d.ts" "${DIST_DIR}/php.d.ts"
 
+# The wasi-sh adapter is plain JS against the module's public API, so it is
+# copied rather than linked into the artifact — a page that only embeds PHP
+# should not carry shell integration, and `@alganet/phasm/builtin` is the
+# subpath that exports it.
+cp "${ROOT_DIR}/src/builtin.mjs" "${DIST_DIR}/builtin.mjs"
+cp "${ROOT_DIR}/src/builtin.d.ts" "${DIST_DIR}/builtin.d.ts"
+
 echo "WASM artifacts in ${DIST_DIR}"

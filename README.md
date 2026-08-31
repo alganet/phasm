@@ -123,6 +123,30 @@ consulted whenever no `run()` is in flight, so they keep behaving as they always
 did. Installing your own `FS.init()` sinks still works and still wins — `run()`
 then says it cannot capture, rather than reporting that PHP printed nothing.
 
+## As a shell command
+
+`php` inside a [wasi-sh](https://github.com/alganet/wasi-sh) shell is one line,
+and comes with pipes, redirects, `$(…)` and `$?` already working:
+
+```js
+import Phasm from "@alganet/phasm";
+import { phasmBuiltin } from "@alganet/phasm/builtin";
+import { serve } from "wasi-sh/worker";
+
+serve({
+  async builtins() {
+    const php = await Phasm({ noInitialRun: true });
+    return { php: phasmBuiltin(php) };
+  },
+});
+```
+
+The boot belongs in `async builtins()`, which the shell awaits once before it
+starts: a builtin runs in-process and synchronously, so every `php` after that
+is a call into a warm instance. Both guests must share one filesystem — paths
+are passed through as typed and nothing is copied. And because a builtin is not
+a process, `php &`, `exec php` and `find -exec php` do not work.
+
 ## Serving HTTP
 
 `phasmHandleRequest()` runs a real PHP request rather than a command, so

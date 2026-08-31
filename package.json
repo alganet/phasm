@@ -14,6 +14,11 @@
       "import": "./dist/php.js",
       "default": "./dist/php.js"
     },
+    "./builtin": {
+      "types": "./dist/builtin.d.ts",
+      "import": "./dist/builtin.mjs",
+      "default": "./dist/builtin.mjs"
+    },
     "./wasm": "./dist/php.wasm",
     "./package.json": "./package.json"
   },
