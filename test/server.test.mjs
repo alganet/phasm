@@ -459,4 +459,35 @@ describe('repeated requests', opts, () => {
     assert.equal(r.status, 200);
     assert.equal(r.text, 'fine');
   });
+
+  // A request's cookies live in the header buffer the caller frees on return,
+  // and sapi_activate() only re-reads cookies for something with a server
+  // context — which no command has. So a stale pointer is not overwritten by
+  // the next call, it is parsed: $_COOKIE in a command was being built from
+  // freed memory, and printed whatever the allocator had put there since.
+  test('a request does not leave its cookies in the next command', async () => {
+    await site({ '/cookie.php': '<?php echo $_COOKIE["session"] ?? "none";' });
+
+    const served = await serve({
+      url: '/cookie.php',
+      docroot: DOCROOT,
+      headers: { Cookie: 'session=secret-from-the-request' },
+    });
+    assert.equal(served.text, 'secret-from-the-request');
+
+    const command = await evalPhp('echo count($_COOKIE), ":", json_encode($_COOKIE);');
+    assert.equal(command.stdout, '0:[]', 'a command inherited the request\'s cookies');
+  });
+
+  // do_cli() sets SAPI_OPTION_NO_CHDIR for the CLI and nothing clears it, so
+  // whether a request ran in the script's directory used to depend on whether
+  // any command had ever run on the instance.
+  test('runs in the script directory whatever ran before it', async () => {
+    await site({ '/deep/where.php': '<?php echo getcwd();' });
+
+    await evalPhp('echo 1;');
+    const r = await serve({ url: '/deep/where.php', docroot: DOCROOT });
+
+    assert.equal(r.text, `${DOCROOT}/deep`);
+  });
 });

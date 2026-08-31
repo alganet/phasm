@@ -108,21 +108,38 @@ static void phasm_ini_defaults(HashTable *configuration_hash)
 /*
  * setenv() outlives a call, so a variable set for one invocation would leak
  * into the next — `FOO=1 php -r ...; php -r ...` must not see FOO the second
- * time. Track what we set and unset it before applying the next call's
- * environment. Variables the embedder baked into the module at boot are not
- * tracked and not touched.
+ * time. Track what we set and put the environment back before applying the
+ * next call's.
+ *
+ * Putting it *back* rather than unsetting it: a call is free to override a
+ * variable the embedder baked into the module at boot, and unsetting is not the
+ * inverse of overriding — `PATH=/bin php -r …` would delete PATH outright, for
+ * this instance, forever. So the previous value is saved alongside the name and
+ * restored; a name that had no value is unset, which is the inverse there.
  */
-static char **phasm_env_keys = NULL;
+typedef struct {
+	char *name;
+	char *previous; /* NULL when the variable did not exist before the call */
+} phasm_env_entry;
+
+static phasm_env_entry *phasm_env_saved = NULL;
 static int phasm_env_count = 0;
 
 static void phasm_env_clear(void)
 {
-	for (int i = 0; i < phasm_env_count; i++) {
-		unsetenv(phasm_env_keys[i]);
-		free(phasm_env_keys[i]);
+	/* Backwards, so that if one call named a variable twice the *earliest*
+	 * saved value — the one from before the call — is what is restored last. */
+	for (int i = phasm_env_count - 1; i >= 0; i--) {
+		if (phasm_env_saved[i].previous != NULL) {
+			setenv(phasm_env_saved[i].name, phasm_env_saved[i].previous, 1);
+			free(phasm_env_saved[i].previous);
+		} else {
+			unsetenv(phasm_env_saved[i].name);
+		}
+		free(phasm_env_saved[i].name);
 	}
-	free(phasm_env_keys);
-	phasm_env_keys = NULL;
+	free(phasm_env_saved);
+	phasm_env_saved = NULL;
 	phasm_env_count = 0;
 }
 
@@ -135,8 +152,8 @@ static void phasm_env_apply(const char *packed, int count)
 		return;
 	}
 
-	phasm_env_keys = calloc((size_t) count, sizeof(char *));
-	if (phasm_env_keys == NULL) {
+	phasm_env_saved = calloc((size_t) count, sizeof(phasm_env_entry));
+	if (phasm_env_saved == NULL) {
 		return;
 	}
 
@@ -149,8 +166,15 @@ static void phasm_env_apply(const char *packed, int count)
 			if (name != NULL) {
 				memcpy(name, entry, name_len);
 				name[name_len] = '\0';
+
+				/* Copied before setenv(), which is free to invalidate it. */
+				const char *previous = getenv(name);
+				char *kept = previous != NULL ? strdup(previous) : NULL;
+
 				setenv(name, sep + 1, 1);
-				phasm_env_keys[phasm_env_count++] = name;
+				phasm_env_saved[phasm_env_count].name = name;
+				phasm_env_saved[phasm_env_count].previous = kept;
+				phasm_env_count++;
 			}
 		}
 		entry += strlen(entry) + 1;
@@ -449,6 +473,14 @@ int phasm_run(char *packed_argv, int argc, const char *cwd, const char *packed_e
 	SG(request_info).argc = 0;
 	SG(request_info).argv = NULL;
 	free(argv);
+
+	/* do_cli() points this at a php_cli_server_context on its own stack and
+	 * leaves it there, so by now it names a dead frame. Nothing dereferences it
+	 * before the next call overwrites it, but sapi_activate() *branches* on it —
+	 * `if (SG(server_context))` is what decides whether a request re-reads its
+	 * cookies — so leaving a stale non-NULL pointer here is one refactor away
+	 * from mattering. */
+	SG(server_context) = NULL;
 
 	return status;
 }
@@ -975,6 +1007,13 @@ int phasm_handle_request(const char *method, const char *uri,
 	sapi_module.read_cookies = phasm_read_cookies;
 	sapi_module.register_server_variables = phasm_register_variables;
 
+	/* do_cli() sets this for the CLI and nothing clears it, so a request that
+	 * followed any command inherited "do not chdir to the script's directory" —
+	 * making `getcwd()` in /blog/index.php the docroot after a command and
+	 * /blog on a fresh instance. A request is a request whatever ran before it,
+	 * and every other web SAPI chdirs. */
+	SG(options) &= ~SAPI_OPTION_NO_CHDIR;
+
 	SG(server_context) = &r;
 	SG(request_info).request_method = method;
 	SG(request_info).request_uri = script_name;
@@ -1051,6 +1090,13 @@ int phasm_handle_request(const char *method, const char *uri,
 	SG(request_info).path_translated = NULL;
 	SG(request_info).content_type = NULL;
 	SG(request_info).content_length = 0;
+	/* The one that is not merely tidy. cookie_data points into the packed
+	 * headers, which the caller frees the moment this returns — and
+	 * sapi_activate() only refreshes it `if (SG(server_context))`, which no
+	 * command has. So a leftover pointer is not overwritten by the next call: it
+	 * is parsed, and `php -r 'print_r($_COOKIE);'` after a request prints
+	 * whatever the allocator has since put in that freed buffer. */
+	SG(request_info).cookie_data = NULL;
 
 	sapi_module.ub_write = saved_ub_write;
 	sapi_module.flush = saved_flush;

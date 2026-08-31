@@ -296,6 +296,19 @@ describe('per-call cwd and env', opts, () => {
     const r = await evalPhp('echo $_SERVER["PHASM_SERVER"] ?? "missing";', { env: { PHASM_SERVER: 'seen' } });
     assert.equal(r.stdout, 'seen');
   });
+
+  // Cleanup used to unset, which is not the inverse of overriding: a call that
+  // set a variable the module already had deleted it for the whole instance.
+  // `PATH=/bin php -r ...` cost every later call its PATH.
+  test('overriding a variable puts the old value back, not nothing', async () => {
+    const before = (await evalPhp('echo getenv("PATH");')).stdout;
+    assert.notEqual(before, '', 'this test needs a variable the module already has');
+
+    const during = await evalPhp('echo getenv("PATH");', { env: { PATH: '/somewhere-else' } });
+    assert.equal(during.stdout, '/somewhere-else');
+
+    assert.equal((await evalPhp('echo getenv("PATH");')).stdout, before);
+  });
 });
 
 // ─── stdin ───────────────────────────────────────────────────────────────────
