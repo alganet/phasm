@@ -75,6 +75,16 @@ fi
 # the one thing worse than a slightly larger one.
 EMCC_FLAGS="${EMCC_FLAGS:--O2 -g0 -s MODULARIZE=1 -s EXPORT_NAME='Phasm' -s ENVIRONMENT=web,worker,node -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1}"
 
+# The C stack, which is not the same stack as the one a runaway PHP recursion
+# hits. Emscripten's default is 64 KiB — sized for a program that keeps its data
+# on the heap, which PHP mostly does, and overflowing it is silent memory
+# corruption rather than a diagnosable crash. PHP's own guard against that
+# (ZEND_CHECK_STACK_LIMIT) is compiled out here: configure detects it by running
+# a probe, and a cross build cannot run one. So this is the only line of defence
+# there is, and it is cheap — address space in a module that already reserves
+# ~15 MB for static data.
+PHASM_STACK_SIZE="${PHASM_STACK_SIZE:-4MB}"
+
 # The embedding ABI, appended AFTER any override rather than living inside it:
 # a build without phasm_run and the glue that marshals into it is not a phasm
 # build, and overriding EMCC_FLAGS for an unrelated experiment should not
@@ -91,6 +101,9 @@ EMCC_FLAGS="${EMCC_FLAGS:--O2 -g0 -s MODULARIZE=1 -s EXPORT_NAME='Phasm' -s ENVI
 # runs main() on its own has spent the one entry point that ends in exit(), and
 # every phasmRun() afterwards refuses — so `await Phasm()` with no options used
 # to produce an instance that could not run PHP, and the fix was a `noInitialRun`
-# flag the embedder had to know to pass. The build knows.
-EMCC_ABI_FLAGS="-s INVOKE_RUN=0 -s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8','UTF8ToString','HEAPU8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_phasm_is_started','_phasm_handle_request','_phasm_response_status','_phasm_response_headers','_phasm_response_body','_phasm_response_body_length','_malloc','_free'] --pre-js ${ROOT_DIR}/src/phasm-stdio.js --post-js ${ROOT_DIR}/src/phasm-glue.js"
+# flag the embedder had to know to pass. The build knows. STACK_SIZE rides along
+# because a phasm build on the 64 KiB default is one deep C recursion away from
+# overwriting memory with nothing to show for it; PHASM_STACK_SIZE above is the
+# knob for experimenting with it.
+EMCC_ABI_FLAGS="-s INVOKE_RUN=0 -s STACK_SIZE=${PHASM_STACK_SIZE} -s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8','UTF8ToString','HEAPU8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_phasm_is_started','_phasm_handle_request','_phasm_response_status','_phasm_response_headers','_phasm_response_body','_phasm_response_body_length','_malloc','_free'] --pre-js ${ROOT_DIR}/src/phasm-stdio.js --post-js ${ROOT_DIR}/src/phasm-glue.js"
 EMCC_FLAGS="${EMCC_FLAGS} ${EMCC_ABI_FLAGS}"
