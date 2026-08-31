@@ -130,12 +130,12 @@ See `scripts/env.sh` for the full list:
 | Variable               | Default                          | Description                 |
 |------------------------|----------------------------------|-----------------------------|
 | `EMSDK_VERSION`        | `5.0.2`                          | Emscripten SDK version      |
-| `PHP_VERSION`          | `8.5.0`                          | PHP version to build        |
-| `ZLIB_VERSION`         | `1.2.11`                         | zlib version                |
-| `LIBZIP_VERSION`       | `1.9.2`                          | libzip version              |
-| `LIBICONV_VERSION`     | `1.16`                           | libiconv version            |
-| `SQLITE_AMALG_VERSION` | `3380500`                        | SQLite amalgamation version |
-| `ONIGURUMA_VERSION`    | `6.9.4`                          | Oniguruma version           |
+| `PHP_VERSION`          | `8.5.9`                          | PHP version to build        |
+| `ZLIB_VERSION`         | `1.3.2`                          | zlib version                |
+| `LIBZIP_VERSION`       | `1.11.4`                         | libzip version              |
+| `LIBICONV_VERSION`     | `1.19`                           | libiconv version            |
+| `SQLITE_AMALG_VERSION` | `3530400`                        | SQLite amalgamation version |
+| `ONIGURUMA_VERSION`    | `6.9.10`                         | Oniguruma version           |
 | `EMCC_FLAGS`           | `-O2 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags    |
 
 Overriding `EMCC_FLAGS` replaces the codegen defaults only. The flags that
