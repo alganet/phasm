@@ -445,3 +445,18 @@ int phasm_run(char *packed_argv, int argc, const char *cwd, const char *packed_e
 	return status;
 }
 /* }}} */
+
+/* {{{ phasm_is_started */
+
+/*
+ * Whether PHP is up in this instance. src/phasm-glue.js uses it to refuse a
+ * callMain() that would re-enter module startup on a live module — a trap that
+ * kills the instance and every later phasm_run() with it. The guard lives in JS
+ * because callMain() is Emscripten's own JS entry point and never reaches C.
+ */
+EMSCRIPTEN_KEEPALIVE
+int phasm_is_started(void)
+{
+	return phasm_started;
+}
+/* }}} */

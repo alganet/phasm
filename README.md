@@ -93,7 +93,8 @@ fatal error or `exit()` leaves the module usable. Booting PHP costs ~70 ms and a
 warm call ~1 ms, so reuse the instance.
 
 `callMain()` is still there and still one-shot — it re-enters the CLI's `main()`,
-which ends in `exit()`. Pick one entry point per module; they cannot be mixed.
+which ends in `exit()`. Pick one entry point per module; they cannot be mixed,
+and each refuses the call rather than leaving you with a dead instance.
 
 ## Virtual Filesystem
 

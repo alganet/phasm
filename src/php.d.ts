@@ -87,6 +87,8 @@ export interface PhasmModule {
    * Legacy and one-shot: main() ends in exit(), which latches the status for
    * every later call and eventually kills the instance. Mutually exclusive
    * with `phasmRun()` — pick one per module. New code wants `phasmRun()`.
+   *
+   * Throws once PHP is running, rather than trapping and killing the instance.
    */
   callMain(args: string[]): number;
   /** Emscripten's in-memory filesystem. */
