@@ -21,6 +21,17 @@ SRC_DIR="${SOURCES_DIR}"
 SYSROOT_DIR="${BUILD_DIR}/sysroot"
 LIBZIP_TAR="libzip-${LIBZIP_VERSION}.tar.xz"
 
+# Every library built through CMake below needs these, and needs them stated:
+# emcmake leaves CMAKE_BUILD_TYPE empty, CMake then passes no -O flag at all,
+# and the library compiles at -O0. Nothing downstream can recover that — the
+# PHP objects are compiled separately and the link only sees what the archive
+# already contains — so libzip and oniguruma shipped unoptimized inside an
+# artifact whose size gates the whole demo, with no warning anywhere.
+#
+# -O2 rather than Release's own -O3, to match what the PHP objects are built
+# with (EMCC_FLAGS in scripts/env.sh, where -O2 is a measured choice).
+CMAKE_OPT_FLAGS=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG")
+
 mkdir -p "${SRC_DIR}" "${SYSROOT_DIR}"
 pushd "${SRC_DIR}" >/dev/null
 
@@ -109,7 +120,7 @@ if [[ -d "${SRC_DIR}/oniguruma" && ! -f "${SYSROOT_DIR}/lib/libonig.a" ]]; then
     if [[ -f CMakeLists.txt ]]; then
         echo "oniguruma: building with CMake"
         mkdir -p build && pushd build >/dev/null
-        emcmake cmake .. -DCMAKE_INSTALL_PREFIX="${SYSROOT_DIR}" -DBUILD_SHARED_LIBS=OFF
+        emcmake cmake .. -DCMAKE_INSTALL_PREFIX="${SYSROOT_DIR}" "${CMAKE_OPT_FLAGS[@]}" -DBUILD_SHARED_LIBS=OFF
         emmake make -j"$(nproc)"
         emmake make install || true
         popd >/dev/null
@@ -217,16 +228,9 @@ if [[ ! -f "${SYSROOT_DIR}/lib/libxml2.a" ]]; then
     # finds it built in and libxml2 costs no extra library for non-UTF-8
     # documents. The two coexist in the final link because GNU libiconv only
     # ever defines libiconv_* symbols, never iconv_open.
-    #
-    # CMAKE_BUILD_TYPE is not optional here. With it unset — which is what
-    # emcmake leaves — CMake passes no -O flag at all and the whole library
-    # compiles at -O0, which for a parser this size is both slower and much
-    # bigger. Release with -O2 rather than its default -O3 matches what the
-    # PHP objects are built with (see EMCC_FLAGS in env.sh).
     emcmake cmake .. \
         -DCMAKE_INSTALL_PREFIX="${SYSROOT_DIR}" \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+        "${CMAKE_OPT_FLAGS[@]}" \
         -DBUILD_SHARED_LIBS=OFF \
         -DLIBXML2_WITH_PROGRAMS=OFF \
         -DLIBXML2_WITH_TESTS=OFF \
@@ -264,6 +268,7 @@ fi
 # Configure: disable shared libs (static only) and disable optional compressors
 emcmake cmake .. \
     -DCMAKE_INSTALL_PREFIX="${SYSROOT_DIR}" \
+    "${CMAKE_OPT_FLAGS[@]}" \
     -DBUILD_SHARED_LIBS=OFF \
     -DZLIB_LIBRARY="${SYSROOT_DIR}/lib/libz.a" \
     -DZLIB_INCLUDE_DIR="${SYSROOT_DIR}/include" \
