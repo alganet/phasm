@@ -115,8 +115,9 @@ export interface PhasmRequest {
   /** Request headers. `Cookie` and `Content-Type` are handed to PHP directly;
    *  the rest arrive as `$_SERVER['HTTP_*']`. */
   headers?: Record<string, string>;
-  /** Request body. Drives `$_POST`, `php://input` and `$_FILES`. */
-  body?: Uint8Array;
+  /** Request body. Drives `$_POST`, `php://input` and `$_FILES`. A string is
+   *  encoded as UTF-8, as `run()`'s `stdin` does. */
+  body?: string | Uint8Array;
   /** Directory the path is resolved against. Defaults to `"/"`. */
   docroot?: string;
   /** Environment for this request only, as with `phasmRun()`. */

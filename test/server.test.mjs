@@ -213,6 +213,33 @@ describe('the request', opts, () => {
     assert.equal(r.text, '{"name":"alex","role":"dev"}');
   });
 
+  test('a string body reaches PHP as its own bytes', async () => {
+    // Straight at phasmHandleRequest(), because serve() above encodes strings
+    // before they get there and so could never have caught this: a string is
+    // array-like, so the copy into the heap indexed it, coerced every character
+    // to NaN and wrote that many NUL bytes. The request succeeded, with the
+    // right Content-Length, an empty $_POST and a php://input full of nothing.
+    await site({ '/rawstr.php': '<?php echo file_get_contents("php://input");' });
+    const mod = await sharedModule();
+    const res = mod.phasmHandleRequest({
+      url: '/rawstr.php',
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: 'not nul bytes',
+      docroot: DOCROOT,
+    });
+
+    assert.equal(new TextDecoder().decode(res.body), 'not nul bytes');
+  });
+
+  test('a body that is neither string nor bytes is refused', async () => {
+    const mod = await sharedModule();
+    assert.throws(
+      () => mod.phasmHandleRequest({ url: '/rawstr.php', method: 'POST', body: { a: 1 }, docroot: DOCROOT }),
+      TypeError,
+    );
+  });
+
   test('php://input carries the raw body', async () => {
     await site({ '/raw.php': '<?php echo file_get_contents("php://input");' });
     const r = await serve({
