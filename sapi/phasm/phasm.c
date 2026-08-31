@@ -1236,7 +1236,7 @@ int phasm_handle_request(const char *method, const char *uri,
 		query = q != NULL ? q + 1 : NULL;
 		path = phasm_call_own(malloc(path_len + 1));
 		if (path == NULL) {
-			return 500;
+			return phasm_request_done(500);
 		}
 		memcpy(path, uri, path_len);
 		path[path_len] = '\0';
