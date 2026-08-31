@@ -204,6 +204,70 @@ static void phasm_ini_defaults(HashTable *configuration_hash)
 	 * phasm_recover() does can still be tested.
 	 */
 	INI_DEFAULT("zend.max_allowed_stack_size", "512K");
+
+	/*
+	 * opcache. Two settings, and without them the extension is linked in and
+	 * does nothing at all — which is what it had been doing here since it was
+	 * first enabled.
+	 *
+	 * enable_cli, because this SAPI answers to the name "cli". phasm reuses
+	 * cli_sapi_module rather than declaring a module of its own (see the top of
+	 * this file), so sapi_module.name is "cli", and opcache's accel_sapi_is_cli()
+	 * compares exactly that string. With enable_cli at its default of 0 the
+	 * accelerator removes itself during startup, silently, and every claim about
+	 * opcache's behaviour in this build was a claim about an extension that had
+	 * never run.
+	 *
+	 * The reason that default exists upstream does not apply here. It is there
+	 * because a CLI process compiles a script, runs it once and exits, so the
+	 * cache never gets a second request to pay it back. A phasm instance is the
+	 * opposite: it is booted once and then asked to run scripts for as long as
+	 * the page lives, hundreds of times over, which is the case the accelerator
+	 * was written for. The SAPI reports "cli" so that composer.phar and
+	 * phpunit.phar agree to run; inheriting the CLI's caching posture along with
+	 * the name is an accident of that.
+	 *
+	 * file_update_protection, because two seconds is most of an instance's life.
+	 * It refuses to cache a file modified within that many seconds of the
+	 * request, and "write a file, then run it" is the normal shape of every call
+	 * phasm gets — so under the upstream default the cache stays empty for ever
+	 * and nothing anywhere says why.
+	 *
+	 * One, not zero, and the difference is not a tuning preference. The setting
+	 * reads as protection against a half-written file, which is a hazard a
+	 * fork-free single-threaded module does not have; but any value of at least
+	 * one second is also what makes timestamp validation sound, and that hazard
+	 * it very much does have. mtime has one-second granularity, so two writes in
+	 * the same second are indistinguishable. Requiring an entry to be a full
+	 * second old before it is stored means every later write lands in a strictly
+	 * later second than the timestamp recorded with it, so the change is always
+	 * visible to validate_timestamps. At zero, a script cached and then rewritten
+	 * inside one second is served from the cache forever after — "edit the file,
+	 * reload the frame, see the old output", which is the exact failure this
+	 * build has to avoid and the one that gets misread as a service-worker bug.
+	 *
+	 * What one second costs is that a file is not cached until the second after
+	 * it was written. That is nothing: everything a prewarmed cache is for —
+	 * a seeded project, a vendor tree, a framework — is older than that long
+	 * before a request asks for it, and the only thing left uncached is a file
+	 * that changed a moment ago, which is the file likeliest to change again.
+	 *
+	 * What is NOT set here is opcache.file_cache, and that is the whole of the
+	 * embedder's side: name a directory that exists and caching starts. It has
+	 * to be paired with file_cache_only=1, because there is no shared memory to
+	 * fall back from — Emscripten defines none of HAVE_SHM_MMAP_ANON,
+	 * HAVE_SHM_MMAP_POSIX or HAVE_SHM_IPC, so the accelerator's normal path
+	 * fails with "No available SHM backend" and disables itself, and the
+	 * automatic fallback to the file cache is compiled in for Windows only. A
+	 * file cache is not one of two ways to run opcache here; it is the only one.
+	 *
+	 * Neither default turns caching on by itself, so an instance that names no
+	 * file_cache pays what it paid before: opcache starts, finds no SHM, and
+	 * removes itself. That message is ACCEL_LOG_INFO, above the default
+	 * log_verbosity_level, so it stays off stderr.
+	 */
+	INI_DEFAULT("opcache.enable_cli", "1");
+	INI_DEFAULT("opcache.file_update_protection", "1");
 }
 /* }}} */
 
