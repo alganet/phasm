@@ -123,6 +123,28 @@ consulted whenever no `run()` is in flight, so they keep behaving as they always
 did. Installing your own `FS.init()` sinks still works and still wins — `run()`
 then says it cannot capture, rather than reporting that PHP printed nothing.
 
+## As a shell command
+
+`run()` is what a shell needs, and it is deliberately not PHP's own vocabulary —
+its options and its result are [wasi-sh](https://github.com/alganet/wasi-sh)'s,
+which is why the two compose with almost nothing between them:
+
+```js
+const { stdout, stderr, exitCode } = php.run({
+  args: ["-r", 'echo getenv("HOME");'],
+  cwd: "/site",
+  env: { HOME: "/site" },
+  collect: false,
+  onOutput: (bytes, channel) => channel === "stdout" ? out(bytes) : err(bytes),
+});
+```
+
+A host builtin over that is about thirty lines, and it comes with pipes,
+redirects, `$(…)` and `$?` already working, because by dispatch time the shell
+has installed the redirections. What cannot work is anything needing a
+*process* — `php &`, `(php x)`, `exec php`, `find -exec php` — because a builtin
+is not one. Both guests must share one filesystem: paths are passed through as
+typed and nothing is copied.
 ## Serving HTTP
 
 `phasmHandleRequest()` runs a real PHP request rather than a command, so
