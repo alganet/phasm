@@ -76,6 +76,18 @@ export ZLIB_LIBS="-L${BUILD_DIR}/sysroot/lib -lz"
 # SQLite (headers + static lib installed into sysroot by scripts/deps.sh)
 export SQLITE_CFLAGS="-I${BUILD_DIR}/sysroot/include"
 export SQLITE_LIBS="-L${BUILD_DIR}/sysroot/lib -lsqlite3"
+# libxml2, for ext/libxml and the four extensions built on it. PHP_SETUP_LIBXML
+# is a PKG_CHECK_MODULES call like zlib's, so presetting the pair short-circuits
+# the probe instead of letting a cross build ask the host's pkg-config about the
+# host's libxml2 — which here would be worse than a plain failure. The host
+# probe answers with `-I/usr/include/libxml2 -lxml2`, and the sysroot is already
+# on the link path from LIBZIP_LIBS above, so the build can end up compiling
+# against one version's headers and linking another version's library.
+#
+# The include path carries the libxml2/ component because that is where the
+# headers install; PHP's sources include <libxml/parser.h>, one level below it.
+export LIBXML_CFLAGS="-I${BUILD_DIR}/sysroot/include/libxml2"
+export LIBXML_LIBS="-L${BUILD_DIR}/sysroot/lib -lxml2"
 
 echo "LIBZIP_CFLAGS=${LIBZIP_CFLAGS}"
 echo "LIBZIP_LIBS=${LIBZIP_LIBS}"
@@ -87,6 +99,8 @@ echo "ZLIB_CFLAGS=${ZLIB_CFLAGS}"
 echo "ZLIB_LIBS=${ZLIB_LIBS}"
 echo "SQLITE_CFLAGS=${SQLITE_CFLAGS}"
 echo "SQLITE_LIBS=${SQLITE_LIBS}"
+echo "LIBXML_CFLAGS=${LIBXML_CFLAGS}"
+echo "LIBXML_LIBS=${LIBXML_LIBS}"
 
 emconfigure "${PHP_SRC_DIR}/configure" \
 	--without-pear \
@@ -120,6 +134,21 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	--enable-mbstring \
 	--enable-pcntl \
 	--enable-pdo \
+	`# The XML family. ext/libxml is the shared base — it owns the parser, the` \
+	`# error handling and the stream-wrapper input callbacks — and the other` \
+	`# four are separate extensions over it, so all five names are needed even` \
+	`# though one library backs them. PHPUnit's platform requirements name dom,` \
+	`# libxml, xml and xmlwriter — the four of its six this build was missing,` \
+	`# json and mbstring already being here — and Composer refuses to install a` \
+	`# package whose requirements are unmet, so "run the project's tests in the` \
+	`# terminal" was unreachable without them. JUnit and coverage reports come` \
+	`# out through the writer. simplexml comes along because it is what` \
+	`# ordinary code reaches for and it is one C file over the same library.` \
+	--with-libxml \
+	--enable-dom \
+	--enable-simplexml \
+	--enable-xml \
+	--enable-xmlwriter \
 	`# phar is the one that makes tooling exist. composer.phar, phpunit.phar` \
 	`# and php-cs-fixer.phar are single-file archives with a PHP stub, so` \
 	`# without this extension they are not slow or degraded — they simply do` \

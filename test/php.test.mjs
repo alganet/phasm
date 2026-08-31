@@ -53,9 +53,9 @@ describe('interpreter', opts, () => {
 // flag silently failing to take effect is exactly the kind of regression a
 // dependency bump causes, and it is invisible without an assertion.
 const ADVERTISED = [
-  'calendar', 'ctype', 'fileinfo', 'filter', 'iconv', 'mbstring',
-  'pcntl', 'PDO', 'pdo_sqlite', 'Phar', 'session', 'sqlite3', 'tokenizer',
-  'zip', 'zlib',
+  'calendar', 'ctype', 'dom', 'fileinfo', 'filter', 'iconv', 'libxml',
+  'mbstring', 'pcntl', 'PDO', 'pdo_sqlite', 'Phar', 'session', 'SimpleXML',
+  'sqlite3', 'tokenizer', 'xml', 'xmlwriter', 'zip', 'zlib',
 ];
 
 describe('extensions', opts, () => {
@@ -74,6 +74,17 @@ describe('extensions', opts, () => {
   // deps.sh they are prompted to update the README in the same change.
   test('gmp is NOT built (it needs --with-gmp plus a cross-built libgmp)', async () => {
     const r = await evalPhp('echo function_exists("gmp_init") ? "present" : "absent";');
+    assert.equal(r.stdout, 'absent');
+  });
+
+  // xmlreader is the member of the libxml2 family this build leaves out
+  // deliberately: dom, simplexml, xml and xmlwriter are what PHPUnit and
+  // ordinary code ask for, and every name in ADVERTISED costs download. Pinned
+  // as an absence for the same reason as gmp — enabling it should be a change
+  // that also touches the README. Note the reader API itself stays compiled
+  // into libxml2, because ext/libxml uses it; see the SVG test below.
+  test('xmlreader is NOT built, though the library behind it is', async () => {
+    const r = await evalPhp('echo class_exists("XMLReader") ? "present" : "absent";');
     assert.equal(r.stdout, 'absent');
   });
 
@@ -209,6 +220,164 @@ describe('extensions', opts, () => {
 
     const ran = await php(['/bin/c.phar'], { files: { '/bin/c.phar': packed.FS.readFile('/bin/c.phar') } });
     assert.equal(ran.stdout, '4000', `reading a compressed entry failed: ${ran.stderr}`);
+  });
+
+  // ── the libxml2 family ─────────────────────────────────────────────────────
+  //
+  // One C library backs four extensions, and scripts/deps.sh switches a lot of
+  // it off on the grounds that PHP cannot reach it. These tests are the other
+  // half of that argument: each one exercises a libxml2 feature the recipe
+  // deliberately left ON, so turning one off shows up here as a failure rather
+  // than in somebody's XSD six months later.
+
+  // The sysroot is cached in CI, keyed on env.sh and deps.sh — so a stale
+  // libxml2 and a freshly built one look identical from outside. This is the
+  // only place the pin and the artifact are compared.
+  test('the linked libxml2 is the version env.sh pins', async () => {
+    const env = readFileSync(join(DIST, '..', 'scripts', 'env.sh'), 'utf8');
+    const pinned = env.match(/^LIBXML2_VERSION="\$\{LIBXML2_VERSION:-([^}"]+)\}"/m);
+    assert.ok(pinned, 'scripts/env.sh no longer pins LIBXML2_VERSION in the expected shape');
+
+    // LIBXML_VERSION is what ext/libxml compiled against, LIBXML_LOADED_VERSION
+    // what is running — the same number in a static build, and the pair worth
+    // asserting anyway. PHP registers the first as an int and the second as a
+    // string, hence the cast.
+    const r = await evalPhp('echo LIBXML_DOTTED_VERSION, ":", (int) LIBXML_LOADED_VERSION === LIBXML_VERSION ? "same" : "mismatch";');
+    assert.equal(
+      r.stdout,
+      `${pinned[1]}:same`,
+      'the sysroot holds a different libxml2 than the pin describes — a stale cached sysroot looks exactly like this',
+    );
+  });
+
+  test('dom parses, queries with XPath, mutates and serializes', async () => {
+    const r = await evalPhp(
+      '$d = new DOMDocument();'
+      + '$d->loadXML(\'<r xmlns:x="urn:x"><x:a id="1">one</x:a><a>two</a></r>\');'
+      + '$xp = new DOMXPath($d); $xp->registerNamespace("x", "urn:x");'
+      + 'echo $xp->query("//x:a")->item(0)->textContent, ":", $xp->evaluate("count(//a)"), ":";'
+      + '$d->documentElement->appendChild($d->createElement("b", "three"));'
+      + 'echo substr_count($d->saveXML(), "<b>three</b>");'
+    );
+    assert.equal(r.stdout, 'one:1:1');
+  });
+
+  // A separate parser inside libxml2 (LIBXML2_WITH_HTML), and the one that
+  // recovers from unclosed tags. PHP 8.4's Dom\HTMLDocument is lexbor instead,
+  // which is bundled and would keep working even if this were switched off —
+  // hence both.
+  test('dom parses tag soup as HTML, through both parsers', async () => {
+    const r = await evalPhp(
+      '$d = new DOMDocument(); @$d->loadHTML("<html><body><p>hi<br>there</body></html>");'
+      + 'echo $d->getElementsByTagName("p")->item(0)->textContent, ":";'
+      + 'echo \\Dom\\HTMLDocument::createFromString("<p>lex</p>", LIBXML_NOERROR)->querySelector("p")->textContent;'
+    );
+    assert.equal(r.stdout, 'hithere:lex');
+  });
+
+  test('simplexml reads elements, attributes and repeats', async () => {
+    const r = await evalPhp(
+      '$s = simplexml_load_string(\'<r><i n="1">a</i><i n="2">b</i></r>\');'
+      + 'foreach ($s->i as $i) { echo $i["n"], "=", $i, ";"; }'
+    );
+    assert.equal(r.stdout, '1=a;2=b;');
+  });
+
+  // ext/xml is an expat-compatible SAX layer over libxml2's SAX1 interface, so
+  // this is what fails if LIBXML2_WITH_SAX1 is ever turned off.
+  test('the xml extension drives SAX handlers', async () => {
+    const r = await evalPhp(
+      '$p = xml_parser_create(); $seen = "";'
+      + 'xml_set_element_handler($p, function ($p, $n) use (&$seen) { $seen .= "<$n"; }, function () {});'
+      + 'echo var_export(xml_parse($p, "<a><b/></a>", true) === 1, true), ":", $seen;'
+    );
+    assert.equal(r.stdout, 'true:<A<B');
+  });
+
+  // The exact shape PHPUnit writes a JUnit report in: a namespaced root with
+  // attributes, built incrementally in memory.
+  test('xmlwriter builds a namespaced document in memory', async () => {
+    const r = await evalPhp(
+      '$w = new XMLWriter(); $w->openMemory();'
+      + '$w->startDocument("1.0", "UTF-8");'
+      + '$w->startElementNS("j", "testsuite", "urn:junit");'
+      + '$w->writeAttribute("tests", "3");'
+      + '$w->writeElement("case", "ok");'
+      + '$w->endElement(); $w->endDocument();'
+      + 'echo str_replace("\\n", "", $w->outputMemory());'
+    );
+    assert.equal(
+      r.stdout,
+      '<?xml version="1.0" encoding="UTF-8"?><j:testsuite tests="3" xmlns:j="urn:junit"><case>ok</case></j:testsuite>',
+    );
+  });
+
+  // Three validators, three separate libxml2 subsystems (SCHEMAS, RELAXNG,
+  // VALID), plus the error queue that makes a failure diagnosable instead of
+  // just false.
+  test('dom validates against XSD, RelaxNG and a DTD, and reports why not', async () => {
+    const r = await evalPhp(
+      'file_put_contents("/s.xsd", \'<?xml version="1.0"?><xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">\''
+      + '. \'<xs:element name="r" type="xs:integer"/></xs:schema>\');'
+      + 'file_put_contents("/s.rng", \'<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"><text/></element>\');'
+      + '$ok = new DOMDocument(); $ok->loadXML("<r>7</r>");'
+      + 'echo var_export($ok->schemaValidate("/s.xsd"), true), ":";'
+      + 'echo var_export($ok->relaxNGValidate("/s.rng"), true), ":";'
+      + '$dtd = new DOMDocument();'
+      + '$dtd->loadXML(\'<!DOCTYPE r [<!ELEMENT r (#PCDATA)>]><r>ok</r>\', LIBXML_DTDVALID);'
+      + 'echo var_export($dtd->validate(), true), ":";'
+      + 'libxml_use_internal_errors(true);'
+      + '$bad = new DOMDocument(); $bad->loadXML("<r>not-an-integer</r>");'
+      + 'echo var_export($bad->schemaValidate("/s.xsd"), true), ":";'
+      + 'echo count(libxml_get_errors()) > 0 ? "reported" : "silent";'
+    );
+    assert.equal(r.stdout, 'true:true:true:false:reported');
+  });
+
+  test('xinclude resolves and C14N canonicalises', async () => {
+    const r = await evalPhp(
+      'file_put_contents("/inc.xml", "<i>included</i>");'
+      + '$d = new DOMDocument();'
+      + '$d->loadXML(\'<r xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include href="/inc.xml"/></r>\');'
+      + 'echo $d->xinclude(), ":", trim($d->documentElement->textContent), ":";'
+      + 'echo $d->C14N();'
+    );
+    // One node included, and the canonical form keeps the in-scope xi
+    // declaration — which is what canonicalisation is for, not a leak.
+    assert.equal(
+      r.stdout,
+      '1:included:<r xmlns:xi="http://www.w3.org/2001/XInclude"><i>included</i></r>',
+    );
+  });
+
+  // libxml2 is built against the iconv that Emscripten's libc already carries,
+  // rather than against the sysroot's GNU libiconv — so this is the assertion
+  // that the encoding path exists at all. Latin-1 would pass on libxml2's
+  // built-in tables alone; Shift_JIS is not one of them, so it can only come
+  // from iconv.
+  test('documents in non-UTF-8 encodings are transcoded (iconv is wired)', async () => {
+    const r = await evalPhp(
+      '$latin = new DOMDocument();'
+      + '$latin->loadXML("<?xml version=\\"1.0\\" encoding=\\"ISO-8859-1\\"?><r>" . chr(0xe9) . "</r>");'
+      + 'echo bin2hex($latin->documentElement->textContent), ":";'
+      + '$sjis = new DOMDocument();'
+      + '$sjis->loadXML("<?xml version=\\"1.0\\" encoding=\\"Shift_JIS\\"?><r>" . chr(0x93) . chr(0xfa) . "</r>");'
+      + 'echo bin2hex($sjis->documentElement->textContent);'
+    );
+    assert.equal(r.stdout, 'c3a9:e697a5', 'é as UTF-8 then 日 as UTF-8');
+  });
+
+  // getimagesize() on an SVG is ext/standard calling into ext/libxml, which
+  // reads the dimensions with libxml2's xmlTextReader. So this asserts a
+  // function nobody thinks of as XML, and it is the test that fails if someone
+  // notices ext/xmlreader is not built and switches LIBXML2_WITH_READER off.
+  test('getimagesize reads an SVG, through libxml2 rather than gd', async () => {
+    const r = await evalPhp(
+      'file_put_contents("/i.svg", \'<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40"/>\');'
+      + '$i = getimagesize("/i.svg");'
+      + 'echo $i[0], "x", $i[1], ":", $i["mime"];'
+    );
+    assert.equal(r.stdout, '120x40:image/svg+xml');
   });
 
   test('fileinfo identifies content', async () => {

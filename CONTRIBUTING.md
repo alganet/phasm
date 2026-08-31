@@ -22,7 +22,7 @@ The build is split into sequential scripts. Run them in order:
 ./scripts/setup.sh           # Install the pinned Emscripten SDK
 ./scripts/fetch.sh           # Download and verify PHP and dependency sources
 ./scripts/apply-patches.sh   # Patch PHP for Emscripten compatibility
-./scripts/deps.sh            # Build C libraries (zlib, libzip, iconv, oniguruma, sqlite)
+./scripts/deps.sh            # Build C libraries (zlib, libzip, iconv, oniguruma, sqlite, libxml2)
 ./scripts/build.sh           # Compile PHP to WebAssembly
 npm test                     # Verify the result actually runs PHP
 ```
@@ -137,6 +137,7 @@ See `scripts/env.sh` for the full list:
 | `LIBICONV_VERSION`     | `1.19`                           | libiconv version            |
 | `SQLITE_AMALG_VERSION` | `3530400`                        | SQLite amalgamation version |
 | `ONIGURUMA_VERSION`    | `6.9.10`                         | Oniguruma version           |
+| `LIBXML2_VERSION`      | `2.15.3`                         | libxml2 version             |
 | `EMCC_FLAGS`           | `-O2 -g0 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags |
 | `PHASM_STACK_SIZE`     | `4MB`                            | C stack for the module      |
 
@@ -163,6 +164,13 @@ after it, when the exported entry points it marshals into exist.
 Extensions are toggled in `scripts/build.sh` via `configure` flags. To add an
 extension, add the corresponding `--enable-*` or `--with-*` flag. Extensions
 that depend on C libraries also need their dependency built in `scripts/deps.sh`.
+
+Where PHP detects that library with `PKG_CHECK_MODULES` — zlib, sqlite, libxml2
+— `build.sh` also exports a `<MODULE>_CFLAGS`/`<MODULE>_LIBS` pair, because
+pkg-config's convention is that a preset pair short-circuits the probe. Without
+it a cross build asks the *host's* pkg-config about the *host's* library, and
+the answer is a host include path plus a bare `-l`, which the sysroot on the
+link path can then satisfy with a different version than the headers describe.
 
 ## Adding Patches
 

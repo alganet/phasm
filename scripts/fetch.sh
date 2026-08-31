@@ -148,6 +148,13 @@ fetch_and_extract "libzip-${LIBZIP_VERSION}.tar.xz" "${SOURCES_DIR}/libzip-${LIB
 # libiconv
 fetch_and_extract "libiconv-${LIBICONV_VERSION}.tar.gz" "${SOURCES_DIR}/libiconv-${LIBICONV_VERSION}" "${LIBICONV_SHA256}" "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-${LIBICONV_VERSION}.tar.gz"
 
+# libxml2. GNOME publishes each release under its X.Y series directory, so the
+# path carries the version minus its patch component.
+LIBXML2_SERIES="${LIBXML2_VERSION%.*}"
+fetch_and_extract "libxml2-${LIBXML2_VERSION}.tar.xz" "${SOURCES_DIR}/libxml2-${LIBXML2_VERSION}" "${LIBXML2_SHA256}" \
+	"https://download.gnome.org/sources/libxml2/${LIBXML2_SERIES}/libxml2-${LIBXML2_VERSION}.tar.xz" \
+	"https://ftp.gnome.org/pub/gnome/sources/libxml2/${LIBXML2_SERIES}/libxml2-${LIBXML2_VERSION}.tar.xz"
+
 # sqlite amalgamation (zip)
 SQLITE_ZIP="sqlite-amalgamation-${SQLITE_AMALG_VERSION}.zip"
 if [[ ! -d "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" ]]; then
