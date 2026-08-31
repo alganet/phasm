@@ -14,7 +14,9 @@
 
 import { test, before, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { php, evalPhp, haveBuild, NO_BUILD_MSG } from './helper.mjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { php, evalPhp, haveBuild, NO_BUILD_MSG, DIST } from './helper.mjs';
 
 const SKIP = !haveBuild();
 before((t) => { if (SKIP) t.diagnostic(NO_BUILD_MSG); });
@@ -212,6 +214,83 @@ describe('io and exit codes', opts, () => {
       files: { '/a.php': '<?php echo $argc, ":", implode(",", array_slice($argv, 1));' },
     });
     assert.equal(r.stdout, '3:one,two');
+  });
+});
+
+// ─── what the artifact carries ───────────────────────────────────────────────
+
+/** Wasm section id 0. Its payload begins with the section's name. */
+const CUSTOM = 0;
+/** Wasm section id 10, the function bodies — proof a walk reached real content. */
+const CODE = 10;
+
+/**
+ * Walk a wasm module's top-level sections: `{id, name, size}` each.
+ *
+ * Everything optional in a wasm binary is a custom section — DWARF, the
+ * function name table, the producers record — so this answers "what is in here
+ * that is not code" directly rather than by watching a byte count. A module is
+ * an 8-byte header followed by sections of `id, length, payload`, with lengths
+ * LEB128-encoded, and a custom section carries a length-prefixed name at the
+ * front of its payload.
+ */
+function wasmSections(bytes) {
+  let at = 8; // magic + version
+  const found = [];
+
+  const leb = () => {
+    let result = 0;
+    let shift = 0;
+    let byte;
+    do {
+      byte = bytes[at++];
+      result |= (byte & 0x7f) << shift;
+      shift += 7;
+    } while (byte & 0x80);
+    return result;
+  };
+
+  while (at < bytes.length) {
+    const id = bytes[at++];
+    const size = leb();
+    const payloadAt = at;
+    let name = '';
+    if (id === CUSTOM) {
+      const nameLength = leb();
+      name = new TextDecoder().decode(bytes.subarray(at, at + nameLength));
+    }
+    found.push({ id, name, size });
+    at = payloadAt + size;
+    assert.ok(at <= bytes.length, `section ${id} claims ${size} bytes and runs past the end`);
+  }
+
+  return found;
+}
+
+describe('the shipped wasm', opts, () => {
+  // Two thirds of this file used to be DWARF, because PHP's configure puts `-g`
+  // in CFLAGS and nothing took it back out — 35.3 MB shipped where 11.9 MB is
+  // the code, and emcc skipping its post-link optimizations on top of that. It
+  // is one flag away from coming back, and it is invisible when it does: the
+  // build works perfectly, it is just three times the download. Asserted as an
+  // absence rather than a size ceiling, because the extension work will move any
+  // ceiling and nobody will be sure which of the two moved it.
+  test('carries no debug info', () => {
+    const sections = wasmSections(readFileSync(join(DIST, 'php.wasm')));
+
+    // A negative assertion needs proof the walk got somewhere: an empty parse
+    // has no DWARF in it either.
+    assert.ok(
+      sections.some((s) => s.id === CODE && s.size > 1_000_000),
+      `no code section found among ${sections.length} — the walk, not the wasm, is wrong`,
+    );
+
+    const debug = sections.filter((s) => s.name.startsWith('.debug'));
+    assert.deepEqual(
+      debug.map((s) => `${s.name} (${s.size} bytes)`),
+      [],
+      'something dropped -g0 from the link (scripts/env.sh)',
+    );
   });
 });
 
