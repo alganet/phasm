@@ -419,4 +419,15 @@ describe('phasmRun', opts, () => {
     assert.throws(() => mod.callMain(['-r', 'echo "nope";']), /mutually exclusive/);
     assert.equal((await evalPhp('echo "still alive";')).stdout, 'still alive');
   });
+
+  // And the other direction. The C side already declines, but it can only say
+  // so as a status — and 255 is also what `php -l` returns for a parse error,
+  // so a mistake this structural would look like an ordinary failure.
+  test('refuses phasmRun() on an instance that has run callMain()', async () => {
+    const { module: mod } = await php(['-r', 'echo "once";'], { fresh: true, viaCallMain: true });
+
+    assert.throws(() => mod.phasmRun(['-r', 'echo 1;']), /mutually exclusive/);
+    assert.throws(() => mod.phasmHandleRequest({ url: '/x.php' }), /mutually exclusive/);
+    assert.throws(() => mod.phasmStartup('precision=3'), /mutually exclusive/);
+  });
 });

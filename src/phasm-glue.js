@@ -51,6 +51,7 @@ function phasmRejectNuls(list, what) {
  */
 Module['phasmRun'] = function (args, opts) {
   opts = opts || {};
+  phasmRefuseAfterCallMain('phasmRun()');
 
   const argv = ['php'].concat(args || []).map(String);
   const env = Object.entries(opts.env || {}).map(([k, v]) => `${k}=${v}`);
@@ -93,6 +94,8 @@ Module['phasmRun'] = function (args, opts) {
  * @returns {{status: number, headers: [string, string][], body: Uint8Array}}
  */
 Module['phasmHandleRequest'] = function (req) {
+  phasmRefuseAfterCallMain('phasmHandleRequest()');
+
   const method = String(req.method || 'GET');
   const url = String(req.url);
   const docroot = String(req.docroot || '/');
@@ -165,6 +168,8 @@ Module['phasmHandleRequest'] = function (req) {
  * @returns {number} 0 on success, -1 if this module already ran callMain()
  */
 Module['phasmStartup'] = function (ini) {
+  phasmRefuseAfterCallMain('phasmStartup()');
+
   const iniPtr = ini ? stringToNewUTF8(ini) : 0;
   try {
     return _phasm_startup(iniPtr);
@@ -179,6 +184,8 @@ Module['phasmStartup'] = function (ini) {
 // phasmRun() throws too. phasm_startup() already refuses the opposite order;
 // this is the same refusal in the direction Emscripten owns, and it has to live
 // here because callMain() is a JS function that never reaches C.
+let phasmCallMainUsed = false;
+
 const phasmCallMain = Module['callMain'];
 if (phasmCallMain) {
   Module['callMain'] = function (args) {
@@ -188,7 +195,22 @@ if (phasmCallMain) {
         + 'module has already started PHP. Use phasmRun().',
       );
     }
+    phasmCallMainUsed = true;
     return phasmCallMain.apply(this, arguments);
   };
 }
 
+// The same refusal in the other direction. The C side already declines — it
+// checks sapi_module.name and gives up — but it can only report that as an
+// ordinary failure status, and 255 from phasmRun() is indistinguishable from
+// `php -l` on a parse error while 500 from a request is indistinguishable from
+// a fatal. Silently returning "something went wrong" for a mistake this
+// structural is the one case worth an exception.
+function phasmRefuseAfterCallMain(what) {
+  if (phasmCallMainUsed) {
+    throw new Error(
+      `phasm: ${what} and callMain() are mutually exclusive, and this module `
+      + 'has already run callMain(). Create a new module.',
+    );
+  }
+}
