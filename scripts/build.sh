@@ -22,16 +22,33 @@ if [[ ! -d "${PHP_SRC_DIR}/.git" ]]; then
 	exit 1
 fi
 
-# ext/phar's path scanner is generated from a .re by re2c, and php-src's git
-# tree does not carry the generated file the way a release tarball does. When
-# re2c is missing, configure sets `RE2C = exit 0;` and the generation rule
-# quietly succeeds while producing nothing — so the build dies hundreds of lines
-# later on "no such file or directory: ext/phar/phar_path_check.c", which names
-# neither phar nor re2c. CONTRIBUTING.md lists it and CI installs it; this is
-# for the machine that skipped a line.
-if ! command -v re2c >/dev/null 2>&1; then
-	echo "re2c not found. ext/phar's scanner is generated from a .re file and"
-	echo "cannot be built without it. See CONTRIBUTING.md for the package list."
+# The three host tools that generate source. php-src's git tree carries none of
+# what they produce — a release tarball would — and every one of them fails at a
+# distance when it is missing, which is why they are checked here rather than
+# left to the build:
+#
+#   autoconf  buildconf turns the config.m4 files into `configure`. Without it
+#             buildconf prints "autoconf not found" and stops, and if a stale
+#             configure is lying around from an earlier run the build carries
+#             on happily against it — so a config.m4 edit does nothing at all
+#             and the artifact looks fine. `git clean -fd` in fetch.sh does not
+#             remove it either, because php-src gitignores /configure.
+#   bison     the language and ini parsers.
+#   re2c      ext/phar's path scanner, and the worst of the three: configure
+#             sets `RE2C = exit 0;` when it is missing, so the generation rule
+#             succeeds while producing nothing and the build dies hundreds of
+#             lines later on "no such file or directory:
+#             ext/phar/phar_path_check.c", naming neither phar nor re2c.
+#
+# CONTRIBUTING.md lists all of them and CI installs them; this is for the
+# machine that skipped a line.
+missing=()
+for tool in autoconf bison re2c; do
+	command -v "${tool}" >/dev/null 2>&1 || missing+=("${tool}")
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+	echo "Missing host tools that generate PHP's sources: ${missing[*]}" >&2
+	echo "See CONTRIBUTING.md for the package list." >&2
 	exit 1
 fi
 
@@ -53,7 +70,10 @@ cp -R "${ROOT_DIR}/sapi/phasm" "${PHP_SRC_DIR}/sapi/phasm"
 
 cd "${PHP_SRC_DIR}"
 
-./buildconf --force || true
+# No `|| true` here. It was swallowing the failure above: with autoconf absent
+# buildconf exits non-zero having regenerated nothing, and the build then
+# configured itself from whatever `configure` happened to be on disk.
+./buildconf --force
 
 pushd "${BUILD_DIR}" >/dev/null
 
