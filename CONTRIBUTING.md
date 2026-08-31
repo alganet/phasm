@@ -109,11 +109,11 @@ scripts/
 
 patches/               # Emscripten compatibility patches for PHP
 sapi/phasm/            # The re-entrant SAPI, copied into php-src at build time
-src/                   # Hand-written package sources (the JS halves, types, builtin)
+src/                   # Hand-written package sources (the JS halves, types)
 test/                  # Test suite (node --test)
 sources/               # Downloaded source trees (gitignored)
 build/                 # Intermediate build artifacts (gitignored)
-dist/                  # Final npm output (php.js + php.wasm + the .d.ts and builtin)
+dist/                  # Final npm output (php.js + php.wasm + and the .d.ts)
 web/                   # Live demo website
 ```
 
