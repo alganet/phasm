@@ -50,7 +50,8 @@ const { stdout, stderr, exitCode } = php.run({
 
 Types ship with the package — `Phasm`, `PhasmOptions`, `PhasmModule`, `PhasmFS`,
 `PhasmRunOptions`, `PhasmRunResult`, `PhasmRequest` and `PhasmResponse` are all
-declared, no `@types` package needed.
+declared, no `@types` package needed. The subpaths carry their own: `Store` and
+`MountOptions` on `@alganet/phasm/mount`.
 
 ```ts
 import Phasm, { type PhasmModule, type PhasmRunResult } from "@alganet/phasm";
@@ -144,7 +145,8 @@ redirects, `$(…)` and `$?` already working, because by dispatch time the shell
 has installed the redirections. What cannot work is anything needing a
 *process* — `php &`, `(php x)`, `exec php`, `find -exec php` — because a builtin
 is not one. Both guests must share one filesystem: paths are passed through as
-typed and nothing is copied.
+typed and nothing is copied. The [shared filesystem](#sharing-a-filesystem)
+is one more call.
 ## Serving HTTP
 
 `phasmHandleRequest()` runs a real PHP request rather than a command, so
@@ -208,6 +210,50 @@ php.FS.readFile("/out.txt", { encoding: "utf8" });
 
 See the [Emscripten File System API](https://emscripten.org/docs/api_reference/Filesystem-API.html) for the full reference.
 
+## Sharing a filesystem
+
+That filesystem is phasm's own, which stops being enough the moment something
+else — a shell, an editor, a service worker — has to see the same project.
+`mountStore()` hands ownership over: the store stays outside and JS-owned, and
+PHP reads and writes through it.
+
+```js
+import Phasm from "@alganet/phasm";
+import { mountStore } from "@alganet/phasm/mount";
+import { memoryFs } from "wasi-sh/fs";
+
+const store = memoryFs({ "/app/index.php": '<?php echo "hi";' });
+const php = await Phasm({ noInitialRun: true });
+await mountStore(php, store, { path: "/app" });
+
+php.run({ args: ["/app/index.php"] }).stdout; // 'hi'
+```
+
+A store is any object carrying the twelve synchronous, path-addressed methods of
+ZenFS's `FileSystem` — which is also
+[wasi-sh](https://github.com/alganet/wasi-sh)'s `fs` contract, so a shell's
+store, a `@zenfs/core` filesystem and a persistent OPFS-backed one are all the
+same argument here. Nothing is copied in at mount time or flushed out at the
+end: a file the shell just wrote is the file PHP opens, an edit made outside is
+the code the next request runs, and a database PHP writes is a file the page
+still has after a reload.
+
+`path` is where the store appears in PHP's filesystem; `root` is the directory
+*of the store* that lands there, and it defaults to `path`. That default is the
+one to keep — it makes the mount an identity mapping, so `/app` in the shell is
+`/app` in PHP, which is what a shell typing `php app/index.php` depends on.
+Mounting at `/` is not possible: Emscripten's root is already in memory and
+`/dev`, `/tmp` and `/proc` have to stay there. Mount the directories the project
+lives in, one call each.
+
+`@zenfs/core` and `@zenfs/emscripten` are optional peer dependencies — the
+Emscripten-side translation is theirs, and embedding PHP in a page without
+mounting anything installs neither:
+
+```sh
+npm install @zenfs/core @zenfs/emscripten
+```
+
 ## Live Demo
 
 A live demo is available at [alganet.github.io/phasm](https://alganet.github.io/phasm/).
@@ -216,6 +262,12 @@ A live demo is available at [alganet.github.io/phasm](https://alganet.github.io/
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and development
 guidelines.
+
+## Acknowledgements
+
+`mountStore()` is built on **ZenFS** — [`@zenfs/core`](https://github.com/zen-fs/core)
+and [`@zenfs/emscripten`](https://github.com/zen-fs/emscripten), LGPL-3.0-or-later
+with a web-application exception, used unmodified.
 
 ## License
 

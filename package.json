@@ -14,6 +14,11 @@
       "import": "./dist/php.js",
       "default": "./dist/php.js"
     },
+    "./mount": {
+      "types": "./dist/mount.d.ts",
+      "import": "./dist/mount.mjs",
+      "default": "./dist/mount.mjs"
+    },
     "./wasm": "./dist/php.wasm",
     "./package.json": "./package.json"
   },
@@ -30,5 +35,21 @@
     "webassembly"
   ],
   "author": "Alexandre Gomes Gaigalas <alganet@gmail.com>",
-  "license": "ISC"
+  "license": "ISC",
+  "peerDependencies": {
+    "@zenfs/core": ">=2.4.2",
+    "@zenfs/emscripten": ">=1.0.7"
+  },
+  "peerDependenciesMeta": {
+    "@zenfs/core": {
+      "optional": true
+    },
+    "@zenfs/emscripten": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@zenfs/core": "2.6.3",
+    "@zenfs/emscripten": "1.0.7"
+  }
 }
