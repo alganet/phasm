@@ -16173,10 +16173,25 @@ run();
  * Pack strings the way phasm_run() reads them: NUL-terminated, back to back.
  * stringToUTF8 writes embedded NULs verbatim, so one conversion does it.
  * Returns 0 for an empty list, which the C side reads as "none".
+ *
+ * A NUL inside an entry is the one thing this encoding cannot carry: it would
+ * arrive as an early terminator and silently truncate the argument, so
+ * `-r 'echo "a\0b";'` would reach PHP as `-r 'echo "a'` and fail as a parse
+ * error somewhere else entirely. Refuse it instead. Nothing is lost — argv and
+ * the environment cannot hold a NUL on a real system either.
  */
 function phasmPackStrings(list) {
   if (!list.length) return 0;
   return stringToNewUTF8(list.join('\0') + '\0');
+}
+
+/** Checked before anything is allocated, so a rejected call leaks nothing. */
+function phasmRejectNuls(list, what) {
+  for (const s of list) {
+    if (s.indexOf('\0') !== -1) {
+      throw new TypeError(`phasmRun: ${what} may not contain a NUL byte: ${JSON.stringify(s)}`);
+    }
+  }
 }
 
 /**
@@ -16196,6 +16211,10 @@ Module['phasmRun'] = function (args, opts) {
 
   const argv = ['php'].concat(args || []).map(String);
   const env = Object.entries(opts.env || {}).map(([k, v]) => `${k}=${v}`);
+
+  phasmRejectNuls(argv, 'an argument');
+  phasmRejectNuls(env, 'an environment entry');
+  if (opts.cwd) phasmRejectNuls([opts.cwd], 'cwd');
 
   const argvPtr = phasmPackStrings(argv);
   const envPtr = phasmPackStrings(env);
