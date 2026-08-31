@@ -98,6 +98,12 @@ process: the exit status is per call, errors go to stderr, and a fatal error or
 `exit()` leaves the module usable. Booting PHP costs ~70 ms and a warm call
 ~1 ms, so reuse the instance.
 
+A script deep enough to exhaust the JS engine's own stack is the one failure
+that is not an exit status: there is no PHP error to raise, so the call
+**throws** rather than returning. Catch it if the call site cares — the
+instance itself survives, because the abandoned request is finished before the
+error reaches you.
+
 Underneath, `phasmRun(args, opts)` returns the status and leaves output wherever
 the module's stdio points — reach for it when you are routing stdio yourself,
 and for anything else `phasmCapture(fn)` collects around a call `run()` does not
