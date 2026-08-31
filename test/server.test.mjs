@@ -115,6 +115,31 @@ describe('routing', opts, () => {
     assert.equal(r.text, '');
   });
 
+  // phasm_response_status() is an exported entry point in its own right, and a
+  // caller driving the wasm directly rather than through the glue has no other
+  // way to ask what the status was. It used to be written only where a request
+  // had actually run, so every refusal left it at the 0 phasm_response_reset()
+  // cleared it to — and 0 is not "no status" in this ABI, it is the decline
+  // that says "serve this path as a static file". A 403 read back that way is
+  // the source disclosure the refusal exists to prevent.
+  test('a refusal reports its own status, not the decline value', async () => {
+    await site({ '/seg.php': '<?php echo "ran";', '/style.css': 'body{}' });
+    const mod = await sharedModule();
+
+    for (const [url, expected] of [
+      ['/seg.php', 200],
+      ['/seg.php/', 404],
+      ['/missing.php', 404],
+      ['/../etc/passwd', 403],
+      ['/style.css', 0], // the genuine decline, which must stay 0
+    ]) {
+      const returned = mod.phasmHandleRequest({ url, docroot: DOCROOT }).status;
+      assert.equal(returned, expected, url);
+      assert.equal(mod._phasm_response_status(), expected,
+        `${url} returned ${returned} but reported ${mod._phasm_response_status()}`);
+    }
+  });
+
   // This runs against the embedder's whole filesystem, so climbing out of the
   // docroot has to be refused rather than normalised — including when the
   // dots arrive percent-encoded, which is why decoding happens first.
