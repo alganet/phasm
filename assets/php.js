@@ -10367,6 +10367,7 @@ var _php_time,
   _main,
   _phasm_startup,
   _phasm_run,
+  _phasm_is_started,
   _locale_charset,
   _libiconv_open_into,
   _libiconvctl,
@@ -15014,6 +15015,7 @@ function assignWasmExports(wasmExports) {
   _main = Module['_main'] = wasmExports['__main_argc_argv'];
   _phasm_startup = Module['_phasm_startup'] = wasmExports['phasm_startup'];
   _phasm_run = Module['_phasm_run'] = wasmExports['phasm_run'];
+  _phasm_is_started = Module['_phasm_is_started'] = wasmExports['phasm_is_started'];
   _locale_charset = Module['_locale_charset'] = wasmExports['locale_charset'];
   _libiconv_open_into = Module['_libiconv_open_into'] = wasmExports['libiconv_open_into'];
   _libiconvctl = Module['_libiconvctl'] = wasmExports['libiconvctl'];
@@ -16224,6 +16226,25 @@ Module['phasmStartup'] = function (ini) {
     if (iniPtr) _free(iniPtr);
   }
 };
+
+// callMain() re-enters the CLI's main(), which starts the module. On an
+// instance where PHP is already up that traps — "null function or function
+// signature mismatch" — and takes the instance with it, so every later
+// phasmRun() throws too. phasm_startup() already refuses the opposite order;
+// this is the same refusal in the direction Emscripten owns, and it has to live
+// here because callMain() is a JS function that never reaches C.
+const phasmCallMain = Module['callMain'];
+if (phasmCallMain) {
+  Module['callMain'] = function (args) {
+    if (_phasm_is_started()) {
+      throw new Error(
+        'phasm: callMain() and phasmRun() are mutually exclusive, and this '
+        + 'module has already started PHP. Use phasmRun().',
+      );
+    }
+    return phasmCallMain.apply(this, arguments);
+  };
+}
 // end include: /home/runner/work/phasm/phasm/src/phasm-glue.js
 
 // include: postamble_modularize.js
