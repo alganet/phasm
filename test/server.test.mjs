@@ -68,6 +68,53 @@ describe('routing', opts, () => {
     assert.equal(r.text, '');
   });
 
+  // Declining means "serve it as a static file", so a suffix match that is
+  // case-sensitive does not merely fail to run /A.PHP — it answers the request
+  // with the script's source. php_cli_server.c matches case-insensitively for
+  // the same reason.
+  test('an uppercase .PHP is still a script', async () => {
+    await site({ '/A.PHP': '<?php echo "shouted";' });
+    const r = await serve({ url: '/A.PHP', docroot: DOCROOT });
+
+    assert.equal(r.status, 200, 'the source would have been served as a static file');
+    assert.equal(r.text, 'shouted');
+  });
+
+  // A directory is not a PHP request when it has no index.php, and 404 is a
+  // stronger claim than this SAPI is entitled to make: the embedder is reading
+  // the same filesystem and can see the index.html sitting right there.
+  test('a directory with no index.php is declined, not 404', async () => {
+    await site({ '/static/index.html': '<h1>plain</h1>' });
+    const r = await serve({ url: '/static/', docroot: DOCROOT });
+
+    assert.equal(r.status, 0);
+    assert.equal(r.text, '');
+  });
+
+  // Two spellings of one path must not reach a route table as two routes.
+  test('duplicate and dot segments collapse', async () => {
+    await site({ '/seg.php': '<?php echo $_SERVER["SCRIPT_NAME"];' });
+
+    for (const url of ['//seg.php', '/./seg.php', '/.//./seg.php']) {
+      const r = await serve({ url, docroot: DOCROOT });
+      assert.equal(r.status, 200, url);
+      assert.equal(r.text, '/seg.php', `${url} reached PHP unnormalised`);
+    }
+  });
+
+  // A trailing slash is not collapsed, because "/seg.php/" asks for a directory
+  // and POSIX answers ENOTDIR. Emscripten's stat() answers for the file anyway,
+  // so this has to be caught by hand: without it the suffix check fails on the
+  // slash, the request is declined, and declining means the embedder serves
+  // /seg.php as a static file — the source, to whoever added one character.
+  test('a trailing slash on a script is 404, not a decline', async () => {
+    await site({ '/seg.php': '<?php echo "ran";' });
+    const r = await serve({ url: '/seg.php/', docroot: DOCROOT });
+
+    assert.equal(r.status, 404, 'the embedder would have been asked to serve the source');
+    assert.equal(r.text, '');
+  });
+
   // This runs against the embedder's whole filesystem, so climbing out of the
   // docroot has to be refused rather than normalised — including when the
   // dots arrive percent-encoded, which is why decoding happens first.
@@ -477,6 +524,20 @@ describe('repeated requests', opts, () => {
 
     const command = await evalPhp('echo count($_COOKIE), ":", json_encode($_COOKIE);');
     assert.equal(command.stdout, '0:[]', 'a command inherited the request\'s cookies');
+  });
+
+  // sapi_activate() is where a status would normally be cleared, and the line
+  // that does it is commented out upstream — so a request's status stayed set
+  // and the next command answered http_response_code() with it. A command has
+  // no status of its own; false is the right answer.
+  test('a request\'s status does not carry into the next command', async () => {
+    await site({ '/gone.php': '<?php http_response_code(404); echo "missing";' });
+
+    assert.equal((await evalPhp('var_export(http_response_code());')).stdout, 'false');
+    assert.equal((await serve({ url: '/gone.php', docroot: DOCROOT })).status, 404);
+
+    const after = await evalPhp('var_export(http_response_code());');
+    assert.equal(after.stdout, 'false', 'a command inherited the request\'s status');
   });
 
   // A session is the first thing in server mode that needs both halves of the
