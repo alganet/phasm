@@ -41,8 +41,9 @@ diagnostic rather than failing if there is no build yet.
 It tests the *build*, not PHP: that the interpreter runs, that every extension
 the README advertises is actually linked in, that the virtual filesystem
 round-trips (including binary content), that stdin/stdout/stderr and exit codes
-behave, and that a fatal error is loud. Those are the things a dependency bump
-or a changed `configure` flag can quietly break.
+behave, that a fatal error is loud, and that the wasm carries no debug info.
+Those are the things a dependency bump or a changed `configure` flag can quietly
+break — the last one triples the download while every other test still passes.
 
 `test/sapi.test.mjs` covers the other half: the embedding contract that
 `sapi/phasm` exists to provide — 200 calls on one instance, per-call exit codes,
