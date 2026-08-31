@@ -86,6 +86,13 @@ jobs:
       - run: ./scripts/deps.sh
       - run: ./scripts/build.sh
 
+      # The package still has no dependencies; these are the optional peers the
+      # store mount is written against, and the suite skips its mount tests
+      # without them. Installing here is what keeps that suite from quietly
+      # never running.
+      - name: Install JS dev dependencies
+        run: npm ci
+
       # The point of the whole pipeline: a build nobody ran is not a build.
       # This gates the website deploy and the npm publish alike.
       - name: Test

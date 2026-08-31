@@ -122,4 +122,10 @@ fi
 # every published release shipped a types field aimed at a missing file.
 cp "${ROOT_DIR}/src/php.d.ts" "${DIST_DIR}/php.d.ts"
 
+# Likewise the store mount: plain JS over the module's FS, and it imports its
+# ZenFS peers lazily, so a page that never mounts anything pays nothing to have
+# it in the tarball.
+cp "${ROOT_DIR}/src/mount.mjs" "${DIST_DIR}/mount.mjs"
+cp "${ROOT_DIR}/src/mount.d.ts" "${DIST_DIR}/mount.d.ts"
+
 echo "WASM artifacts in ${DIST_DIR}"

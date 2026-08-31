@@ -53,6 +53,11 @@ and the superglobals. Those tests are mostly about proving PHP's own request
 machinery is doing the work, since the alternative to a real request cycle is
 faking `$_SERVER` and hoping.
 
+`test/mount.test.mjs` covers `mountStore()` — PHP reading and writing a store it
+does not own. It needs the optional ZenFS peers, so run `npm ci` first; without
+them that suite skips with a diagnostic and the rest of the suite still runs, on
+a checkout with no `node_modules` at all.
+
 The whole suite shares ONE module instance (`test/helper.mjs`), which is itself
 the regression test: through the stock CLI's `main()` the same suite would latch
 its exit status on the first non-zero one and stop working entirely at call
@@ -109,11 +114,11 @@ scripts/
 
 patches/               # Emscripten compatibility patches for PHP
 sapi/phasm/            # The re-entrant SAPI, copied into php-src at build time
-src/                   # Hand-written package sources (the JS halves, types)
+src/                   # Hand-written package sources (the JS halves, types, mount)
 test/                  # Test suite (node --test)
 sources/               # Downloaded source trees (gitignored)
 build/                 # Intermediate build artifacts (gitignored)
-dist/                  # Final npm output (php.js + php.wasm + and the .d.ts)
+dist/                  # Final npm output (php.js + php.wasm + the .d.ts and mount)
 web/                   # Live demo website
 ```
 
