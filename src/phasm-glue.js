@@ -295,7 +295,19 @@ Module['phasmHandleRequest'] = function (req) {
 
   // The body is copied into the module's heap because PHP reads it during the
   // request, and a JS-side view could be detached by a heap growth mid-call.
-  const bodyBytes = req.body || new Uint8Array(0);
+  //
+  // A string is encoded rather than refused, the same way run()'s stdin takes
+  // one: `body: 'a=1'` is the obvious thing to write and it used to be the
+  // worst possible outcome — a string is array-like, so HEAPU8.set() indexed
+  // it, coerced each character to NaN and stored a run of NUL bytes. The
+  // request then succeeded, with the right Content-Length, an empty $_POST and
+  // a php://input full of nothing.
+  const bodyBytes = typeof req.body === 'string'
+    ? new TextEncoder().encode(req.body)
+    : req.body || new Uint8Array(0);
+  if (!(bodyBytes instanceof Uint8Array)) {
+    throw new TypeError('phasmHandleRequest: body must be a string or Uint8Array');
+  }
   const bodyPtr = bodyBytes.length ? _malloc(bodyBytes.length) : 0;
   if (bodyPtr) HEAPU8.set(bodyBytes, bodyPtr);
 
