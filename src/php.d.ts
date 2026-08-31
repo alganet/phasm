@@ -220,6 +220,15 @@ export interface PhasmModule {
    * Throws once PHP is running, rather than trapping and killing the instance.
    */
   callMain(args: string[]): number;
+  /**
+   * The C stack pointer, for asserting that a trapped call gave it back.
+   *
+   * Diagnostic rather than API: nothing an embedder does should need it. A wasm
+   * trap skips every function's return, so the pointer is left where the deepest
+   * abandoned frame put it unless something restores it — a leak with no symptom
+   * until the stack runs out and the module quietly overwrites itself.
+   */
+  phasmStackPointer(): number;
   /** Emscripten's in-memory filesystem. */
   FS: PhasmFS;
   [key: string]: unknown;

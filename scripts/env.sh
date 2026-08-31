@@ -120,5 +120,5 @@ PHASM_STACK_SIZE="${PHASM_STACK_SIZE:-4MB}"
 # because a phasm build on the 64 KiB default is one deep C recursion away from
 # overwriting memory with nothing to show for it; PHASM_STACK_SIZE above is the
 # knob for experimenting with it.
-EMCC_ABI_FLAGS="-s INVOKE_RUN=0 -s STACK_SIZE=${PHASM_STACK_SIZE} -s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8','UTF8ToString','HEAPU8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_phasm_is_started','_phasm_handle_request','_phasm_response_status','_phasm_response_headers','_phasm_response_body','_phasm_response_body_length','_malloc','_free'] --pre-js ${ROOT_DIR}/src/phasm-stdio.js --post-js ${ROOT_DIR}/src/phasm-glue.js"
+EMCC_ABI_FLAGS="-s INVOKE_RUN=0 -s STACK_SIZE=${PHASM_STACK_SIZE} -s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8','UTF8ToString','HEAPU8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_phasm_is_started','_phasm_recover','_phasm_handle_request','_phasm_response_status','_phasm_response_headers','_phasm_response_body','_phasm_response_body_length','_malloc','_free'] --pre-js ${ROOT_DIR}/src/phasm-stdio.js --post-js ${ROOT_DIR}/src/phasm-glue.js"
 EMCC_FLAGS="${EMCC_FLAGS} ${EMCC_ABI_FLAGS}"

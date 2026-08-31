@@ -569,6 +569,38 @@ describe('repeated requests', opts, () => {
   // do_cli() sets SAPI_OPTION_NO_CHDIR for the CLI and nothing clears it, so
   // whether a request ran in the script's directory used to depend on whether
   // any command had ever run on the instance.
+  // A request has more to abandon than a command does: the response hooks are
+  // swapped in for its duration, and the struct they read is a local of the
+  // frame the trap destroyed. Left installed, every later *command* would write
+  // its output into a response buffer nobody reads — the shell would see `php`
+  // print nothing at all, with no error to explain it.
+  test('a request that traps does not take the instance with it', async () => {
+    await site({
+      '/fine.php': '<?php echo "fine";',
+      // Deep enough to exhaust the JS engine's wasm frame stack; see
+      // sapi.test.mjs for why the depth is far past the cliff rather than near
+      // it.
+      '/trap.php': '<?php $a = []; for ($i = 0; $i < 20000; $i++) { $a = [$a]; }'
+        + ' echo strlen(json_encode($a, 0, 100000));',
+    });
+
+    const mod = await sharedModule();
+    assert.throws(
+      () => mod.phasmHandleRequest({ url: '/trap.php', docroot: DOCROOT }),
+      RangeError,
+    );
+
+    const after = await serve({ url: '/fine.php', docroot: DOCROOT });
+    assert.equal(after.status, 200);
+    assert.equal(after.text, 'fine');
+    assert.equal(after.stderr, '', 'the abandoned request left warnings behind');
+
+    // And the hooks went back, so a command still reaches the shell's stdout.
+    const command = await evalPhp('echo "command after a trapped request";');
+    assert.equal(command.stdout, 'command after a trapped request');
+    assert.equal(command.stderr, '');
+  });
+
   test('runs in the script directory whatever ran before it', async () => {
     await site({ '/deep/where.php': '<?php echo getcwd();' });
 
