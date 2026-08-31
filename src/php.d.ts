@@ -70,6 +70,9 @@ export interface PhasmModule {
    *
    * Collect output the way Emscripten collects it — an `FS.init()` sink, or
    * `print`/`printErr` if line buffering is acceptable.
+   *
+   * Throws if an argument, an `env` value or `cwd` contains a NUL byte: the
+   * calling convention is NUL-delimited, so it would arrive truncated.
    */
   phasmRun(args: string[], opts?: PhasmRunOptions): number;
   /**
