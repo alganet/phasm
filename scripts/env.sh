@@ -90,15 +90,35 @@ fi
 # the one thing worse than a slightly larger one.
 EMCC_FLAGS="${EMCC_FLAGS:--O2 -g0 -s MODULARIZE=1 -s EXPORT_NAME='Phasm' -s ENVIRONMENT=web,worker,node -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1}"
 
-# The C stack, which is not the same stack as the one a runaway PHP recursion
-# hits. Emscripten's default is 64 KiB — sized for a program that keeps its data
-# on the heap, which PHP mostly does, and overflowing it is silent memory
-# corruption rather than a diagnosable crash. PHP's own guard against that
-# (ZEND_CHECK_STACK_LIMIT) is compiled out here: configure detects it by running
-# a probe, and a cross build cannot run one. So this is the only line of defence
-# there is, and it is cheap — address space in a module that already reserves
-# ~15 MB for static data.
-PHASM_STACK_SIZE="${PHASM_STACK_SIZE:-4MB}"
+# The C stack — the shadow stack, where wasm puts anything a function takes the
+# address of. Emscripten's default is 64 KiB, sized for a program that keeps its
+# data on the heap, which PHP mostly does; overflowing it is silent memory
+# corruption rather than a diagnosable crash, and this build has no
+# STACK_OVERFLOW_CHECK to make it otherwise. It is cheap — address space in a
+# module that already reserves ~15 MB for static data.
+#
+# It is no longer the only line of defence: build.sh turns PHP's own
+# ZEND_CHECK_STACK_LIMIT on, and sapi/phasm/phasm.c gives it a budget. But the
+# two are coupled, and in the direction that is easy to get backwards — a
+# guarded frame reserves ZEND_CALL_STACK_WASM_FRAME bytes HERE so that the guard
+# has something to measure (see the 0005 patch), so shrinking this stack shrinks
+# the recursion the guard can watch, and the guard's budget is clamped to
+# whatever this ends up being. Change one and re-read the other.
+#
+# 8 MB rather than 4, and the reason is the case where the guard is switched
+# OFF. The budget only bounds recursion while it is being checked; at
+# zend.max_allowed_stack_size=-1 nothing stops a script before the JS engine's
+# frame limit does, and this stack has to still be standing when it gets there.
+# Measured, json_encode() spends 1621 bytes of shadow stack per level and the
+# engine stops it at ~3450 levels, which is 5.3 MiB — over a 4 MiB stack, into
+# memory that is not the stack, with no STACK_OVERFLOW_CHECK to say so.
+#
+# Worth being clear that 4 MiB was ALREADY too small for that, before any of the
+# guard work: json_encode's own frame accounts for 3.65 MiB of those 5.3, and
+# the reservation only made a latent overrun a certain one. The guard is what
+# makes the default configuration never come close — it fires at ~475 KiB — so
+# this is headroom for the configuration that turns it off.
+PHASM_STACK_SIZE="${PHASM_STACK_SIZE:-8MB}"
 
 # The embedding ABI, appended AFTER any override rather than living inside it:
 # a build without phasm_run and the glue that marshals into it is not a phasm

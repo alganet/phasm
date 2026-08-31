@@ -1,0 +1,127 @@
+diff --git a/Zend/zend_call_stack.c b/Zend/zend_call_stack.c
+index ed86ecc74a2..6d50e02041c 100644
+--- a/Zend/zend_call_stack.c
++++ b/Zend/zend_call_stack.c
+@@ -57,6 +57,9 @@ typedef int boolean_t;
+ # include <sys/sysctl.h>
+ # include <sys/syscall.h>
+ #endif
++#ifdef __EMSCRIPTEN__
++# include <emscripten/stack.h>
++#endif
+ #ifdef __HAIKU__
+ # include <kernel/OS.h>
+ #endif
+@@ -789,9 +792,39 @@ static bool zend_call_stack_get_solaris(zend_call_stack *stack)
+ }
+ #endif /* defined(__sun) */
+ 
++#ifdef __EMSCRIPTEN__
++/* The shadow stack: the region emcc's -sSTACK_SIZE sizes, which is where wasm
++ * puts anything a function takes the address of. It is a real, bounded,
++ * downward-growing region with an exact base and end, so unlike every platform
++ * above there is nothing to probe — the runtime simply knows. */
++static bool zend_call_stack_get_emscripten(zend_call_stack *stack)
++{
++	uintptr_t base = (uintptr_t) emscripten_stack_get_base();
++	uintptr_t end = (uintptr_t) emscripten_stack_get_end();
++
++	if (base <= end) {
++		return false;
++	}
++
++	stack->base = (void *) base;
++	stack->max_size = (size_t) (base - end);
++
++	return true;
++}
++#else
++static bool zend_call_stack_get_emscripten(zend_call_stack *stack)
++{
++	return false;
++}
++#endif /* __EMSCRIPTEN__ */
++
+ /** Get the stack information for the calling thread */
+ ZEND_API bool zend_call_stack_get(zend_call_stack *stack)
+ {
++	if (zend_call_stack_get_emscripten(stack)) {
++		return true;
++	}
++
+ 	if (zend_call_stack_get_linux(stack)) {
+ 		return true;
+ 	}
+diff --git a/Zend/zend_call_stack.h b/Zend/zend_call_stack.h
+index 58e91694f93..b10d04907f5 100644
+--- a/Zend/zend_call_stack.h
++++ b/Zend/zend_call_stack.h
+@@ -43,9 +43,67 @@ ZEND_API void zend_call_stack_init(void);
+ 
+ ZEND_API bool zend_call_stack_get(zend_call_stack *stack);
+ 
++#ifdef __EMSCRIPTEN__
++/*
++ * How much shadow stack one guarded frame is made to cost. See the note on
++ * zend_call_stack_position() below for why a frame has to be given a cost at
++ * all; this is the number that converts a stack budget into a recursion depth,
++ * so zend.max_allowed_stack_size / ZEND_CALL_STACK_WASM_FRAME is the depth at
++ * which the guard fires — and that is what has to land below the point where
++ * the JS engine gives up.
++ *
++ * What sets it is not that depth but the SPREAD between guarded recursions.
++ * Measured on this build, a level of php_json_encode_zval() spills 1109 bytes
++ * of its own and a level of the nesting that re-enters execute_ex() spills 183
++ * — six to one, against engine limits that differ the other way (~3450 and
++ * ~2359). One budget cannot sit below both cliffs at that spread. Adding a
++ * fixed 512 to each brings them to 1621 and 695, a spread of 2.3, and a single
++ * budget then clears both with three-fold margin.
++ *
++ * Bigger is not better: the reservation is also spent when the guard is
++ * switched OFF, where nothing stops the recursion before the engine does, so
++ * -sSTACK_SIZE has to absorb it at full depth. See scripts/env.sh.
++ */
++# define ZEND_CALL_STACK_WASM_FRAME 512
++#endif
++
+ /** Returns an approximation of the current stack position */
+ static zend_always_inline void *zend_call_stack_position(void) {
+-#ifdef _MSC_VER
++#if defined(__EMSCRIPTEN__)
++	/*
++	 * On every other target a frame address IS a recursion measure, because a
++	 * call frame is on the stack by construction. Not under wasm: locals live
++	 * in the VM's own typed local slots and only what a function takes the
++	 * address of is spilled to the shadow stack, so a frame address moves by
++	 * whatever the optimizer happened to spill — 400 bytes per level of
++	 * php_var_dump(), and *zero* per level of php_json_encode_zval() and
++	 * php_var_export_ex(). A guard reading that fires for one recursion and
++	 * never for the others, which is worse than no guard: it looks present.
++	 *
++	 * So the frame is given a size, and zend_call_stack_overflowed() inlines
++	 * this into the guarded function itself — so the block belongs to that
++	 * function's frame and lives for as long as the recursion below it does.
++	 *
++	 * The store is what makes that a guarantee rather than a hope. Taking the
++	 * address of the array is not enough on its own: nothing ever reads it, so
++	 * the optimizer is free to conclude the storage is dead and fold the
++	 * reservation away — and `volatile` alone does not object, because a
++	 * qualifier only constrains ACCESSES and without one there are none. One
++	 * volatile write is an access it must keep, which pins the allocation, and
++	 * a single store per guarded call is the whole runtime cost. Get this
++	 * wrong and the guard reverts to exactly the "looks present, never fires"
++	 * state described above; test/sapi.test.mjs pins it from the outside.
++	 *
++	 * What this does NOT measure is the stack the engine actually runs out of.
++	 * That one is the JS engine's wasm frame stack, which no wasm program can
++	 * read and no emcc flag sizes. This is a proxy for it, and the reason it
++	 * works is that the budget is set far below where that limit was measured
++	 * to be, not that the two are the same quantity.
++	 */
++	volatile char frame[ZEND_CALL_STACK_WASM_FRAME];
++	frame[0] = 0;
++	return (void *) &frame[0];
++#elif defined(_MSC_VER)
+ 	return _AddressOfReturnAddress();
+ #elif defined(PHP_HAVE_BUILTIN_FRAME_ADDRESS)
+ 	return __builtin_frame_address(0);

@@ -69,6 +69,9 @@
 #include "main/php_variables.h"
 #include "ext/standard/url.h"
 
+/* zend_call_stack_init(), re-run in phasm_startup() once ini is loaded. */
+#include "Zend/zend_call_stack.h"
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -156,6 +159,45 @@ static void phasm_ini_defaults(HashTable *configuration_hash)
 {
 	zval tmp;
 	INI_DEFAULT("display_errors", "stderr");
+
+	/*
+	 * The recursion budget. Auto-detection would hand the guard the whole
+	 * shadow stack, and that is the wrong size here: the limit deep recursion
+	 * actually reaches is the JS engine's wasm frame stack, which is a
+	 * different stack that no wasm program can read. The shadow stack is a
+	 * proxy for it (see Zend/zend_call_stack.h in the 0005 patch), so the
+	 * budget has to be set from where the real limit was MEASURED to be rather
+	 * than from how much shadow stack happens to exist.
+	 *
+	 * 512 KiB, less the ~48 KiB zend.reserved_stack_size auto-detects, is a
+	 * depth of ~290 levels of json_encode() and ~680 of the nesting that
+	 * re-enters the VM — the two differ because a guarded frame costs what it
+	 * spills plus the patch's fixed reservation. What matters is where each
+	 * lands against the depth at which the JS engine gives up on that same
+	 * recursion, measured at ~3450 and ~2359: the guard fires with a factor of
+	 * twelve in hand on one and three on the other. Below it nothing changes;
+	 * past it a script gets PHP's own "Maximum call stack size ... reached"
+	 * instead of a wasm trap that ends the call from outside PHP entirely.
+	 *
+	 * Why not simply the whole stack, which is what auto-detection would pick:
+	 * a budget only has to be small enough to beat the engine, and every byte
+	 * above that is depth the guard is not watching. The margins are deliberately
+	 * wide rather than tuned, because the limit on the other side of them belongs
+	 * to whichever JS engine is running the module — these cliffs were measured
+	 * on one, and a browser with a smaller wasm stack moves them.
+	 *
+	 * The one place that is visible: json_encode()'s own $depth argument
+	 * defaults to 512, so a document between ~290 and 512 levels deep encodes
+	 * on stock PHP and reports a depth error here. It is the same error, from
+	 * the same function, with the same json_last_error() — reached sooner. A
+	 * caller that handles the documented case handles this one, which is the
+	 * whole difference between it and the wasm trap it replaced.
+	 *
+	 * It stays a settable knob, and -1 turns it off: test/sapi.test.mjs uses
+	 * that to keep reaching a real trap, which is the only way what
+	 * phasm_recover() does can still be tested.
+	 */
+	INI_DEFAULT("zend.max_allowed_stack_size", "512K");
 }
 /* }}} */
 
@@ -295,6 +337,55 @@ int phasm_startup(const char *ini)
 	if (cli_sapi_module.startup(&cli_sapi_module) == FAILURE) {
 		return -1;
 	}
+
+#ifdef ZEND_CHECK_STACK_LIMIT
+	/*
+	 * Recompute the recursion budget now that ini has been read.
+	 *
+	 * zend_startup() ends in zend_call_stack_init(), and main()'s startup runs
+	 * it *before* php_init_config() — so EG(stack_limit) is worked out from
+	 * whatever zend.max_allowed_stack_size was before anyone said otherwise,
+	 * and nothing recomputes it afterwards. That is invisible on a real
+	 * platform, where auto-detection reads the OS's own stack bounds and gets
+	 * the right answer without being told; here the value is the whole point,
+	 * because the budget is a measured proxy for a stack that cannot be read.
+	 * Without this line phasm_ini_defaults()'s setting is stored, reported by
+	 * ini_get(), and has no effect whatsoever.
+	 *
+	 * The clamp first. zend_call_stack_limit() subtracts the budget from the
+	 * stack base and only refuses to underflow the address space — it does not
+	 * check the budget against the stack, because on the platforms it was
+	 * written for the two come from the same place. Here they do not: the
+	 * budget is an ini setting and the stack is -sSTACK_SIZE, so asking for
+	 * more than exists puts EG(stack_limit) BELOW the end of the stack, where
+	 * no position can ever be less than it. The guard would then be on, be
+	 * reported by ini_get(), and never fire once — while the reservation each
+	 * guarded frame makes goes on spending a stack nothing is now watching.
+	 * That is the one configuration worse than not having a guard, and it is a
+	 * plausible thing to ask for: "give me deeper recursion" reads as raising
+	 * this number.
+	 *
+	 * Clamping rather than refusing because a budget of the whole stack is a
+	 * coherent thing to want, and the honest answer to "8M please" on a 4 MiB
+	 * stack is 4 MiB. -1 is left alone: that is the documented way to switch
+	 * the guard off, and it is checked for explicitly rather than compared,
+	 * since ZEND_MAX_ALLOWED_STACK_SIZE_UNCHECKED is negative.
+	 *
+	 * It is safe to run twice: it derives everything from the shadow stack's
+	 * bounds and the current ini, both of which are fixed for the life of the
+	 * instance.
+	 */
+	{
+		zend_call_stack stack;
+
+		if (EG(max_allowed_stack_size) > 0 && zend_call_stack_get(&stack)
+			&& (size_t) EG(max_allowed_stack_size) > stack.max_size) {
+			EG(max_allowed_stack_size) = (zend_long) stack.max_size;
+		}
+	}
+
+	zend_call_stack_init();
+#endif
 
 	phasm_started = 1;
 	return 0;

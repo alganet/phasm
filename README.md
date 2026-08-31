@@ -98,11 +98,26 @@ process: the exit status is per call, errors go to stderr, and a fatal error or
 `exit()` leaves the module usable. Booting PHP costs ~70 ms and a warm call
 ~1 ms, so reuse the instance.
 
-A script deep enough to exhaust the JS engine's own stack is the one failure
-that is not an exit status: there is no PHP error to raise, so the call
-**throws** rather than returning. Catch it if the call site cares — the
-instance itself survives, because the abandoned request is finished before the
-error reaches you.
+**Runaway recursion is a PHP error, not a crash.** Recursion inside the engine
+and its extensions — `json_encode()`, `serialize()`, `var_dump()`, the compiler
+— is C recursion, and deep enough it reaches a limit belonging to the JS engine
+rather than to PHP. phasm builds PHP with its own `zend.max_allowed_stack_size`
+guard, `512K` by default, so those stop with the error each of them already
+raises for the case — `json_encode()` returns `false` with `JSON_ERROR_DEPTH`,
+`serialize()` throws — instead of the call ending from outside PHP. That budget
+is a few hundred levels of nesting, far past what real data carries. Raise it,
+or pass `-1` to switch the guard off, through
+`phasmStartup("zend.max_allowed_stack_size=…")`.
+
+Ordinary PHP recursion is not affected: a function calling itself runs in the
+VM, not on the C stack, and goes hundreds of thousands deep.
+
+The guard covers what PHP itself guards, which is not everything — `unserialize()`
+with its `max_depth` disabled still gets there, and so does recursion that runs
+the module out of memory. Exhausting the stack is the one failure that is not an
+exit status: there is no PHP error left to raise, so the call **throws** rather
+than returning. Catch it if the call site cares — the instance itself survives,
+because the abandoned request is finished before the error reaches you.
 
 Underneath, `phasmRun(args, opts)` returns the status and leaves output wherever
 the module's stdio points — reach for it when you are routing stdio yourself,

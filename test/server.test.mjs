@@ -577,11 +577,13 @@ describe('repeated requests', opts, () => {
   test('a request that traps does not take the instance with it', async () => {
     await site({
       '/fine.php': '<?php echo "fine";',
-      // Deep enough to exhaust the JS engine's wasm frame stack; see
-      // sapi.test.mjs for why the depth is far past the cliff rather than near
-      // it.
-      '/trap.php': '<?php $a = []; for ($i = 0; $i < 20000; $i++) { $a = [$a]; }'
-        + ' echo strlen(json_encode($a, 0, 100000));',
+      // Deep enough to exhaust the JS engine's wasm frame stack. unserialize()
+      // rather than the json_encode() this used to be, because the recursion
+      // guard now turns that one into an ordinary error; see sapi.test.mjs for
+      // why this parser is the one left and why the depth is far past the cliff
+      // rather than near it.
+      '/trap.php': '<?php $s = str_repeat("a:1:{i:0;", 20000) . "i:1;"'
+        + ' . str_repeat("}", 20000); unserialize($s, ["max_depth" => 0]);',
     });
 
     const mod = await sharedModule();

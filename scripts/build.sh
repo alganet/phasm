@@ -109,6 +109,25 @@ export SQLITE_LIBS="-L${BUILD_DIR}/sysroot/lib -lsqlite3"
 export LIBXML_CFLAGS="-I${BUILD_DIR}/sysroot/include/libxml2"
 export LIBXML_LIBS="-L${BUILD_DIR}/sysroot/lib -lxml2"
 
+# ZEND_CHECK_STACK_LIMIT is PHP's own guard against runaway recursion, and
+# Zend/Zend.m4 decides whether to define it with AC_RUN_IFELSE — it COMPILES a
+# program that compares two frame addresses and RUNS it to see which way the
+# stack grows. A cross build cannot run one, so autoconf takes the third branch
+# of AC_RUN_IFELSE, which here answers "no", and the guard is compiled out of
+# every extension that has one. That is not a detection failure to work around
+# blindly: the answer is knowable. wasm's shadow stack grows downwards, which is
+# what the probe asks, so this is the cross-compilation answer to a question
+# with a known answer rather than a flag forced on.
+#
+# Setting the cache variable is how autoconf is meant to be told: AC_CACHE_CHECK
+# skips its test entirely when the variable is already set, so no patch to
+# Zend.m4 is needed and the next PHP bump inherits this unchanged.
+#
+# What the guard measures needs one correction under wasm, which is
+# patches/php-${PHP_VERSION}/0005-emscripten-stack-limit.patch, and the budget it
+# is measured against is set by sapi/phasm/phasm.c.
+export php_cv_have_stack_limit=yes
+
 echo "LIBZIP_CFLAGS=${LIBZIP_CFLAGS}"
 echo "LIBZIP_LIBS=${LIBZIP_LIBS}"
 echo "ICONV_CFLAGS=${ICONV_CFLAGS}"

@@ -377,26 +377,176 @@ describe('isolation', opts, () => {
   });
 });
 
+// ─── the recursion guard ─────────────────────────────────────────────────────
+
+/**
+ * PHP's own ZEND_CHECK_STACK_LIMIT, which this build has to ask for by hand and
+ * then correct.
+ *
+ * Ask for, because Zend/Zend.m4 decides whether to define it by COMPILING a
+ * program and RUNNING it to see which way the stack grows, and a cross build
+ * cannot run one — so the guard was compiled out of every extension that has
+ * one, silently. scripts/build.sh answers the probe with a cache variable.
+ *
+ * Correct, because what the guard reads is a frame address, and under wasm that
+ * is not a recursion measure: locals live in the VM's own local slots and only
+ * address-taken data is spilled to the shadow stack. Measured on this build,
+ * the frame address moves 400 bytes per level of php_var_dump() and *zero* per
+ * level of php_json_encode_zval() — so an uncorrected guard fires for one
+ * recursion and never for the other, which is worse than no guard because it
+ * looks present. patches/php-8.5.9/0005-emscripten-stack-limit.patch gives a
+ * guarded frame a size so the two agree.
+ *
+ * What each site does when it fires is upstream's business and deliberately not
+ * uniform — json_encode() reports a depth error, serialize() throws, the
+ * compiler raises a compile error. The claim these tests make is only that the
+ * call ENDS INSIDE PHP, with something a script can see, rather than ending
+ * outside it in a trap that takes the request with it.
+ */
+describe('the recursion guard', opts, () => {
+  const nest = (depth, tail) =>
+    `$a = 1; for ($i = 0; $i < ${depth}; $i++) { $a = [$a]; } ${tail}`;
+
+  test('is compiled in, and its budget is the one phasm set', async () => {
+    // ini_get() reporting a value is not evidence the guard uses it: zend.c
+    // works EG(stack_limit) out in zend_startup(), which runs before ini is
+    // read, and nothing upstream recomputes it — phasm_startup() does. So the
+    // setting is checked here and its EFFECT is checked below.
+    const r = await evalPhp('echo ini_get("zend.max_allowed_stack_size");');
+    assert.equal(r.stdout, '512K');
+  });
+
+  // The calibration, and the test that has to fail if it ever drifts.
+  //
+  // The guard is a proxy: it counts a reservation the 0005 patch makes in each
+  // guarded frame, and the thing it is standing in for is the JS engine's wasm
+  // frame stack, which nothing can read. So the two numbers have to be kept in
+  // an order that nothing in the build enforces — the guard must fire BELOW the
+  // depth at which the engine gives up, or it fires after the call has already
+  // stopped existing and might as well not be there.
+  //
+  // 2000 is chosen to sit in the gap: measured, the guard fires at ~900 and
+  // json_encode() reaches the engine's limit at ~3450. A depth in between is
+  // the only kind of input that can tell the two apart. It catches the drift in
+  // both directions and, most importantly, catches the reservation being
+  // optimized away entirely — that would leave the guard reading a frame
+  // address that does not move, and this would throw instead of returning.
+  test('fires below the engine\'s own limit, not after it', async () => {
+    const r = await evalPhp(nest(2000, 'var_dump(json_encode($a, 0, 1000000));'));
+
+    assert.equal(r.stdout.trim(), 'bool(false)',
+      'at a depth between the guard and the engine cliff, the guard should be what stops it');
+  });
+
+  // The one that used to trap, and the reason this item existed.
+  test('deep json_encode reports a depth error instead of trapping', async () => {
+    const r = await evalPhp(
+      nest(20000, 'var_dump(json_encode($a, 0, 1000000)); echo json_last_error_msg();'),
+    );
+
+    assert.equal(r.stdout, 'bool(false)\nMaximum stack depth exceeded');
+    assert.equal(r.stderr, '');
+  });
+
+  // serialize() is the same guard reached through the site that throws, so the
+  // budget is readable from the message — which is what pins that the ini
+  // setting is doing something rather than merely being stored.
+  test('deep serialize throws an Error naming the budget', async () => {
+    const r = await evalPhp(nest(20000,
+      'try { serialize($a); } catch (Error $e) { echo $e->getMessage(); }'));
+
+    assert.match(r.stdout, /^Maximum call stack size of (\d+) bytes/, r.stdout);
+    const budget = Number(r.stdout.match(/of (\d+) bytes/)[1]);
+    // 512 KiB, less whatever zend.reserved_stack_size auto-detected. A guard
+    // running on the auto-detected whole shadow stack would report ~4 MiB here
+    // and fire too late to be worth having.
+    assert.ok(budget > 256 * 1024 && budget <= 512 * 1024,
+      `budget ${budget} is not the 512 KiB phasm asked for`);
+  });
+
+  // The guard has to be invisible to real data. A thousand levels of nesting is
+  // already far past anything a document reaches, and this is two orders below
+  // it — if this ever fails the budget has been set wrong, not exceeded.
+  test('ordinary nesting is untouched', async () => {
+    const r = await evalPhp(nest(100, 'echo strlen(json_encode($a, 0, 1000000));'));
+
+    assert.equal(r.stdout, '201');
+    assert.equal(r.stderr, '');
+  });
+
+  test('a guarded failure leaves the instance clean', async () => {
+    const mod = await freshModule();
+
+    for (let i = 0; i < 5; i++) {
+      const r = mod.run({ code: nest(20000, 'json_encode($a, 0, 1000000);') });
+      assert.equal(r.stderr, '', `round ${i + 1}`);
+    }
+
+    assert.equal(mod.run({ code: 'echo "alive";' }).stdout, 'alive');
+  });
+
+  // The knob is load-bearing rather than decorative: an embedder running
+  // trusted code may want the depth back, and the README says how.
+  //
+  // Turning it off has to stay SAFE, which is a stronger claim than it sounds
+  // and is what sets PHASM_STACK_SIZE. The reservation each guarded frame makes
+  // does not go away when the checking does, so with the guard off a deep
+  // json_encode() spends 1621 bytes a level all the way to the engine's limit
+  // at ~3450 — 5.3 MiB. On the 4 MiB stack this build used to have, that is not
+  // a trap, it is a write past the end of the stack into whatever is below it,
+  // and with no STACK_OVERFLOW_CHECK nothing reports it. The stack is 8 MB so
+  // that this ends in the recoverable failure it is supposed to.
+  test('the budget is a knob, and -1 turns the guard off safely', async () => {
+    const mod = await freshModule();
+    assert.equal(mod.phasmStartup('zend.max_allowed_stack_size=-1'), 0);
+
+    assert.throws(
+      () => mod.run({ code: nest(20000, 'json_encode($a, 0, 1000000);') }),
+      RangeError,
+      'with the guard off, the same script should reach the engine\'s limit again',
+    );
+
+    // Reaching the engine's limit is a trap, and a trap is survivable — but
+    // running off the end of the shadow stack on the way there is not, and it
+    // would show up here as anything from a wrong answer to a dead instance.
+    assert.equal(mod.run({ code: 'echo "alive";' }).stdout, 'alive');
+    assert.equal(mod.run({ code: 'echo 6 * 7;' }).stdout, '42');
+    assert.equal(mod.run({ code: 'echo json_encode(["a" => [1, 2, 3]]);' }).stdout,
+      '{"a":[1,2,3]}');
+  });
+});
+
 // ─── surviving a wasm trap ───────────────────────────────────────────────────
 
 /**
  * A script that traps rather than failing.
  *
- * Deep recursion is the only way ordinary PHP reaches one: the limit it hits is
- * the *JS engine's* wasm frame stack, which no emcc flag sizes and which
- * ZEND_CHECK_STACK_LIMIT cannot guard here — configure decides that one by
- * running a probe, and a cross build cannot run one. So there is no "maximum
- * function nesting level" fatal to produce; the call simply stops existing.
- * json_encode() over a few thousand levels is the cheapest way there.
+ * Deep C recursion is the only way ordinary PHP reaches one: the limit it hits
+ * is the *JS engine's* wasm frame stack, which no emcc flag sizes and which no
+ * wasm program can read. There is no fatal to produce at that point — the call
+ * simply stops existing, and only phasm_recover() puts the instance back
+ * together.
  *
- * The depth is far past the cliff on purpose. It is not a number to tune: a
- * value that only just trapped would start passing the day a build got faster
- * or an engine grew its budget, and the test would go green while testing
- * nothing.
+ * It used to be json_encode() here, and it cannot be any more: the recursion
+ * guard turns that one into an ordinary `false` with JSON_ERROR_DEPTH, which is
+ * the whole point of it. unserialize() is what is left, because upstream guards
+ * the *serialiser* and not the parser — ext/standard/var_unserializer.re has no
+ * ZEND_CHECK_STACK_LIMIT check at all — and its own `max_depth` option, which
+ * would otherwise stop this at 4096, can be switched off from the script.
+ *
+ * That is not a gap being exploited for convenience. A guard that covered
+ * everything would leave phasm_recover() untestable while doing nothing to make
+ * it unnecessary, since the guard is a knob an embedder can turn off. This
+ * script keeps the recovery path honest either way.
+ *
+ * The depth is far past the cliff on purpose — measured at ~5000, run at 20000.
+ * It is not a number to tune: a value that only just trapped would start
+ * passing the day a build got faster or an engine grew its budget, and the test
+ * would go green while testing nothing.
  */
 const TRAPPING_SCRIPT =
-  '$a = []; for ($i = 0; $i < 20000; $i++) { $a = [$a]; }'
-  + ' echo strlen(json_encode($a, 0, 100000));';
+  '$s = str_repeat("a:1:{i:0;", 20000) . "i:1;" . str_repeat("}", 20000);'
+  + ' unserialize($s, ["max_depth" => 0]);';
 
 describe('surviving a trap', opts, () => {
   /** Run the trapping script and assert it really did trap. */
