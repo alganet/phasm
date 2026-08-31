@@ -397,4 +397,16 @@ describe('phasmRun', opts, () => {
     assert.notEqual(r.exitCode, 0);
     assert.equal((await evalPhp('echo "fine";')).stdout, 'fine');
   });
+
+  // callMain() re-enters main(), which starts the module — on an instance that
+  // already has one running that traps and takes every later phasmRun() with
+  // it. The docs call the two entry points mutually exclusive; this is the
+  // direction that used to be unenforced.
+  test('refuses callMain() on an instance that has run phasmRun()', async () => {
+    const mod = await sharedModule();
+    await evalPhp('echo 1;');
+
+    assert.throws(() => mod.callMain(['-r', 'echo "nope";']), /mutually exclusive/);
+    assert.equal((await evalPhp('echo "still alive";')).stdout, 'still alive');
+  });
 });

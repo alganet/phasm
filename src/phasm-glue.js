@@ -69,3 +69,22 @@ Module['phasmStartup'] = function (ini) {
     if (iniPtr) _free(iniPtr);
   }
 };
+
+// callMain() re-enters the CLI's main(), which starts the module. On an
+// instance where PHP is already up that traps — "null function or function
+// signature mismatch" — and takes the instance with it, so every later
+// phasmRun() throws too. phasm_startup() already refuses the opposite order;
+// this is the same refusal in the direction Emscripten owns, and it has to live
+// here because callMain() is a JS function that never reaches C.
+const phasmCallMain = Module['callMain'];
+if (phasmCallMain) {
+  Module['callMain'] = function (args) {
+    if (_phasm_is_started()) {
+      throw new Error(
+        'phasm: callMain() and phasmRun() are mutually exclusive, and this '
+        + 'module has already started PHP. Use phasmRun().',
+      );
+    }
+    return phasmCallMain.apply(this, arguments);
+  };
+}
