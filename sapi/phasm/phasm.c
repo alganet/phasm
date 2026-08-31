@@ -448,6 +448,15 @@ int phasm_run(char *packed_argv, int argc, const char *cwd, const char *packed_e
 	 * otherwise be reported by every later call. */
 	EG(exit_status) = 0;
 
+	/* Same shape, different field. php_request_startup() reaches
+	 * sapi_activate(), and the line there that would reset this is commented
+	 * out upstream, so the status a request set stays set — and a command run
+	 * afterwards sees http_response_code() return 404 instead of false.
+	 * phasm_handle_request() does not need this because it assigns 200 to
+	 * every request outright; a command has no status of its own, and 0 is
+	 * what "none" is spelled as. */
+	SG(sapi_headers).http_response_code = 0;
+
 	zend_first_try {
 		status = do_cli(argc, argv);
 	} zend_end_try();
@@ -587,8 +596,9 @@ static size_t phasm_ub_write(const char *str, size_t str_length)
  * marked the headers sent with an empty list, so every header() the script went
  * on to make was a no-op against an already-sent response, and headers_sent()
  * returned true from the first statement onwards. The output layer already
- * calls sapi_send_headers() before the first body byte, and phasm_handle_request
- * calls it once more for a response that never wrote one.
+ * calls sapi_send_headers() before the first body byte, and a response that
+ * never writes one still gets its headers from php_request_shutdown(), which
+ * reaches the same call through php_output_deactivate().
  */
 static void phasm_flush(void *server_context)
 {
@@ -780,10 +790,57 @@ static int phasm_path_escapes(const char *path)
 	return 0;
 }
 
+/*
+ * Collapse "//" and "/./" in place; the result is never longer than the input.
+ * ".." never reaches here — phasm_path_escapes() refuses it above — so this
+ * cannot climb, it only makes two spellings of one path into one.
+ *
+ * It matters because $_SERVER['SCRIPT_NAME'] and PHP_SELF are what a router
+ * strips its own prefix from, and "//i.php" arriving at a route table as a
+ * different string from "/i.php" is a routing bug that the request looks
+ * entirely innocent in. A trailing slash is deliberately kept: "/i.php/" is not
+ * a request for "/i.php", and turning it into one would serve a script for a
+ * path that was never asked for.
+ */
+static void phasm_normalize_path(char *path)
+{
+	char *out = path;
+	const char *in = path;
+
+	while (*in != '\0') {
+		if (*in != '/') {
+			*out++ = *in++;
+			continue;
+		}
+
+		*out++ = '/';
+		in++;
+
+		/* Everything after this slash that means "still the same directory". */
+		for (;;) {
+			if (*in == '/') {
+				in++;
+			} else if (in[0] == '.' && (in[1] == '/' || in[1] == '\0')) {
+				in += in[1] == '/' ? 2 : 1;
+			} else {
+				break;
+			}
+		}
+	}
+
+	*out = '\0';
+}
+
+/*
+ * Case-insensitively, as php_cli_server.c does. Getting this wrong is not a
+ * missing feature: a case-sensitive match declines "/A.PHP", and declining
+ * means "not a script, embedder — serve it as a static file", so the answer to
+ * the request is the PHP source.
+ */
 static int phasm_has_php_suffix(const char *path)
 {
 	size_t len = strlen(path);
-	return len >= 4 && strcmp(path + len - 4, ".php") == 0;
+	return len >= 4 && strcasecmp(path + len - 4, ".php") == 0;
 }
 
 /* }}} */
@@ -888,6 +945,10 @@ int phasm_handle_request(const char *method, const char *uri,
 		return 403;
 	}
 
+	/* Only after the refusal above, so normalisation can never be the thing
+	 * that hides a climb. */
+	phasm_normalize_path(path);
+
 	/* docroot + path, then index.php for a directory. */
 	size_t droot_len = strlen(docroot);
 	{
@@ -913,6 +974,27 @@ int phasm_handle_request(const char *method, const char *uri,
 				len--;
 			}
 			strcpy(script + len, "/index.php");
+
+			/* A directory with no index.php is not a PHP request, and saying
+			 * 404 here makes it unreachable rather than merely not ours: the
+			 * embedder can serve the index.html sitting right beside it, but
+			 * only if it is handed the request back. */
+			if (stat(script, &st) != 0 || !S_ISREG(st.st_mode)) {
+				free(script);
+				free(path);
+				return 0;
+			}
+		} else if (path[strlen(path) - 1] == '/') {
+			/* A trailing slash asks for a directory, and POSIX answers ENOTDIR
+			 * when the name resolves to a file. Emscripten's stat() answers for
+			 * the file anyway, so "/app.php/" would reach the suffix check,
+			 * fail it on the slash, and be declined — which tells the embedder
+			 * to serve /app.php as a static file, i.e. to hand out the source.
+			 * 404 is both the POSIX answer and the safe one. `path` always
+			 * starts with '/', so indexing its last byte is safe. */
+			free(script);
+			free(path);
+			return 404;
 		}
 	}
 
