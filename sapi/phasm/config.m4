@@ -5,11 +5,20 @@ dnl SPDX-License-Identifier: ISC
 PHP_ARG_ENABLE([phasm],
   [for phasm SAPI build],
   [AS_HELP_STRING([--enable-phasm],
-    [Enable building the re-entrant phasm SAPI (implies --disable-cli)])],
+    [Enable building the re-entrant phasm SAPI (requires --disable-cli)])],
   [no],
   [no])
 
 if test "$PHP_PHASM" != "no"; then
+  dnl phasm.c includes sapi/cli/php_cli.c, so building both SAPIs compiles that
+  dnl translation unit twice and the link fails on duplicate symbols. sapi/cli
+  dnl sorts before sapi/phasm and has already selected itself by this point, so
+  dnl there is nothing to turn off here — only a choice between saying so and
+  dnl letting the link fail several minutes later with no hint of the cause.
+  if test "$PHP_CLI" = "yes"; then
+    AC_MSG_ERROR([--enable-phasm requires --disable-cli: the phasm SAPI includes the CLI's php_cli.c, so building both duplicates it.])
+  fi
+
   dnl ps_title.c reads these, and sapi/cli/config.m4 is the only place that
   dnl probes for them — it does not run when the CLI is disabled. Neither is
   dnl found under Emscripten; the point is that the answer comes from a check
@@ -32,7 +41,7 @@ if test "$PHP_PHASM" != "no"; then
   dnl ours too: ps_title/process_title back save_ps_args() and the process-title
   dnl functions, and the CLI server backs the -S branch of the main() we inherit
   dnl but never call. They are compiled here rather than by sapi/cli's config.m4
-  dnl because --enable-phasm implies --disable-cli: php_cli.c must be part of
+  dnl because --enable-phasm requires --disable-cli: php_cli.c must be part of
   dnl exactly one translation unit, and it is part of ours.
   PHP_ADD_BUILD_DIR([sapi/cli])
   PHP_ADD_SOURCES_X([sapi/cli],
