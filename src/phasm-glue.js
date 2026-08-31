@@ -4,13 +4,15 @@
 
 // Linked into the module by --post-js (see scripts/env.sh), which places this
 // inside the MODULARIZE factory after the runtime is up and before the factory
-// resolves. So Module.phasmRun exists by the time the caller has a module.
+// resolves. So Module.run exists by the time the caller has a module.
 //
-// This is only argv/cwd/env marshalling. It lives in the artifact rather than
-// in each consumer because the packed-string calling convention is an
-// implementation detail of sapi/phasm/phasm.c, and nobody should have to
-// re-derive it. Output is still collected the way Emscripten collects it — via
-// FS.init() sinks the caller swaps per invocation.
+// This is the embedding API: run() and phasmHandleRequest() are what an
+// embedder should reach for, and phasmRun() is the primitive underneath them.
+// It lives in the artifact rather than in each consumer because the
+// packed-string calling convention is an implementation detail of
+// sapi/phasm/phasm.c, and nobody should have to re-derive it — the same reason
+// src/phasm-stdio.js owns the standard streams, which is where the output
+// run() returns comes from.
 
 /**
  * Pack strings the way phasm_run() reads them: NUL-terminated, back to back.
@@ -71,6 +73,104 @@ Module['phasmRun'] = function (args, opts) {
     if (envPtr) _free(envPtr);
     if (cwdPtr) _free(cwdPtr);
   }
+};
+
+/** Create every missing directory above `path`, `mkdir -p` fashion. */
+function phasmMkdirp(path) {
+  const parts = path.split('/').slice(0, -1).filter(Boolean);
+  let dir = path.charAt(0) === '/' ? '' : '.';
+  for (const part of parts) {
+    dir += `/${part}`;
+    try {
+      FS.mkdir(dir);
+    } catch (e) {
+      /* already there, or a file is in the way — writeFile reports that one */
+    }
+  }
+}
+
+/** Where `run({script})` puts the script, mirroring wasi-sh's /main.sh. */
+const PHASM_MAIN = '/main.php';
+
+/**
+ * Run PHP once and collect everything it produced.
+ *
+ * ```js
+ * const { stdout, stderr, exitCode } = php.run({ code: 'echo 6 * 7;' });
+ * ```
+ *
+ * The result is `wasi-sh`'s: {stdout, stderr, exitCode}, from options with the
+ * same names and meanings, so a shell run and a PHP run compose without an
+ * adapter between them. It returns synchronously — the instance is already
+ * warm and PHP is a wasm frame below the call — and awaiting it anyway is
+ * harmless, which keeps the two interchangeable in ordinary code.
+ *
+ * Everything here is per call: `env` and `cwd` are gone by the next one, output
+ * belongs to this call alone, and stdin is refilled. What survives is the
+ * filesystem, the instance and its ini.
+ *
+ * @param {{args?: string[], code?: string, script?: string,
+ *          files?: Record<string, string|Uint8Array>,
+ *          stdin?: string|Uint8Array|((max: number) => Uint8Array|null),
+ *          cwd?: string, env?: Record<string, string>,
+ *          onOutput?: (bytes: Uint8Array, channel: 'stdout'|'stderr') => void,
+ *          collect?: boolean}} [options]
+ * @returns {{stdout: string, stderr: string, exitCode: number}}
+ */
+Module['run'] = function (options) {
+  options = options || {};
+
+  for (const [path, content] of Object.entries(options.files || {})) {
+    phasmMkdirp(path);
+    FS.writeFile(path, content);
+  }
+
+  if (typeof options.script === 'string') {
+    FS.writeFile(PHASM_MAIN, options.script);
+  }
+
+  // argv wins where it is given, as it does in wasi-sh: `script` is a file that
+  // was mounted, and mounting it is worth doing even when something else runs.
+  let args = options.args;
+  if (!args) {
+    if (typeof options.code === 'string') args = ['-r', options.code];
+    else if (typeof options.script === 'string') args = [PHASM_MAIN];
+    else args = [];
+  }
+
+  const captured = Module['phasmCapture'](
+    () => Module['phasmRun'](args, { cwd: options.cwd, env: options.env }),
+    options,
+  );
+
+  return { stdout: captured.stdout, stderr: captured.stderr, exitCode: captured.value };
+};
+
+/**
+ * Run `fn` with the module's stdout, stderr and stdin routed to this call.
+ *
+ * The primitive under run(), exposed because it is the only way to collect
+ * output from anything run() does not cover — a warning raised during
+ * phasmHandleRequest(), or a one-shot callMain().
+ *
+ * @param {() => any} fn
+ * @param {{stdin?: string|Uint8Array|((max: number) => Uint8Array|null),
+ *          onOutput?: (bytes: Uint8Array, channel: 'stdout'|'stderr') => void,
+ *          collect?: boolean}} [opts]
+ * @returns {{stdout: string, stderr: string, value: any}}
+ */
+Module['phasmCapture'] = function (fn, opts) {
+  phasmStdio.begin(opts || {});
+
+  let value;
+  let captured;
+  try {
+    value = fn();
+  } finally {
+    captured = phasmStdio.end();
+  }
+
+  return { stdout: captured.stdout, stderr: captured.stderr, value };
 };
 
 /**
@@ -184,7 +284,7 @@ Module['phasmStartup'] = function (ini) {
 // phasmRun() throws too. phasm_startup() already refuses the opposite order;
 // this is the same refusal in the direction Emscripten owns, and it has to live
 // here because callMain() is a JS function that never reaches C.
-let phasmCallMainUsed = false;
+let phasmCallMainCalled = false;
 
 const phasmCallMain = Module['callMain'];
 if (phasmCallMain) {
@@ -195,9 +295,23 @@ if (phasmCallMain) {
         + 'module has already started PHP. Use phasmRun().',
       );
     }
-    phasmCallMainUsed = true;
+    phasmCallMainCalled = true;
     return phasmCallMain.apply(this, arguments);
   };
+}
+
+/**
+ * Has this module run the CLI's main(), by either route?
+ *
+ * The wrapper above only sees the explicit route. A module built without
+ * `noInitialRun` runs main() by itself at startup — through Emscripten's own
+ * internal callMain, which never consults Module.callMain — so the wrapper is
+ * blind to exactly the case an embedder does not realise it asked for. Read
+ * rather than latched, because with a `setStatus` handler that automatic run is
+ * deferred past this file.
+ */
+function phasmDidCallMain() {
+  return phasmCallMainCalled || (!!Module['calledRun'] && !Module['noInitialRun']);
 }
 
 // The same refusal in the other direction. The C side already declines — it
@@ -207,10 +321,12 @@ if (phasmCallMain) {
 // a fatal. Silently returning "something went wrong" for a mistake this
 // structural is the one case worth an exception.
 function phasmRefuseAfterCallMain(what) {
-  if (phasmCallMainUsed) {
-    throw new Error(
-      `phasm: ${what} and callMain() are mutually exclusive, and this module `
-      + 'has already run callMain(). Create a new module.',
-    );
-  }
+  if (!phasmDidCallMain()) return;
+
+  throw new Error(
+    `phasm: ${what} and callMain() are mutually exclusive, and this module has `
+    + 'already run callMain()'
+    + (phasmCallMainCalled ? '' : ' — it was built without noInitialRun, so it ran main() at startup')
+    + '. Create a new module.',
+  );
 }

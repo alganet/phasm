@@ -132,27 +132,13 @@ echo 'Hello World!' . PHP_EOL;
 			outputEl.appendChild(span);
 		};
 
-		// Emscripten's `print`/`printErr` options are LINE buffered: they fire
-		// only on a newline and hand back the line with it stripped. Output that
-		// does not end in one is never delivered at all — `<?php echo "hi";`
-		// printed nothing. Collect the raw byte stream instead and decode it,
-		// so what you see is exactly what PHP wrote.
+		// One call's output, in the order PHP produced it. run() hands back
+		// stdout and stderr separately, which loses their interleaving, so the
+		// page streams instead: onOutput is called with the bytes and the
+		// channel they came from as they happen.
 		const decoder = new TextDecoder();
-		const sink = (cls) => {
-			let buf = [];
-			return {
-				push(c) {
-					if (c === null) { this.flush(); return; }
-					buf.push(c);
-					if (c === 10) this.flush();
-				},
-				flush() {
-					if (!buf.length) return;
-					write(decoder.decode(Uint8Array.from(buf)), cls);
-					buf = [];
-				},
-			};
-		};
+		const show = (bytes, channel) =>
+			write(decoder.decode(bytes), channel === "stderr" ? "err" : null);
 
 		if (typeof WebAssembly === "undefined") {
 			statusEl.textContent = "WebAssembly unavailable";
@@ -163,22 +149,11 @@ echo 'Hello World!' . PHP_EOL;
 			script.onload = async () => {
 				statusEl.textContent = "Initializing...";
 				try {
-					// One instance for the whole page. phasmRun() enters the
-					// phasm SAPI, which runs a full request per call without ever
+					// One instance for the whole page. run() enters the phasm
+					// SAPI, which runs a full request per call without ever
 					// exiting the process, so nothing leaks between runs and the
 					// 34 MiB module is instantiated once rather than per click.
-					const out = sink(null), errOut = sink("err");
-					const php = await Phasm({
-						noInitialRun: true,
-						preRun: [(m) => m.FS.init(
-							() => null,
-							(c) => out.push(c),
-							(c) => errOut.push(c),
-						)],
-					});
-					// Anything PHP wrote without a trailing newline is still
-					// sitting in the buffer when the call returns.
-					const flushOutput = () => { out.flush(); errOut.flush(); };
+					const php = await Phasm({ noInitialRun: true });
 
 					const vendorRes = await fetch('assets/vendor.zip');
 					if (!vendorRes.ok) throw new Error('Failed to fetch vendor.zip: ' + vendorRes.status);
@@ -189,8 +164,7 @@ echo 'Hello World!' . PHP_EOL;
 					php.FS.writeFile('/main.php', await mainRes.text());
 
 					statusEl.textContent = "Ready";
-					php.phasmRun(["main.php"]);
-					flushOutput();
+					php.run({ args: ["main.php"], collect: false, onOutput: show });
 
 					runBtn.disabled = false;
 					runBtn.onclick = async () => {
@@ -198,10 +172,13 @@ echo 'Hello World!' . PHP_EOL;
 						statusEl.textContent = "Running...";
 						outputEl.textContent = "";
 						try {
-							php.FS.writeFile('/user.php', getSource());
-							const code = php.phasmRun(["user.php"]);
-							flushOutput();
-							statusEl.textContent = `Finished (exit ${code})`;
+							const { exitCode } = php.run({
+								files: { '/user.php': getSource() },
+								args: ["user.php"],
+								collect: false,
+								onOutput: show,
+							});
+							statusEl.textContent = `Finished (exit ${exitCode})`;
 						} catch (err) {
 							write(`Failed to run: ${err && err.stack || err}`, "err");
 							statusEl.textContent = "Failed";

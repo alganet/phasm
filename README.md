@@ -26,14 +26,11 @@ what the binary actually links, so it cannot drift again.
 ```js
 import Phasm from "@alganet/phasm";
 
-const php = await Phasm({
-  noInitialRun: true,
-  print: (text) => process.stdout.write(text + "\n"),
-  printErr: (text) => process.stderr.write(text + "\n"),
-});
+const php = await Phasm({ noInitialRun: true });
 
-php.FS.writeFile("/hello.php", `<?php echo "Hello from PHP!\\n"; ?>`);
-php.phasmRun(["hello.php"]);
+const { stdout, stderr, exitCode } = php.run({
+  script: `<?php echo "Hello from PHP!\\n";`,
+});
 ```
 
 ## Browser
@@ -42,27 +39,70 @@ php.phasmRun(["hello.php"]);
 <script src="https://unpkg.com/@alganet/phasm/dist/php.js"></script>
 <pre id="output"></pre>
 <script>
-  Phasm({
-    noInitialRun: true,
-    print: (text) => document.getElementById("output").textContent += text + "\n",
-    printErr: (text) => console.error(text),
-  }).then((php) => {
-    php.FS.writeFile("/hello.php", '<?php echo "Hello from PHP!\\n"; ?>');
-    php.phasmRun(["hello.php"]);
+  Phasm({ noInitialRun: true }).then((php) => {
+    const { stdout } = php.run({ code: 'echo "Hello from PHP!";' });
+    document.getElementById("output").textContent = stdout;
   });
 </script>
 ```
 
 ## TypeScript
 
-Types ship with the package — `Phasm`, `PhasmOptions`, `PhasmModule` and
-`PhasmFS` are all declared, no `@types` package needed.
+Types ship with the package — `Phasm`, `PhasmOptions`, `PhasmModule`, `PhasmFS`,
+`PhasmRunOptions`, `PhasmRunResult`, `PhasmRequest` and `PhasmResponse` are all
+declared, no `@types` package needed.
 
 ```ts
-import Phasm, { type PhasmModule } from "@alganet/phasm";
+import Phasm, { type PhasmModule, type PhasmRunResult } from "@alganet/phasm";
 
 const php: PhasmModule = await Phasm({ noInitialRun: true });
+const result: PhasmRunResult = php.run({ code: "echo 1;" });
 ```
+
+## Running PHP
+
+`run()` takes one call's worth of everything and gives back what it produced:
+
+```js
+const { stdout, stderr, exitCode } = php.run({
+  args: ["app.php", "--verbose"],
+  files: { "/project/app.php": '<?php echo getenv("APP_ENV"), $argv[1];' },
+  stdin: "piped in",
+  cwd: "/project",
+  env: { APP_ENV: "dev" },
+});
+```
+
+| Option       | Description                                                          |
+|--------------|----------------------------------------------------------------------|
+| `args`       | argv after argv[0]. Wins over `code` and `script`.                   |
+| `code`       | A snippet, as `-r` — no `<?php` tag.                                 |
+| `script`     | PHP source, mounted at `/main.php` and run.                          |
+| `files`      | Written first; missing directories are created.                      |
+| `stdin`      | Text, bytes, or a function pulled from as PHP reads.                 |
+| `cwd`, `env` | This call only.                                                      |
+| `onOutput`   | `(bytes, channel)` as output happens, for streaming.                 |
+| `collect`    | `false` to skip buffering when `onOutput` already has the bytes.     |
+
+Everything there is per call: `cwd` and `env` are gone by the next one, output
+belongs to this call alone, stdin is refilled. The filesystem, the instance and
+its ini survive. The options and the `{stdout, stderr, exitCode}` result are
+[wasi-sh](https://github.com/alganet/wasi-sh)'s, so a shell run and a PHP run
+compose without an adapter between them.
+
+**One instance, many runs.** phasm builds its own SAPI (`sapi/phasm`) rather
+than the stock CLI, so each call is a full request without ever exiting the
+process: the exit status is per call, errors go to stderr, and a fatal error or
+`exit()` leaves the module usable. Booting PHP costs ~70 ms and a warm call
+~1 ms, so reuse the instance.
+
+Underneath, `phasmRun(args, opts)` returns the status and leaves output wherever
+the module's stdio points — reach for it when you are routing stdio yourself,
+and for anything else `phasmCapture(fn)` collects around a call `run()` does not
+cover. `callMain()` is still there and still one-shot: it re-enters the CLI's
+`main()`, which ends in `exit()`. Pick one entry point per module; they cannot
+be mixed, and each refuses the call rather than leaving you with a dead
+instance.
 
 ## Configuration
 
@@ -73,28 +113,15 @@ options and returns a promise that resolves to the initialized module:
 |------------------|---------------------------------------------------------|
 | `noInitialRun`   | Set `true` to prevent automatic execution on load.      |
 | `arguments`      | Array of CLI arguments (e.g. `["script.php"]`).         |
-| `print(text)`    | Callback for stdout output.                             |
-| `printErr(text)` | Callback for stderr output.                             |
+| `print(text)`    | Callback for stdout produced outside `run()`.           |
+| `printErr(text)` | Callback for stderr produced outside `run()`.           |
 | `stdin()`        | Callback to provide stdin input. Return `null` for EOF. |
 
-The resolved module exposes `phasmRun()` to run PHP scripts and `FS` for
-filesystem access.
-
-```js
-php.phasmRun(["script.php", "arg"], { cwd: "/project", env: { APP_ENV: "dev" } });
-```
-
-It returns the exit status, and `cwd` and `env` apply to that call alone.
-
-**One instance, many runs.** phasm builds its own SAPI (`sapi/phasm`) rather
-than the stock CLI, so `phasmRun()` runs a full request per call without ever
-exiting the process: the exit status is per call, errors go to stderr, and a
-fatal error or `exit()` leaves the module usable. Booting PHP costs ~70 ms and a
-warm call ~1 ms, so reuse the instance.
-
-`callMain()` is still there and still one-shot — it re-enters the CLI's `main()`,
-which ends in `exit()`. Pick one entry point per module; they cannot be mixed,
-and each refuses the call rather than leaving you with a dead instance.
+The module owns its standard streams, which is what lets `run()` return one
+call's output rather than a global stream: `print`, `printErr` and `stdin` are
+consulted whenever no `run()` is in flight, so they keep behaving as they always
+did. Installing your own `FS.init()` sinks still works and still wins — `run()`
+then says it cannot capture, rather than reporting that PHP printed nothing.
 
 ## Serving HTTP
 
@@ -146,13 +173,15 @@ behaviour php-fpm gives you.
 
 ## Virtual Filesystem
 
-Phasm uses Emscripten's virtual filesystem. Write PHP files before calling
-`phasmRun()`:
+Phasm uses Emscripten's virtual filesystem. `run({ files })` writes into it, and
+`FS` is there for everything else — it outlives the call, so a script can leave
+something behind for the next one:
 
 ```js
-php.FS.writeFile("/app.php", '<?php echo "works"; ?>');
-php.FS.writeFile("/data.json", JSON.stringify({ key: "value" }));
-php.phasmRun(["app.php"]);
+php.run({ files: { "/data.json": JSON.stringify({ key: "value" }) } });
+php.run({ code: 'file_put_contents("/out.txt", file_get_contents("/data.json"));' });
+
+php.FS.readFile("/out.txt", { encoding: "utf8" });
 ```
 
 See the [Emscripten File System API](https://emscripten.org/docs/api_reference/Filesystem-API.html) for the full reference.

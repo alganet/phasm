@@ -5,9 +5,9 @@
 // Shared harness for the phasm suite.
 //
 // Every test runs on ONE warm instance, shared across the whole suite. That is
-// only safe because of the phasm SAPI (sapi/phasm/phasm.c): phasmRun() runs a
-// full request per call without re-entering main(), so nothing exits the
-// process, the exit status is per call, and there is no per-call leak. Through
+// only safe because of the phasm SAPI (sapi/phasm/phasm.c): run() runs a full
+// request per call without re-entering main(), so nothing exits the process,
+// the exit status is per call, and there is no per-call leak. Through
 // callMain() the same suite would die partway: the CLI's main() latches the
 // exit status on the first non-zero one and the instance stops working
 // entirely at call ~104.
@@ -15,6 +15,11 @@
 // So the sharing is not a speed trick — the suite passing at all is itself the
 // regression test for the thing the SAPI exists to fix. `fresh: true` gets a
 // pristine instance for the rare test that needs one.
+//
+// This file used to hand-roll the stdio the module now owns: an FS.init() sink
+// installed in preRun and swapped per call. It is a wrapper over run() instead,
+// which makes the whole suite a test of the shipped API rather than of a
+// recipe re-derived here. test/run.test.mjs covers that API's own edges.
 
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -43,39 +48,20 @@ async function loadFactory() {
   return factory;
 }
 
-const EMPTY = new Uint8Array(0);
-
-// The stdio sinks are installed once per instance and swapped per call, so the
-// module never needs to know which test is running.
-const sinks = new WeakMap();
-
-async function makeModule() {
+/**
+ * A brand-new instance. `options` reaches the factory untouched, which is how
+ * the tests about the module's own stdio get a module wired their way.
+ */
+export async function freshModule(options) {
   const Phasm = await loadFactory();
-  const sink = { out: [], err: [], input: EMPTY, inPos: 0 };
-
-  const mod = await Phasm({
-    noInitialRun: true,
-    // NOT the `print`/`printErr` options: those are LINE buffered — they fire
-    // only on a newline and hand you the line with the newline stripped. Output
-    // that does not end in one is silently never delivered (`php -r 'echo 42;'`
-    // produced nothing at all), and multi-line output cannot be reassembled
-    // exactly. FS.init gives the raw byte stream, so assertions can be exact.
-    preRun: [(m) => m.FS.init(
-      () => (sink.inPos < sink.input.length ? sink.input[sink.inPos++] : null),
-      (c) => { if (c !== null) sink.out.push(c); },
-      (c) => { if (c !== null) sink.err.push(c); },
-    )],
-  });
-
-  sinks.set(mod, sink);
-  return mod;
+  return Phasm({ noInitialRun: true, ...options });
 }
 
 let shared;
 
 /** The instance the whole suite shares. Exposed for tests that measure it. */
 export async function sharedModule() {
-  if (!shared) shared = await makeModule();
+  if (!shared) shared = await freshModule();
   return shared;
 }
 
@@ -90,11 +76,11 @@ export async function sharedModule() {
  * @param {Record<string,string>} [opts.env]  environment for this call only
  * @param {boolean}  [opts.fresh]   run on a brand-new instance
  * @param {string}   [opts.ini]     ini for the instance, applied before its first call
+ * @param {boolean}  [opts.viaCallMain]  the legacy one-shot entry point
  * @returns {Promise<{stdout: string, stderr: string, exitCode: number, FS: object, module: object}>}
  */
 export async function php(args, opts = {}) {
-  const mod = opts.fresh ? await makeModule() : await sharedModule();
-  const sink = sinks.get(mod);
+  const mod = opts.fresh ? await freshModule() : await sharedModule();
 
   if (opts.ini) {
     // Only legal before PHP starts, which is why it pairs with `fresh`.
@@ -102,31 +88,24 @@ export async function php(args, opts = {}) {
     if (rc !== 0) throw new Error(`phasmStartup(${JSON.stringify(opts.ini)}) returned ${rc}`);
   }
 
-  sink.out.length = 0;
-  sink.err.length = 0;
-  sink.input = opts.stdin ? new TextEncoder().encode(opts.stdin) : EMPTY;
-  sink.inPos = 0;
-
-  for (const [path, content] of Object.entries(opts.files || {})) {
-    const slash = path.lastIndexOf('/');
-    if (slash > 0) mkdirp(mod.FS, path.slice(0, slash));
-    mod.FS.writeFile(path, content);
+  // The legacy one-shot path, for the tests that are about it. It ends in
+  // exit(), so the instance is spent afterwards — hence `fresh`. run() cannot
+  // drive it, but the capture underneath run() can.
+  if (opts.viaCallMain) {
+    writeFiles(mod, opts.files);
+    const captured = mod.phasmCapture(() => mod.callMain(args), { stdin: opts.stdin });
+    return { ...captured, exitCode: captured.value, FS: mod.FS, module: mod };
   }
 
-  // The legacy one-shot path, for the tests that are about it. It ends in
-  // exit(), so the instance is spent afterwards — hence `fresh`.
-  const exitCode = opts.viaCallMain
-    ? mod.callMain(args)
-    : mod.phasmRun(args, { cwd: opts.cwd, env: opts.env });
+  const result = mod.run({
+    args,
+    files: opts.files,
+    stdin: opts.stdin,
+    cwd: opts.cwd,
+    env: opts.env,
+  });
 
-  const dec = new TextDecoder();
-  return {
-    stdout: dec.decode(Uint8Array.from(sink.out)),
-    stderr: dec.decode(Uint8Array.from(sink.err)),
-    exitCode,
-    FS: mod.FS,
-    module: mod,
-  };
+  return { ...result, FS: mod.FS, module: mod };
 }
 
 /** Run a PHP snippet with `-r` and return its stdout. */
@@ -149,11 +128,16 @@ export async function evalPhp(code, opts) {
  * @param {{url: string, method?: string, headers?: Record<string,string>,
  *          body?: string|Uint8Array, docroot?: string,
  *          env?: Record<string,string>, fresh?: boolean}} req
- * @returns {Promise<{status: number, headers: Headers,
- *                    rawHeaders: [string,string][], body: Uint8Array, text: string}>}
+ * A request's own output is the response, but a fatal or a warning still goes
+ * to the module's stderr — so this captures around the call, both to keep the
+ * suite's console clean and to give the tests about failing requests something
+ * to assert on.
+ *
+ * @returns {Promise<{status: number, headers: Headers, rawHeaders: [string,string][],
+ *                    body: Uint8Array, text: string, stderr: string}>}
  */
 export async function serve(req) {
-  const mod = req.fresh ? await makeModule() : await sharedModule();
+  const mod = req.fresh ? await freshModule() : await sharedModule();
   const body = typeof req.body === 'string' ? new TextEncoder().encode(req.body) : req.body;
 
   if (req.ini) {
@@ -163,20 +147,26 @@ export async function serve(req) {
 
   // A fresh instance has a fresh filesystem, so anything it must serve has to
   // be written into it rather than into the one the suite shares.
-  for (const [path, content] of Object.entries(req.files || {})) {
-    const slash = path.lastIndexOf('/');
-    if (slash > 0) mkdirp(mod.FS, path.slice(0, slash));
-    mod.FS.writeFile(path, content);
-  }
+  writeFiles(mod, req.files);
 
-  const res = mod.phasmHandleRequest({ ...req, body });
+  const captured = mod.phasmCapture(() => mod.phasmHandleRequest({ ...req, body }));
+  const res = captured.value;
   return {
     status: res.status,
     headers: new Headers(res.headers),
     rawHeaders: res.headers,
     body: res.body,
     text: new TextDecoder().decode(res.body),
+    stderr: captured.stderr,
   };
+}
+
+function writeFiles(mod, files) {
+  for (const [path, content] of Object.entries(files || {})) {
+    const slash = path.lastIndexOf('/');
+    if (slash > 0) mkdirp(mod.FS, path.slice(0, slash));
+    mod.FS.writeFile(path, content);
+  }
 }
 
 export function mkdirp(FS, dir) {
