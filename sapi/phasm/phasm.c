@@ -63,8 +63,16 @@
 
 #include "../cli/php_cli.c"
 
+/* Server mode's own needs: response buffers, $_SERVER registration and the
+ * percent-decoding the path lookup depends on. */
+#include "Zend/zend_smart_str.h"
+#include "main/php_variables.h"
+#include "ext/standard/url.h"
+
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -459,4 +467,651 @@ int phasm_is_started(void)
 {
 	return phasm_started;
 }
+/* }}} */
+
+/* {{{ server mode */
+
+/*
+ * WHY SERVER MODE IS NOT A SECOND SAPI
+ *
+ * A request needs different plumbing from a command: output has to be captured
+ * rather than written to a descriptor, header() has to be recorded rather than
+ * discarded, and POST data has to come from a buffer rather than a socket. The
+ * CLI SAPI does none of that — sapi_cli_send_headers() throws headers away, and
+ * do_cli() sets SG(request_info).no_headers so nothing tries.
+ *
+ * The obvious answer, a second sapi_module_struct, is the wrong one here: the
+ * module started once in phasm_startup() and its extensions, ini and opcache
+ * are bound to that startup. Starting a second one means a second module in the
+ * same instance, and swapping the global mid-flight means re-running
+ * php_module_startup(). Both give up the one thing this SAPI exists for.
+ *
+ * So the hooks are swapped for the duration of one request and put back — the
+ * technique php_cli_server.c itself uses for its own send_headers around
+ * ini-set output (see sapi_cli_server_discard_headers). Everything upstream of
+ * the hooks is PHP's ordinary request cycle, which is the point: $_GET, $_POST,
+ * php://input, $_FILES and the rfc1867 multipart parser all arrive by
+ * themselves, because they were never ours to fake.
+ */
+
+typedef struct {
+	/* request */
+	const char *method;
+	const char *uri;              /* the target as sent, query string included */
+	const char *path;             /* decoded, no query string */
+	const char *query;            /* after the '?', or NULL */
+	const char *script_filename;  /* absolute, resolved under docroot */
+	const char *script_name;      /* what the script sees as SCRIPT_NAME */
+	const char *docroot;
+	const char *packed_headers;   /* "Name: value" entries, NUL-separated */
+	int header_count;
+	char *cookies;                /* the Cookie header's value, or NULL */
+	const char *host;             /* the Host header's value, or NULL */
+	const char *body;
+	size_t body_len;
+	size_t body_read;
+
+	/* Response. These are filled during the request but read after it, so they
+	 * are allocated persistently — smart_str's default is the request allocator,
+	 * and php_request_shutdown() frees that whole arena. Getting this wrong does
+	 * not fail where the response is read; it corrupts the heap and takes the
+	 * *next* request down inside php_request_shutdown(). Hence the _ex() calls
+	 * and the matching smart_str_free_ex() in phasm_response_reset(). */
+	smart_str out;
+	smart_str headers;
+	int status;
+} phasm_request;
+
+static phasm_request *phasm_req(void)
+{
+	return (phasm_request *) SG(server_context);
+}
+
+/* The response outlives the call so JS can read it before freeing it. */
+static smart_str phasm_resp_body = {0};
+static smart_str phasm_resp_headers = {0};
+static int phasm_resp_status = 0;
+
+/* {{{ the swapped hooks */
+
+static size_t phasm_ub_write(const char *str, size_t str_length)
+{
+	phasm_request *r = phasm_req();
+	if (r == NULL) {
+		return 0;
+	}
+	smart_str_appendl_ex(&r->out, str, str_length, 1);
+	return str_length;
+}
+
+/*
+ * Deliberately empty. A socket-backed SAPI flushes here, and sends the headers
+ * first because after this the body is on the wire; there is no wire here, only
+ * a buffer the embedder reads when the request is over.
+ *
+ * Sending headers from this hook is actively wrong: the CLI's HARDCODED_INI
+ * sets implicit_flush=1, and php_request_startup() acts on that by flushing
+ * while it is still starting up — before the script has run a single line. That
+ * marked the headers sent with an empty list, so every header() the script went
+ * on to make was a no-op against an already-sent response, and headers_sent()
+ * returned true from the first statement onwards. The output layer already
+ * calls sapi_send_headers() before the first body byte, and phasm_handle_request
+ * calls it once more for a response that never wrote one.
+ */
+static void phasm_flush(void *server_context)
+{
+}
+
+/*
+ * Recorded, not written: the embedder synthesises the real Response. Headers
+ * come out as "Name: value" lines so the JS side can split them without this
+ * file inventing an encoding.
+ */
+static int phasm_send_headers(sapi_headers_struct *sapi_headers)
+{
+	phasm_request *r = phasm_req();
+	sapi_header_struct *h;
+	zend_llist_position pos;
+
+	if (r == NULL || SG(request_info).no_headers) {
+		return SAPI_HEADER_SENT_SUCCESSFULLY;
+	}
+
+	if (SG(sapi_headers).http_response_code != 0) {
+		r->status = SG(sapi_headers).http_response_code;
+	}
+
+	h = (sapi_header_struct *) zend_llist_get_first_ex(&sapi_headers->headers, &pos);
+	while (h != NULL) {
+		if (h->header_len > 0) {
+			smart_str_appendl_ex(&r->headers, h->header, h->header_len, 1);
+			smart_str_appendc_ex(&r->headers, '\n', 1);
+		}
+		h = (sapi_header_struct *) zend_llist_get_next_ex(&sapi_headers->headers, &pos);
+	}
+
+	return SAPI_HEADER_SENT_SUCCESSFULLY;
+}
+
+/*
+ * PHP's own post reader drives this, which is what makes $_POST, php://input
+ * and $_FILES work without any of them being special-cased here.
+ */
+static size_t phasm_read_post(char *buf, size_t count_bytes)
+{
+	phasm_request *r = phasm_req();
+	size_t remaining, n;
+
+	if (r == NULL || r->body == NULL) {
+		return 0;
+	}
+
+	remaining = r->body_len - r->body_read;
+	n = count_bytes < remaining ? count_bytes : remaining;
+	if (n > 0) {
+		memcpy(buf, r->body + r->body_read, n);
+		r->body_read += n;
+	}
+	return n;
+}
+
+static char *phasm_read_cookies(void)
+{
+	phasm_request *r = phasm_req();
+	return r != NULL ? r->cookies : NULL;
+}
+
+/* }}} */
+
+/* {{{ $_SERVER */
+
+/* "Content-Type" -> "CONTENT_TYPE"; anything else -> "HTTP_X_FORWARDED_FOR". */
+static char *phasm_header_var_name(const char *name, size_t name_len)
+{
+	int prefixed = !(name_len == sizeof("content-type") - 1
+			&& strncasecmp(name, "content-type", name_len) == 0)
+		&& !(name_len == sizeof("content-length") - 1
+			&& strncasecmp(name, "content-length", name_len) == 0);
+	size_t prefix_len = prefixed ? sizeof("HTTP_") - 1 : 0;
+	char *var = malloc(prefix_len + name_len + 1);
+
+	if (var == NULL) {
+		return NULL;
+	}
+	if (prefixed) {
+		memcpy(var, "HTTP_", prefix_len);
+	}
+	for (size_t i = 0; i < name_len; i++) {
+		char c = name[i];
+		var[prefix_len + i] = (c == '-') ? '_' : (char) toupper((unsigned char) c);
+	}
+	var[prefix_len + name_len] = '\0';
+	return var;
+}
+
+static void phasm_register_variables(zval *track_vars_array)
+{
+	phasm_request *r = phasm_req();
+	const char *entry;
+
+	/* Whatever the embedder passed as this call's environment, same as CLI. */
+	php_import_environment_variables(track_vars_array);
+
+	if (r == NULL) {
+		return;
+	}
+
+	php_register_variable("REQUEST_METHOD", r->method, track_vars_array);
+	/* The target exactly as the client sent it, query string included — a
+	 * router reads this, and re-deriving it from path and query loses the
+	 * difference between "no query" and "an empty one". */
+	php_register_variable("REQUEST_URI", r->uri, track_vars_array);
+	php_register_variable("QUERY_STRING", r->query != NULL ? r->query : "", track_vars_array);
+	php_register_variable("SCRIPT_NAME", r->script_name, track_vars_array);
+	php_register_variable("PHP_SELF", r->script_name, track_vars_array);
+	php_register_variable("SCRIPT_FILENAME", r->script_filename, track_vars_array);
+	php_register_variable("PATH_TRANSLATED", r->script_filename, track_vars_array);
+	php_register_variable("DOCUMENT_ROOT", r->docroot, track_vars_array);
+	php_register_variable("SERVER_PROTOCOL", "HTTP/1.1", track_vars_array);
+	php_register_variable("SERVER_SOFTWARE", "phasm", track_vars_array);
+
+	/* Split off the Host header's port, because SERVER_NAME and SERVER_PORT are
+	 * separate variables and a great deal of code builds a base URL out of the
+	 * pair. Without them that code emits "http://:" and two undefined-key
+	 * warnings, which looks like a bug in the application. */
+	{
+		const char *host = r->host != NULL ? r->host : "localhost";
+		const char *colon = strrchr(host, ':');
+		/* Only a port, never the colons of a bare IPv6 literal. */
+		int has_port = colon != NULL && strchr(colon, ']') == NULL && colon[1] != '\0';
+
+		if (has_port) {
+			char *name = malloc((size_t) (colon - host) + 1);
+			if (name != NULL) {
+				memcpy(name, host, (size_t) (colon - host));
+				name[colon - host] = '\0';
+				php_register_variable("SERVER_NAME", name, track_vars_array);
+				free(name);
+			}
+			php_register_variable("SERVER_PORT", colon + 1, track_vars_array);
+		} else {
+			php_register_variable("SERVER_NAME", host, track_vars_array);
+			php_register_variable("SERVER_PORT", "80", track_vars_array);
+		}
+	}
+	php_register_variable("REMOTE_PORT", "0", track_vars_array);
+	php_register_variable("GATEWAY_INTERFACE", "CGI/1.1", track_vars_array);
+	php_register_variable("REQUEST_SCHEME", "http", track_vars_array);
+	php_register_variable("REMOTE_ADDR", "127.0.0.1", track_vars_array);
+
+	entry = r->packed_headers;
+	for (int i = 0; i < r->header_count && entry != NULL; i++) {
+		const char *sep = strchr(entry, ':');
+		if (sep != NULL && sep != entry) {
+			const char *value = sep + 1;
+			char *var;
+
+			while (*value == ' ' || *value == '\t') {
+				value++;
+			}
+			var = phasm_header_var_name(entry, (size_t) (sep - entry));
+			if (var != NULL) {
+				php_register_variable(var, value, track_vars_array);
+				free(var);
+			}
+		}
+		entry += strlen(entry) + 1;
+	}
+}
+
+/* }}} */
+
+/* {{{ resolving the script */
+
+/*
+ * A path is refused rather than normalised if it can climb: this runs against
+ * the embedder's whole filesystem, and "%2e%2e/" is the oldest trick there is.
+ * Decoding happens first, so the check sees what the lookup will use.
+ */
+static int phasm_path_escapes(const char *path)
+{
+	const char *p = path;
+
+	while ((p = strstr(p, "..")) != NULL) {
+		int at_start = (p == path) || (p[-1] == '/');
+		int at_end = (p[2] == '\0') || (p[2] == '/');
+		if (at_start && at_end) {
+			return 1;
+		}
+		p += 2;
+	}
+	return 0;
+}
+
+static int phasm_has_php_suffix(const char *path)
+{
+	size_t len = strlen(path);
+	return len >= 4 && strcmp(path + len - 4, ".php") == 0;
+}
+
+/* }}} */
+
+/* {{{ phasm_handle_request */
+
+static void phasm_response_reset(void)
+{
+	smart_str_free_ex(&phasm_resp_body, 1);
+	smart_str_free_ex(&phasm_resp_headers, 1);
+	memset(&phasm_resp_body, 0, sizeof(phasm_resp_body));
+	memset(&phasm_resp_headers, 0, sizeof(phasm_resp_headers));
+	phasm_resp_status = 0;
+}
+
+/*
+ * Run one HTTP request and record the response. `uri` is the request target
+ * including any query string; `packed_headers` is `header_count` NUL-terminated
+ * "Name: value" entries back to back; `body` may be NULL.
+ *
+ * Returns the HTTP status, or 0 to decline — the path resolved to something
+ * that is not a PHP script, which the embedder should serve from the filesystem
+ * itself. Nothing is guessed about content types here: this runs PHP, and a
+ * service worker is far better placed to serve a .css file than this is.
+ *
+ * The response is read back through phasm_response_*() and stays valid until
+ * the next call.
+ */
+EMSCRIPTEN_KEEPALIVE
+int phasm_handle_request(const char *method, const char *uri,
+	const char *packed_headers, int header_count,
+	char *body, int body_len,
+	const char *docroot, const char *packed_env, int envc)
+{
+	phasm_request r;
+	char *path = NULL;
+	char *script = NULL;
+	char *script_name = NULL;
+	const char *query = NULL;
+	size_t decoded_len = 0;
+	char saved_cwd[MAXPATHLEN];
+	bool cwd_saved;
+	struct stat st;
+	int fd_mark;
+	int status;
+
+	/* saved hooks */
+	size_t (*saved_ub_write)(const char *, size_t);
+	void (*saved_flush)(void *);
+	int (*saved_header_handler)(sapi_header_struct *, sapi_header_op_enum, sapi_headers_struct *);
+	int (*saved_send_headers)(sapi_headers_struct *);
+	size_t (*saved_read_post)(char *, size_t);
+	char *(*saved_read_cookies)(void);
+	void (*saved_register_variables)(zval *);
+
+	phasm_response_reset();
+
+	if (!phasm_started && phasm_startup(NULL) != 0) {
+		return 500;
+	}
+	if (method == NULL || uri == NULL || docroot == NULL) {
+		return 500;
+	}
+
+	memset(&r, 0, sizeof(r));
+
+	/* Split the target, then decode only the path: a '?' inside an encoded
+	 * path segment must not start the query string, and decoding the query
+	 * here would destroy the '&' and '=' that $_GET is parsed from. */
+	{
+		const char *q = strchr(uri, '?');
+		size_t path_len = q != NULL ? (size_t) (q - uri) : strlen(uri);
+
+		query = q != NULL ? q + 1 : NULL;
+		path = malloc(path_len + 1);
+		if (path == NULL) {
+			return 500;
+		}
+		memcpy(path, uri, path_len);
+		path[path_len] = '\0';
+		/* The *raw* decoder: '+' means a plus in a path and a space only in a
+		 * query string, so decoding "/my+app.php" to "/my app.php" would 404 a
+		 * file that is right there. php_cli_server.c makes the same choice. */
+		decoded_len = php_raw_url_decode(path, path_len);
+		path[decoded_len] = '\0';
+	}
+
+	/*
+	 * An encoded NUL truncates every C string that follows it, so the checks
+	 * below would inspect a prefix while something else acted on the whole
+	 * thing — and phasm_path_escapes()'s strstr() would stop at the NUL and
+	 * never reach the ".." after it. Refusing outright is the only version of
+	 * this that stays true as the code around it changes.
+	 */
+	if (strlen(path) != decoded_len) {
+		free(path);
+		return 400;
+	}
+
+	if (path[0] != '/' || phasm_path_escapes(path)) {
+		free(path);
+		return 403;
+	}
+
+	/* docroot + path, then index.php for a directory. */
+	size_t droot_len = strlen(docroot);
+	{
+		size_t need = droot_len + strlen(path) + sizeof("/index.php") + 1;
+
+		/* A trailing slash on the docroot would produce "//" here, which is a
+		 * different path to opcache and to include_once. */
+		while (droot_len > 0 && docroot[droot_len - 1] == '/') {
+			droot_len--;
+		}
+
+		script = malloc(need);
+		if (script == NULL) {
+			free(path);
+			return 500;
+		}
+		memcpy(script, docroot, droot_len);
+		strcpy(script + droot_len, path);
+
+		if (stat(script, &st) == 0 && S_ISDIR(st.st_mode)) {
+			size_t len = strlen(script);
+			if (len > 0 && script[len - 1] == '/') {
+				len--;
+			}
+			strcpy(script + len, "/index.php");
+		}
+	}
+
+	if (stat(script, &st) != 0 || !S_ISREG(st.st_mode)) {
+		free(script);
+		free(path);
+		return 404;
+	}
+	if (!phasm_has_php_suffix(script)) {
+		free(script);
+		free(path);
+		return 0; /* not ours — the embedder serves it */
+	}
+
+	/* SCRIPT_NAME is the resolved script's own path, which is `path` except
+	 * where index.php was appended to a directory — and a router that reads it
+	 * to strip its own prefix needs the difference. */
+	script_name = strdup(script + droot_len);
+	if (script_name == NULL) {
+		free(script);
+		free(path);
+		return 500;
+	}
+
+	r.method = method;
+	r.uri = uri;
+	r.path = path;
+	r.query = query;
+	r.script_filename = script;
+	r.script_name = script_name;
+	r.docroot = docroot;
+	r.packed_headers = packed_headers;
+	r.header_count = header_count;
+	r.body = body;
+	r.body_len = body_len > 0 ? (size_t) body_len : 0;
+	r.status = 200;
+
+	/* Cookie and Content-Type are the two headers PHP wants handed to it
+	 * directly rather than found in $_SERVER. */
+	{
+		const char *entry = packed_headers;
+		for (int i = 0; i < header_count && entry != NULL; i++) {
+			const char *sep = strchr(entry, ':');
+			if (sep != NULL) {
+				size_t name_len = (size_t) (sep - entry);
+				const char *value = sep + 1;
+				while (*value == ' ' || *value == '\t') {
+					value++;
+				}
+				if (name_len == sizeof("cookie") - 1
+					&& strncasecmp(entry, "cookie", name_len) == 0) {
+					r.cookies = (char *) value;
+				} else if (name_len == sizeof("content-type") - 1
+					&& strncasecmp(entry, "content-type", name_len) == 0) {
+					SG(request_info).content_type = value;
+				} else if (name_len == sizeof("host") - 1
+					&& strncasecmp(entry, "host", name_len) == 0) {
+					r.host = value;
+				}
+			}
+			entry += strlen(entry) + 1;
+		}
+	}
+
+	phasm_env_apply(packed_env, envc);
+
+	cwd_saved = VCWD_GETCWD(saved_cwd, sizeof(saved_cwd)) != NULL;
+	(void) VCWD_CHDIR(docroot);
+
+	fd_mark = dup(STDIN_FILENO);
+	if (fd_mark >= 0) {
+		close(fd_mark);
+	}
+
+	saved_ub_write = sapi_module.ub_write;
+	saved_flush = sapi_module.flush;
+	saved_header_handler = sapi_module.header_handler;
+	saved_send_headers = sapi_module.send_headers;
+	saved_read_post = sapi_module.read_post;
+	saved_read_cookies = sapi_module.read_cookies;
+	saved_register_variables = sapi_module.register_server_variables;
+
+	sapi_module.ub_write = phasm_ub_write;
+	sapi_module.flush = phasm_flush;
+	/* NULL means "keep it", which is the default every server SAPI relies on.
+	 * The CLI installs a handler that returns 0 instead — that is how `header()`
+	 * comes to be accepted and discarded in a command line, and left in place it
+	 * drops every header before it ever reaches the list send_headers walks. */
+	sapi_module.header_handler = NULL;
+	sapi_module.send_headers = phasm_send_headers;
+	sapi_module.read_post = phasm_read_post;
+	sapi_module.read_cookies = phasm_read_cookies;
+	sapi_module.register_server_variables = phasm_register_variables;
+
+	SG(server_context) = &r;
+	SG(request_info).request_method = method;
+	SG(request_info).request_uri = script_name;
+	SG(request_info).query_string = (char *) query;
+	SG(request_info).path_translated = script;
+	SG(request_info).content_length = r.body_len;
+	/* Set before startup on purpose: sapi_activate() reads content_type to
+	 * decide whether to read the post body, which is what fills $_POST and
+	 * $_FILES. Anything sapi_activate() *writes* has to wait until after it. */
+	SG(sapi_headers).http_response_code = 200;
+	EG(exit_status) = 0;
+
+	if (php_request_startup() == FAILURE) {
+		/* Started far enough to need tearing down: RINIT has run for some
+		 * modules, sapi_activate() has allocated the header list, and
+		 * SG(sapi_started) is set. The stock CLI omits this and gets away with
+		 * it by exiting; nothing here exits. */
+		php_request_shutdown(NULL);
+		status = 500;
+	} else {
+		zend_file_handle file_handle;
+
+		/* sapi_activate() defaults this to HTTP/1.0, which is not what a
+		 * service worker just handed us. */
+		SG(request_info).proto_num = 1001;
+
+		zend_stream_init_filename(&file_handle, script);
+		file_handle.primary_script = 1;
+
+		/* volatile because zend_first_try is setjmp: a local assigned inside the
+		 * try and read after it is otherwise indeterminate on the bailout path. */
+		volatile int ran = 0;
+		volatile int fatal = 0;
+
+		zend_first_try {
+			ran = php_execute_script(&file_handle) ? 1 : 0;
+		} zend_end_try();
+
+		zend_destroy_file_handle(&file_handle);
+
+		/* php_execute_script() reports false for a *clean* exit too, because
+		 * zend_exception_error() returns FAILURE for the unwind-exit exception.
+		 * So "returned false" cannot mean 500 on its own — `<?php render(); exit;`
+		 * is how a great many front controllers finish, and calling that a server
+		 * error would break the ordinary case rather than an exotic one. An
+		 * actual fatal is the one that also left an error behind; PG(last_error_*)
+		 * is cleared per request by php_free_request_globals(). */
+		fatal = !ran
+			&& PG(last_error_message) != NULL
+			&& (PG(last_error_type) & E_FATAL_ERRORS) != 0;
+
+		/* Headers are sent by php_request_shutdown() — step 1 runs the shutdown
+		 * functions and step 6 deactivates the output layer, which sends them.
+		 * Doing it here instead would commit the response *before* a
+		 * register_shutdown_function() had its chance to call header(), which
+		 * works under every other web SAPI. That is also why the status is read
+		 * afterwards: send_headers is what records it. */
+		php_request_shutdown(NULL);
+
+		status = r.status;
+
+		/* A fatal is a 500 — but only if the script did not already say
+		 * otherwise, because a handler that sends a 403 and then dies still
+		 * meant the 403. */
+		if (fatal && status == 200) {
+			status = 500;
+		}
+	}
+
+	SG(server_context) = NULL;
+	SG(request_info).request_method = NULL;
+	SG(request_info).request_uri = NULL;
+	SG(request_info).query_string = NULL;
+	SG(request_info).path_translated = NULL;
+	SG(request_info).content_type = NULL;
+	SG(request_info).content_length = 0;
+
+	sapi_module.ub_write = saved_ub_write;
+	sapi_module.flush = saved_flush;
+	sapi_module.header_handler = saved_header_handler;
+	sapi_module.send_headers = saved_send_headers;
+	sapi_module.read_post = saved_read_post;
+	sapi_module.read_cookies = saved_read_cookies;
+	sapi_module.register_server_variables = saved_register_variables;
+
+	if (fd_mark >= 0) {
+		phasm_reclaim_std_dups(fd_mark);
+	}
+	if (cwd_saved) {
+		(void) VCWD_CHDIR(saved_cwd);
+	}
+
+	/* Hand the buffers over wholesale; r's copies die with the frame. */
+	phasm_resp_body = r.out;
+	phasm_resp_headers = r.headers;
+	phasm_resp_status = status;
+
+	free(script_name);
+	free(script);
+	free(path);
+
+	return status;
+}
+/* }}} */
+
+/* {{{ reading the response back */
+
+EMSCRIPTEN_KEEPALIVE
+int phasm_response_status(void)
+{
+	return phasm_resp_status;
+}
+
+/* "Name: value" lines, newline-separated. Empty when the script sent none. */
+EMSCRIPTEN_KEEPALIVE
+const char *phasm_response_headers(void)
+{
+	if (phasm_resp_headers.s == NULL) {
+		return "";
+	}
+	/* Only writes the terminator into space smart_str_alloc already reserved,
+	 * so it does not care which allocator the buffer came from. */
+	smart_str_0(&phasm_resp_headers);
+	return ZSTR_VAL(phasm_resp_headers.s);
+}
+
+/* Bytes, not a string: a response body is just as likely to be a PNG. */
+EMSCRIPTEN_KEEPALIVE
+char *phasm_response_body(void)
+{
+	return phasm_resp_body.s != NULL ? ZSTR_VAL(phasm_resp_body.s) : NULL;
+}
+
+EMSCRIPTEN_KEEPALIVE
+int phasm_response_body_length(void)
+{
+	return phasm_resp_body.s != NULL ? (int) ZSTR_LEN(phasm_resp_body.s) : 0;
+}
+
 /* }}} */
