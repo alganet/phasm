@@ -13,7 +13,7 @@ PHP 8.5 compiled to WebAssembly. Run PHP in the browser or in Node.js.
 ## Included Extensions
 
 calendar, ctype, fileinfo, filter, iconv, mbstring, opcache, pcntl, pdo,
-pdo_sqlite, sqlite3, tokenizer, zip.
+pdo_sqlite, phar, session, sqlite3, tokenizer, zip, zlib.
 
 Plus PHP's always-on core: Core, date, hash, json, lexbor, pcre, random,
 Reflection, SPL, standard, uri.

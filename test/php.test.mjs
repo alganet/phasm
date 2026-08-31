@@ -54,7 +54,8 @@ describe('interpreter', opts, () => {
 // dependency bump causes, and it is invisible without an assertion.
 const ADVERTISED = [
   'calendar', 'ctype', 'fileinfo', 'filter', 'iconv', 'mbstring',
-  'pcntl', 'PDO', 'pdo_sqlite', 'sqlite3', 'tokenizer', 'zip',
+  'pcntl', 'PDO', 'pdo_sqlite', 'Phar', 'session', 'sqlite3', 'tokenizer',
+  'zip', 'zlib',
 ];
 
 describe('extensions', opts, () => {
@@ -117,6 +118,97 @@ describe('extensions', opts, () => {
       + 'echo $o->numFiles, ":", strlen($o->getFromName("inner.txt")), ":", filesize("/t.zip") < 1200 ? "compressed" : "raw";'
     );
     assert.equal(r.stdout, '1:1200:compressed');
+  });
+
+  test('zlib compresses and decompresses', async () => {
+    const r = await evalPhp(
+      '$plain = str_repeat("compress me ", 100);'
+      + '$gz = gzencode($plain);'
+      + 'echo strlen($gz) < 200 ? "small" : "big", ":",'
+      + 'var_export(gzdecode($gz) === $plain, true), ":",'
+      + 'var_export(gzuncompress(gzcompress($plain)) === $plain, true);'
+    );
+    assert.equal(r.stdout, 'small:true:true');
+  });
+
+  // The extension also registers stream wrappers and filters, which is how
+  // anything reading a .gz off the filesystem gets at it.
+  test('the compress.zlib:// wrapper round-trips a file on disk', async () => {
+    const r = await evalPhp(
+      'file_put_contents("compress.zlib:///g.gz", "through the wrapper");'
+      + 'echo in_array("compress.zlib", stream_get_wrappers(), true) ? "registered" : "missing", ":",'
+      + 'file_get_contents("compress.zlib:///g.gz"), ":",'
+      + 'var_export(file_get_contents("/g.gz") !== "through the wrapper", true);'
+    );
+    assert.equal(r.stdout, 'registered:through the wrapper:true');
+  });
+
+  // The files handler writes to save_path, which is an ordinary directory in
+  // whatever store is mounted — so a session surviving is a filesystem claim as
+  // much as an extension one.
+  test('session writes to disk and reads back', async () => {
+    const r = await evalPhp(
+      '@mkdir("/sess");'
+      + 'ini_set("session.save_path", "/sess");'
+      + 'ini_set("session.use_cookies", "0");'
+      + 'session_id("phasmtest"); session_start();'
+      + '$_SESSION["k"] = "kept";'
+      + 'session_write_close();'
+      + '$onDisk = count(glob("/sess/sess_*"));'
+      + 'session_id("phasmtest"); session_start();'
+      + 'echo $_SESSION["k"] ?? "lost", ":", $onDisk;'
+      + 'session_write_close();'
+    );
+    assert.equal(r.stdout, 'kept:1');
+  });
+
+  // The reason phar is in this build at all: composer.phar, phpunit.phar and
+  // php-cs-fixer.phar are archives with an executable stub, so `php tool.phar`
+  // either works or there is no tooling story. Packed on one instance with
+  // phar.readonly off — how a tool is built — and run on the shared one, which
+  // is configured the way a user's would be: read-only, no special ini.
+  test('a prebuilt phar runs as a script', async () => {
+    const packed = await php(['/bin/pack.php'], {
+      fresh: true,
+      ini: 'phar.readonly=0',
+      files: {
+        // In a directory, not at `/`: phar checks that the archive's parent
+        // directory exists, and the root has no parent component to check.
+        '/bin/pack.php':
+          '<?php $p = new Phar("/bin/t.phar");'
+          + '$p->addFromString("lib.php", \'<?php function greet($n) { return "hi $n"; }\');'
+          + '$p->addFromString("main.php", \'<?php require "phar://tool/lib.php"; echo greet($argv[1] ?? "nobody");\');'
+          + '$p->setStub(\'<?php Phar::mapPhar("tool"); require "phar://tool/main.php"; __HALT_COMPILER();\');',
+      },
+    });
+    assert.equal(packed.exitCode, 0, `packing failed: ${packed.stdout}${packed.stderr}`);
+
+    const ran = await php(['/bin/t.phar', 'phasm'], { files: { '/bin/t.phar': packed.FS.readFile('/bin/t.phar') } });
+    assert.equal(ran.stdout, 'hi phasm');
+    assert.equal(ran.exitCode, 0);
+  });
+
+  // Real tools ship their entries deflated, so phar without zlib reads a large
+  // part of the ecosystem as corrupt rather than as compressed.
+  test('phar reads gz-compressed entries', async () => {
+    const packed = await php(['/bin/pack.php'], {
+      fresh: true,
+      ini: 'phar.readonly=0',
+      files: {
+        '/bin/pack.php':
+          '<?php $p = new Phar("/bin/c.phar");'
+          + '$p->addFromString("big.txt", str_repeat("squeeze ", 500));'
+          + '$p->setStub(\'<?php Phar::mapPhar("c"); echo strlen(file_get_contents("phar://c/big.txt")); __HALT_COMPILER();\');'
+          + 'echo var_export(Phar::canCompress(Phar::GZ), true), ":";'
+          + '$p->compressFiles(Phar::GZ);'
+          + 'unset($p); clearstatcache();'
+          + 'echo filesize("/bin/c.phar") < 2000 ? "compressed" : "raw";',
+      },
+    });
+    assert.equal(packed.stdout, 'true:compressed', `packing failed: ${packed.stderr}`);
+
+    const ran = await php(['/bin/c.phar'], { files: { '/bin/c.phar': packed.FS.readFile('/bin/c.phar') } });
+    assert.equal(ran.stdout, '4000', `reading a compressed entry failed: ${ran.stderr}`);
   });
 
   test('fileinfo identifies content', async () => {
