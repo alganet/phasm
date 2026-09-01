@@ -98,11 +98,15 @@ jobs:
       - name: Test
         run: npm test
 
-      # package.json promises dist/php.d.ts; make sure build.sh actually put it
-      # there before anything downstream consumes the tree.
+      # Every path package.json's `exports` promises, checked against what
+      # build.sh actually put there — a subpath whose file is missing is an
+      # ERR_MODULE_NOT_FOUND for whoever imports it, and `npm pack` is happy to
+      # ship one.
       - name: Verify package contents
         run: |
-          for f in dist/php.js dist/php.wasm dist/php.d.ts; do
+          for f in dist/php.js dist/php.wasm dist/php.d.ts \
+                   dist/mount.mjs dist/mount.d.ts \
+                   ; do
             [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
           done
           npm pack --dry-run
