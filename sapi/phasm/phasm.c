@@ -126,6 +126,10 @@ static int phasm_call_fd_mark = -1;
 static char phasm_call_cwd[MAXPATHLEN];
 static int phasm_call_cwd_saved = 0;
 
+/* A relative docroot, resolved against the caller's directory once at the top
+ * of the request. See phasm_handle_request(). */
+static char phasm_call_docroot[MAXPATHLEN];
+
 /*
  * Allocations the call owns. Freeing these in the epilogue rather than at each
  * return is not tidiness: on the trap path there is no return to free them at,
@@ -494,6 +498,25 @@ static void phasm_reclaim_std_dups(int mark)
 	struct stat std_stat[3];
 	int std_known[3];
 
+	/*
+	 * Never below fd 3, whatever the mark says. `mark` is dup()'s answer, which
+	 * is the lowest FREE descriptor — so a call that started with one of 0, 1
+	 * or 2 already closed gets a mark inside the standard range, and the scan
+	 * then reaches a standard descriptor and compares it against its own stat.
+	 * It matches, by definition, and the descriptor is closed: with fd 1 shut
+	 * before the call, the first command afterwards took the instance's real
+	 * stderr with it, permanently and silently.
+	 *
+	 * A standard descriptor is never what this function is looking for anyway.
+	 * It reclaims *duplicates* of 0, 1 and 2 that a request left behind, and
+	 * those are made by dup() during the request, so they cannot land below 3
+	 * unless one of the originals is already gone — in which case the leak is
+	 * the embedder's to explain and closing the survivors makes it worse.
+	 */
+	if (mark < 3) {
+		mark = 3;
+	}
+
 	for (int i = 0; i < 3; i++) {
 		std_known[i] = fstat(i, &std_stat[i]) == 0;
 	}
@@ -652,6 +675,10 @@ static int phasm_check_options(int argc, char **argv, int *status)
 
 /* {{{ phasm_run */
 
+/* Declared here because the response buffers live with the request hooks, far
+ * below, and a command has to clear them before it starts. */
+static void phasm_response_reset(void);
+
 /*
  * One invocation. `packed_argv` is `argc` NUL-terminated strings back to back,
  * argv[0] included; `packed_env` is the same shape for the environment.
@@ -664,6 +691,15 @@ EMSCRIPTEN_KEEPALIVE
 int phasm_run(char *packed_argv, int argc, const char *cwd, const char *packed_env, int envc)
 {
 	volatile int status = 255;
+
+	/* A command produces no response, and "no response" is what the accessors
+	 * have to say afterwards. Without this they kept answering with the last
+	 * request's status, headers and body — so a caller driving the wasm exports
+	 * directly read a 200 and a page out of a call that was `php -v`. Harmless
+	 * through the JS API, which reads them only where it just made a request,
+	 * and exactly the kind of thing that stops being harmless one refactor
+	 * later. */
+	phasm_response_reset();
 
 	if (!phasm_started && phasm_startup(NULL) != 0) {
 		return 255;
@@ -1222,6 +1258,41 @@ int phasm_handle_request(const char *method, const char *uri,
 	}
 	if (method == NULL || uri == NULL || docroot == NULL) {
 		return phasm_request_done(500);
+	}
+
+	/*
+	 * A relative docroot is made absolute here, before it is used for anything.
+	 * The resolution below stat()s docroot + path against the current directory
+	 * and the chdir() to the docroot happens hundreds of lines later, so the two
+	 * halves of one request resolved the same relative name against different
+	 * directories: `docroot: "site"` found /site/index.php, changed into /site,
+	 * and then failed to open site/index.php from there — a script phasm had
+	 * just confirmed exists, 500ing as missing.
+	 *
+	 * A static buffer rather than phasm_call_own(): four owned allocations is
+	 * exactly what a request already holds, and DOCUMENT_ROOT wants to point at
+	 * this for the length of the request either way.
+	 */
+	if (docroot[0] != '/') {
+		char base[MAXPATHLEN];
+		const char *sep;
+		size_t base_len;
+		int written;
+
+		if (VCWD_GETCWD(base, sizeof(base)) == NULL) {
+			return phasm_request_done(500);
+		}
+		/* At the root the cwd is "/" already, and "//site" is a different path
+		 * to opcache and to include_once than "/site" is — the same reason the
+		 * resolution below trims a trailing slash off the docroot. */
+		base_len = strlen(base);
+		sep = (base_len > 0 && base[base_len - 1] == '/') ? "" : "/";
+		written = snprintf(phasm_call_docroot, sizeof(phasm_call_docroot),
+			"%s%s%s", base, sep, docroot);
+		if (written < 0 || (size_t) written >= sizeof(phasm_call_docroot)) {
+			return phasm_request_done(500);
+		}
+		docroot = phasm_call_docroot;
 	}
 
 	memset(&r, 0, sizeof(r));
