@@ -14,7 +14,7 @@
 
 import { test, before, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { serve, evalPhp, sharedModule, mkdirp, haveBuild, NO_BUILD_MSG } from './helper.mjs';
+import { serve, evalPhp, sharedModule, freshModule, mkdirp, haveBuild, NO_BUILD_MSG } from './helper.mjs';
 
 const SKIP = !haveBuild();
 before((t) => { if (SKIP) t.diagnostic(NO_BUILD_MSG); });
@@ -662,5 +662,66 @@ describe('repeated requests', opts, () => {
     const r = await serve({ url: '/deep/where.php', docroot: DOCROOT });
 
     assert.equal(r.text, `${DOCROOT}/deep`);
+  });
+});
+
+// ─── what a refused request costs ────────────────────────────────────────────
+
+describe('a request that never runs', opts, () => {
+  /**
+   * The address _malloc() hands back for a fixed size, with the block given
+   * straight back. dlmalloc is deterministic, so two probes either side of a
+   * refused request agree exactly when the refusal freed everything it took —
+   * and differ by whatever it kept. The leak has no other symptom: five short
+   * strings per request is invisible until a service worker has retried a
+   * malformed one a few thousand times.
+   */
+  function heapProbe(mod) {
+    const p = mod._malloc(64);
+    mod._free(p);
+    return p;
+  }
+
+  // A fresh instance on purpose: on a warm one the leaked blocks are handed
+  // out of holes the suite's earlier requests left behind, so the probe reads
+  // the same address either way and the measurement says nothing.
+  test('an argument mistake leaves nothing allocated', async () => {
+    const mod = await freshModule();
+
+    heapProbe(mod); // settle the freelist before measuring it
+    const before = heapProbe(mod);
+
+    assert.throws(
+      () => mod.phasmHandleRequest({
+        method: 'POST',
+        url: '/x.php',
+        headers: { 'content-type': 'text/plain' },
+        body: 12345,
+      }),
+      TypeError,
+    );
+
+    assert.equal(heapProbe(mod), before, 'the refused request kept part of the heap');
+  });
+
+  test('a body there is no room for is refused, not passed on as none', async () => {
+    const mod = await freshModule();
+    mod.FS.writeFile('/still.php', '<?php echo "still here";');
+
+    // Past the module's maximum memory, so _malloc answers 0. The copy into
+    // the heap was already guarded on that; the length was not, so PHP read
+    // php://input from address 0 with a correct Content-Length. The array is
+    // 2 GiB of address space and ~0.3 MB resident — nothing writes to it.
+    const body = new Uint8Array(2 ** 31 - 1);
+
+    assert.throws(
+      () => mod.phasmHandleRequest({ method: 'POST', url: '/x.php', body }),
+      /no room for a 2147483647-byte request body/,
+    );
+
+    // And the refusal did not take the instance with it.
+    const r = mod.phasmHandleRequest({ url: '/still.php' });
+    assert.equal(r.status, 200);
+    assert.equal(new TextDecoder().decode(r.body), 'still here');
   });
 });
