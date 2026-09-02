@@ -252,6 +252,52 @@ describe('run() onOutput', opts, () => {
     assert.deepEqual(Array.from(got), [0, 1, 255]);
   });
 
+  // A sink that throws is the ordinary case on the serving path, not a
+  // defensive one: run()'s onOutput is where a wasi-sh builtin writes its
+  // stdout, and since wasi-sh 0.5.0 that write throws when a device refuses
+  // it. Two things have to hold, and neither did.
+  test('hands a chunk over once, even when the sink throws', async () => {
+    const php = await freshModule();
+    const seen = [];
+
+    // The bytes must be gone from the buffer before the sink is called.
+    // Clearing afterwards left them there, so the next flush delivered the same
+    // chunk a second time — and the next flush is the one end() does in a
+    // `finally`, so the sink threw again from there too.
+    assert.throws(() => php.run({
+      code: 'echo "one\\n"; echo "two\\n";',
+      onOutput: (bytes) => {
+        seen.push(dec.decode(bytes));
+        throw new Error('the device refused this write');
+      },
+    }), /the device refused this write/);
+
+    assert.deepEqual(seen, ['one\n'], 'the first chunk, delivered exactly once');
+  });
+
+  // And the reason has to survive the trip. The sink runs in a wasm frame, and
+  // Emscripten's TTY write catches everything its put_char loop raises and
+  // reports EIO — so PHP sees a failed write on stdout and gives up. Failing
+  // the call is right; failing it as a bare 255 with nothing to point at is
+  // what an embedder cannot diagnose.
+  test('raises the sink\'s own error, not a nameless 255', async () => {
+    const php = await freshModule();
+    const refusal = new Error('/dev/host refused this write');
+
+    assert.throws(
+      () => php.run({ code: 'echo "out\\n";', onOutput: () => { throw refusal; } }),
+      (e) => e === refusal,
+    );
+  });
+
+  // The failure belongs to the call that had it, and to no later one.
+  test('a sink that threw does not spend the instance', async () => {
+    const php = await freshModule();
+
+    assert.throws(() => php.run({ code: 'echo "x\\n";', onOutput: () => { throw new Error('no'); } }));
+    assert.deepEqual(php.run({ code: 'echo 42;' }), { stdout: '42', stderr: '', exitCode: 0 });
+  });
+
   test('collect: false skips the buffering and still streams', async () => {
     const php = await sharedModule();
     const seen = [];

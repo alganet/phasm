@@ -70,7 +70,10 @@ export interface PhasmCaptureOptions {
    *  keeps a command that never touches stdin from blocking on it. */
   stdin?: string | Uint8Array | ((max: number) => Uint8Array | null);
   /** Output as it happens, a line at a time and whatever is left at the end.
-   *  Bytes, not text, so binary output survives. */
+   *  Bytes, not text, so binary output survives. Each chunk is handed over
+   *  exactly once. Throwing fails the write for PHP, which normally ends the
+   *  call, and the error is raised back out of `run()` — which is how a sink
+   *  writing to a device that refused it says so. */
   onOutput?: (bytes: Uint8Array, channel: PhasmOutputChannel) => void;
   /** Set false to skip buffering — `stdout` and `stderr` then come back empty.
    *  For an `onOutput` that already has somewhere to put the bytes. */

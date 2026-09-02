@@ -86,6 +86,12 @@ const { stdout, stderr, exitCode } = php.run({
 | `onOutput`   | `(bytes, channel)` as output happens, for streaming.                 |
 | `collect`    | `false` to skip buffering when `onOutput` already has the bytes.     |
 
+`onOutput` gets each chunk exactly once, and throwing from it is how a sink
+refuses: the write fails for PHP, which normally ends the call, and the error
+comes back out of `run()` rather than as a bare non-zero status. That is the
+path a shell builtin is on — writing to a device that refuses it — so the
+refusal reaches the script instead of looking like output nobody read.
+
 Everything there is per call: `cwd` and `env` are gone by the next one, output
 belongs to this call alone, stdin is refilled. The filesystem, the instance and
 its ini survive. The options and the `{stdout, stderr, exitCode}` result are

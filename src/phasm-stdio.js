@@ -105,12 +105,39 @@ var phasmStdio = (() => {
     };
   }
 
-  /** Hand `onOutput` everything buffered for one channel, if anything is. */
+  /**
+   * Hand `onOutput` everything buffered for one channel, if anything is.
+   *
+   * A sink that throws is an ordinary case on the serving path rather than a
+   * defensive one: run()'s onOutput is where a wasi-sh builtin writes its
+   * stdout, and since wasi-sh 0.5.0 that write throws when a device refuses
+   * it. Two things follow, and this function is where both are settled.
+   *
+   * **The buffer is cleared before the sink is called, not after.** Resetting
+   * afterwards left the bytes buffered, so the next flush handed the sink the
+   * same chunk a second time — and the next flush is the one end() does in a
+   * `finally`, so the sink threw again from there and the caller was handed a
+   * duplicate of the error in place of whatever really ended the call.
+   *
+   * **The reason is kept, because the throw does not survive the trip.** It is
+   * raised from inside a wasm frame, and Emscripten's TTY write catches
+   * everything its put_char loop raises and reports EIO — so PHP sees a failed
+   * write on stdout, gives up, and the call comes back a plain 255 naming
+   * nothing. Failing the write is right; losing the reason is not, so the first
+   * one is recorded here and phasmCapture() rethrows it for a call that ended
+   * no other way.
+   */
   function flush(call, channel) {
     const pending = channel === 'stdout' ? call.pendingOut : call.pendingErr;
     if (!pending.length) return;
-    call.onOutput(pending.take(), channel);
+    const bytes = pending.take();
     pending.reset();
+    try {
+      call.onOutput(bytes, channel);
+    } catch (e) {
+      if (!call.failure) call.failure = e;
+      throw e;
+    }
   }
 
   function collector(channel) {
@@ -228,6 +255,7 @@ var phasmStdio = (() => {
       active = {
         collect: opts.collect !== false,
         onOutput: opts.onOutput || null,
+        failure: null,
         stdin,
         out: byteBuffer(),
         err: byteBuffer(),
@@ -236,19 +264,31 @@ var phasmStdio = (() => {
       };
     },
 
-    /** Stop capturing and return what the call produced. Always paired with begin(). */
+    /**
+     * Stop capturing and return what the call produced, plus the first error a
+     * sink raised if one did. Always paired with begin().
+     *
+     * It never throws: it runs in phasmCapture()'s `finally`, where a throw
+     * would replace whatever ended the call with itself. The failure comes back
+     * as a value instead, for the caller to raise where there is nothing to
+     * mask.
+     */
     end() {
       const call = active;
       active = null;
       if (call.onOutput) {
         // Output that never ended in a newline is still buffered here, and it
-        // is the common case: `php -r 'echo 42;'`.
-        flush(call, 'stdout');
-        flush(call, 'stderr');
+        // is the common case: `php -r 'echo 42;'`. Each channel is flushed
+        // whatever the other one did — a sink that refuses stdout has said
+        // nothing about stderr, and dropping the trailing chunk of a fatal is
+        // exactly the wrong thing to do while something is going wrong.
+        try { flush(call, 'stdout'); } catch (e) { /* recorded on the call */ }
+        try { flush(call, 'stderr'); } catch (e) { /* recorded on the call */ }
       }
       return {
         stdout: call.collect ? decoder.decode(call.out.view()) : '',
         stderr: call.collect ? decoder.decode(call.err.view()) : '',
+        failure: call.failure || null,
       };
     },
   };
