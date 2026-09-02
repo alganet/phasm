@@ -340,7 +340,15 @@ describe('mountStore', opts, () => {
     const store = contractStore({});
     const php = await freshModule();
 
-    await assert.rejects(() => mountStore(php, store, { path: '/absent', create: false }));
+    // And says ENOENT, in the numbering Emscripten reads. The plugin's mount()
+    // is the one thing that reaches the store without going through node_ops
+    // or stream_ops, so it used to rethrow the store's raw Linux 2 — which is
+    // EACCES in Emscripten's table, so the documented "fail loudly" mode
+    // failed as "Permission denied" for a directory that was merely absent.
+    await assert.rejects(
+      () => mountStore(php, store, { path: '/absent', create: false }),
+      (e) => e.errno === 44,
+    );
     // The failed mount leaves nothing behind for the next one to trip over.
     await mountStore(php, store, { path: '/absent' });
     assert.equal(php.run({ code: 'echo is_dir("/absent") ? "ok" : "no";' }).stdout, 'ok');
