@@ -227,6 +227,22 @@ function storeFs(core) {
  * Wrap the plugin's operations so a store's errno arrives in the numbering
  * Emscripten reads. Applied to the instance rather than the class: the ops are
  * per-instance objects, and another module's mount is not ours to patch.
+ *
+ * `mount()` is wrapped alongside them because it is the one thing that reaches
+ * the store without going through either table: it stats the mount root to
+ * build the root node, and it is a class method, so it rethrew the raw Linux
+ * errno. That is `mountStore(..., { create: false })` on a root that is not
+ * there — the documented "fail loudly" mode — reporting 2, which Emscripten's
+ * table reads as EACCES. A mount of the wrong tree said "Permission denied",
+ * which is precisely the mistranslation this table exists to fix, on the one
+ * path that skipped it.
+ *
+ * The plugin's other three methods are deliberately left alone. `getMode()`
+ * and `createNode()` are reached from `mount()` — covered here — and otherwise
+ * only from inside `node_ops`, which is already wrapped: translating them too
+ * would run some errnos through the table twice, and a second pass is not a
+ * no-op (EACCES 13 maps to 2, and 2 maps on to 44). `realPath()` touches no
+ * store at all.
  */
 function translateErrno(plugin, FS) {
   const wrap = (fn) => function (...args) {
@@ -244,6 +260,8 @@ function translateErrno(plugin, FS) {
       if (typeof op === 'function') ops[name] = wrap(op);
     }
   }
+
+  plugin.mount = wrap(plugin.mount);
 
   return plugin;
 }
