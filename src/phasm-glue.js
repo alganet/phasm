@@ -143,11 +143,18 @@ Module['phasmRun'] = function (args, opts) {
   phasmRejectNuls(env, 'an environment entry');
   if (opts.cwd) phasmRejectNuls([opts.cwd], 'cwd');
 
-  const argvPtr = phasmPackStrings(argv);
-  const envPtr = phasmPackStrings(env);
-  const cwdPtr = opts.cwd ? stringToNewUTF8(opts.cwd) : 0;
+  // Inside the try, so that a second allocation failing does not strand the
+  // first. Same reasoning as phasmHandleRequest(); nothing here is reachable
+  // by an argument mistake, because phasmRejectNuls() has already run.
+  let argvPtr = 0;
+  let envPtr = 0;
+  let cwdPtr = 0;
 
   try {
+    argvPtr = phasmPackStrings(argv);
+    envPtr = phasmPackStrings(env);
+    cwdPtr = opts.cwd ? stringToNewUTF8(opts.cwd) : 0;
+
     return phasmEnter(() => _phasm_run(argvPtr, argv.length, cwdPtr, envPtr, env.length));
   } finally {
     if (argvPtr) _free(argvPtr);
@@ -296,40 +303,65 @@ Module['phasmHandleRequest'] = function (req) {
   phasmRejectNuls(headers, 'a header');
   phasmRejectNuls(env, 'an environment entry');
 
-  const methodPtr = stringToNewUTF8(method);
-  const urlPtr = stringToNewUTF8(url);
-  const docrootPtr = stringToNewUTF8(docroot);
-  const headersPtr = phasmPackStrings(headers);
-  const envPtr = phasmPackStrings(env);
-
-  // The body is copied into the module's heap because PHP reads it during the
-  // request, and a JS-side view could be detached by a heap growth mid-call.
-  //
   // A string is encoded rather than refused, the same way run()'s stdin takes
   // one: `body: 'a=1'` is the obvious thing to write and it used to be the
   // worst possible outcome — a string is array-like, so HEAPU8.set() indexed
   // it, coerced each character to NaN and stored a run of NUL bytes. The
   // request then succeeded, with the right Content-Length, an empty $_POST and
   // a php://input full of nothing.
+  //
+  // Decided before anything is allocated, for the same reason phasmRejectNuls()
+  // runs where it does: this guard's own TypeError is the mistake it exists to
+  // catch, and it used to be raised with five allocations already held and no
+  // `finally` yet in scope to give them back. A service worker retrying a
+  // malformed request leaked the heap away a few hundred bytes at a time.
   const bodyBytes = typeof req.body === 'string'
     ? new TextEncoder().encode(req.body)
     : req.body || new Uint8Array(0);
   if (!(bodyBytes instanceof Uint8Array)) {
     throw new TypeError('phasmHandleRequest: body must be a string or Uint8Array');
   }
-  const bodyPtr = bodyBytes.length ? _malloc(bodyBytes.length) : 0;
-  if (bodyPtr) HEAPU8.set(bodyBytes, bodyPtr);
+
+  let methodPtr = 0;
+  let urlPtr = 0;
+  let docrootPtr = 0;
+  let headersPtr = 0;
+  let envPtr = 0;
+  let bodyPtr = 0;
 
   let status;
   try {
+    methodPtr = stringToNewUTF8(method);
+    urlPtr = stringToNewUTF8(url);
+    docrootPtr = stringToNewUTF8(docroot);
+    headersPtr = phasmPackStrings(headers);
+    envPtr = phasmPackStrings(env);
+
+    // The body is copied into the module's heap because PHP reads it during the
+    // request, and a JS-side view could be detached by a heap growth mid-call.
+    if (bodyBytes.length) {
+      bodyPtr = _malloc(bodyBytes.length);
+      // _malloc answers a failure with 0, and the length went to PHP anyway:
+      // the copy above was skipped, so php://input was read from address 0
+      // with a correct Content-Length and the request served whatever happened
+      // to be at the bottom of the heap. Refusing is the only honest answer —
+      // there is no shorter body to fall back to.
+      if (!bodyPtr) {
+        throw new Error(
+          `phasmHandleRequest: no room for a ${bodyBytes.length}-byte request body`,
+        );
+      }
+      HEAPU8.set(bodyBytes, bodyPtr);
+    }
+
     status = phasmEnter(() => _phasm_handle_request(
       methodPtr, urlPtr, headersPtr, headers.length,
       bodyPtr, bodyBytes.length, docrootPtr, envPtr, env.length,
     ));
   } finally {
-    _free(methodPtr);
-    _free(urlPtr);
-    _free(docrootPtr);
+    if (methodPtr) _free(methodPtr);
+    if (urlPtr) _free(urlPtr);
+    if (docrootPtr) _free(docrootPtr);
     if (headersPtr) _free(headersPtr);
     if (envPtr) _free(envPtr);
     if (bodyPtr) _free(bodyPtr);
