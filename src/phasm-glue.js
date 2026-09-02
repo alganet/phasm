@@ -234,6 +234,13 @@ Module['run'] = function (options) {
  * output from anything run() does not cover — a warning raised during
  * phasmHandleRequest(), or a one-shot callMain().
  *
+ * An `onOutput` that throws fails this call, and it says so by throwing that
+ * same error back out. It has to be raised from here rather than from where it
+ * happened: the sink runs in a wasm frame, and Emscripten's TTY write turns
+ * anything raised there into EIO — so PHP sees a failed write, gives up, and
+ * without this the call returns a bare 255 with the reason gone. Raised after
+ * the capture is finished, so it never displaces a trap that got here first.
+ *
  * @param {() => any} fn
  * @param {{stdin?: string|Uint8Array|((max: number) => Uint8Array|null),
  *          onOutput?: (bytes: Uint8Array, channel: 'stdout'|'stderr') => void,
@@ -250,6 +257,8 @@ Module['phasmCapture'] = function (fn, opts) {
   } finally {
     captured = phasmStdio.end();
   }
+
+  if (captured.failure) throw captured.failure;
 
   return { stdout: captured.stdout, stderr: captured.stderr, value };
 };
