@@ -725,3 +725,72 @@ describe('a request that never runs', opts, () => {
     assert.equal(new TextDecoder().decode(r.body), 'still here');
   });
 });
+
+// ─── the docroot, and what a command leaves in the response ──────────────────
+
+describe('the docroot', opts, () => {
+  test('a relative one resolves the same way twice', async () => {
+    const mod = await freshModule();
+    mod.FS.mkdir('/site');
+    mod.FS.writeFile('/site/index.php', '<?php echo "served from ", getcwd();');
+
+    // Resolution stat()s docroot + path against the caller's directory, and the
+    // chdir() into the docroot happens much later — so a relative name used to
+    // be resolved against two different directories in one request, and a
+    // script phasm had just confirmed exists 500'd as missing.
+    const r = mod.phasmCapture(() => mod.phasmHandleRequest({ url: '/index.php', docroot: 'site' }));
+
+    assert.equal(r.value.status, 200, r.stderr);
+    assert.equal(new TextDecoder().decode(r.value.body), 'served from /site');
+  });
+
+  test('and DOCUMENT_ROOT is the absolute one', async () => {
+    const mod = await freshModule();
+    mod.FS.mkdir('/site');
+    mod.FS.writeFile('/site/i.php', '<?php echo $_SERVER["DOCUMENT_ROOT"], " ", $_SERVER["SCRIPT_NAME"];');
+
+    const r = mod.phasmHandleRequest({ url: '/i.php', docroot: 'site' });
+
+    assert.equal(new TextDecoder().decode(r.body), '/site /i.php');
+  });
+});
+
+describe('the response accessors', opts, () => {
+  // The JS API reads these only where it has just made a request, so this is
+  // about the wasm exports themselves — which are an entry point of their own,
+  // and the only way a caller reaching the module directly can ask.
+  test('a command clears the response a request left behind', async () => {
+    const mod = await freshModule();
+    mod.FS.writeFile('/hi.php', '<?php header("X-From: request"); echo "a page";');
+
+    mod.phasmHandleRequest({ url: '/hi.php' });
+    assert.equal(mod._phasm_response_status(), 200);
+    assert.equal(mod._phasm_response_body_length(), 6);
+
+    mod.run({ code: 'echo "a command";' });
+
+    assert.equal(mod._phasm_response_status(), 0, 'a command has no status of its own');
+    assert.equal(mod._phasm_response_body_length(), 0);
+    assert.equal(mod.UTF8ToString(mod._phasm_response_headers()), '');
+  });
+});
+
+describe('the standard descriptors', opts, () => {
+  // The reclaim window starts at dup()'s answer, which is the lowest FREE
+  // descriptor — so a call that starts with one of 0/1/2 already closed gets a
+  // mark inside the standard range, reaches a standard descriptor, and compares
+  // it against its own stat. It matches by definition, and the descriptor is
+  // closed.
+  test('a call does not close one because another is missing', async () => {
+    const mod = await freshModule();
+    mod.phasmRun(['-r', 'echo 1;']);
+
+    mod.FS.close(mod.FS.streams[1]);
+    assert.ok(mod.FS.streams[2], 'stderr should still be open before the call');
+
+    mod.phasmRun(['-r', 'echo 2;']);
+
+    assert.ok(mod.FS.streams[2], 'the call closed the instance\'s real stderr');
+    assert.ok(mod.FS.streams[0], 'and stdin with it');
+  });
+});
