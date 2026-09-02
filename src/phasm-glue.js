@@ -398,15 +398,23 @@ Module['phasmHandleRequest'] = function (req) {
  * instance. phasmRun() does this on first use with no settings, so this is only
  * needed to pass ini — per-call `-d` is not supported on this path.
  *
+ * Through phasmEnter() like the other two entry points, which it was not.
+ * Startup runs module init and every extension's MINIT, so it is C that can
+ * trap like any other — and a trap here stranded the C stack pointer with
+ * nothing to put it back, which is the silent cumulative leak §4.8 exists to
+ * stop. It also means a spent instance says so here too, instead of being the
+ * one door left open into a module that cannot be used.
+ *
  * @param {string} [ini] newline-separated "name=value" lines
  * @returns {number} 0 on success, -1 if this module already ran callMain()
  */
 Module['phasmStartup'] = function (ini) {
   phasmRefuseAfterCallMain('phasmStartup()');
 
-  const iniPtr = ini ? stringToNewUTF8(ini) : 0;
+  let iniPtr = 0;
   try {
-    return _phasm_startup(iniPtr);
+    iniPtr = ini ? stringToNewUTF8(ini) : 0;
+    return phasmEnter(() => _phasm_startup(iniPtr));
   } finally {
     if (iniPtr) _free(iniPtr);
   }

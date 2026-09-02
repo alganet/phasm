@@ -683,6 +683,10 @@ describe('surviving a trap', opts, () => {
     assert.throws(() => mod.run({ code: 'echo "x";' }), /no longer usable/);
     assert.throws(() => mod.phasmHandleRequest({ url: '/x.php' }), /no longer usable/);
     assert.throws(() => mod.phasmRun(['-v']), /no longer usable/);
+    // The fourth door, and the one that used to be left open: startup did not
+    // go through the guard at all, so it ran module init on a dead instance
+    // and answered as if nothing were wrong.
+    assert.throws(() => mod.phasmStartup('memory_limit=64M'), /no longer usable/);
   });
 
   // The instances above are fresh so that a regression names itself instead of
