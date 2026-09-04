@@ -249,6 +249,170 @@ if [[ ! -f "${SYSROOT_DIR}/lib/libxml2.a" ]]; then
     popd >/dev/null
 fi
 
+# OpenSSL (ext/openssl). The only dependency here that does not build through
+# autotools or CMake: OpenSSL has its own Perl configuration system, and the
+# target name is the first thing to get right. There is no wasm target upstream,
+# and `./config`'s guesser would ask uname about the HOST. `linux-generic32` is
+# the honest description of what emcc compiles for — 32-bit pointers, no
+# assembly, ILP32 with a 64-bit long long, which is exactly the `BN_LLONG`
+# arithmetic that target selects.
+OPENSSL_TAR="openssl-${OPENSSL_VERSION}.tar.gz"
+if [[ ! -d "${SRC_DIR}/openssl-${OPENSSL_VERSION}" ]]; then
+    if [[ -f "${SRC_DIR}/${OPENSSL_TAR}" ]]; then
+        echo "Extracting OpenSSL into ${SRC_DIR}..."
+        tar -xf "${SRC_DIR}/${OPENSSL_TAR}" -C "${SRC_DIR}"
+    else
+        echo "OpenSSL source not found in ${SRC_DIR}. Run ./scripts/fetch.sh to download sources." >&2
+        exit 1
+    fi
+fi
+if [[ ! -f "${SYSROOT_DIR}/lib/libssl.a" ]]; then
+    # OpenSSL's Configure IS a Perl script, and so is every generator it drives.
+    # Without perl the failure is `./Configure: not found` from a file that is
+    # plainly there and executable, which names neither perl nor OpenSSL.
+    if ! command -v perl >/dev/null 2>&1; then
+        echo "perl not found — OpenSSL's configuration system is written in it. See CONTRIBUTING.md." >&2
+        exit 1
+    fi
+    echo "Building OpenSSL for WASM..."
+    pushd "${SRC_DIR}/openssl-${OPENSSL_VERSION}" >/dev/null
+
+    # Everything switched off below is either impossible in this target or
+    # unreachable from PHP. OpenSSL is the largest thing this build links, so
+    # each one is real download:
+    #
+    #   asm          there is no wasm perlasm scheme; the target selects none
+    #                anyway, and stating it stops a future target inheriting one.
+    #   threads      fork-free and single-threaded. It also drops -pthread from
+    #                the compile line, which under emcc is not a no-op — it
+    #                switches on shared memory and would demand cross-origin
+    #                isolation from every page that loads the artifact.
+    #   shared/dso/  all four are dlopen. There is no dynamic loader here, and
+    #   module/      no-dso is what keeps DSO_global_lookup out of the random
+    #   engine       seeding path below.
+    #   afalgeng     the Linux kernel crypto socket. linux-generic32 turns it ON
+    #   devcryptoeng explicitly, so it has to be turned off explicitly.
+    #   ktls         kernel TLS offload, a Linux sendmsg/setsockopt interface.
+    #   apps/docs/   the `openssl` command, its manpages and the test suite. We
+    #   tests        want two .a files and a header tree; the apps alone are
+    #                several minutes of a build nothing here can execute.
+    #   legacy       the legacy provider, which is not loaded unless somebody
+    #                asks — and PHP's --with-openssl-legacy-provider defaults to
+    #                no, so nothing in this build ever would.
+    #   comp/zlib/   TLS-level compression. CRIME made it indefensible, OpenSSL
+    #   zstd/brotli  disables it at run time regardless, and it is the one place
+    #                a second zlib could sneak into the link.
+    #   quic         PHP has no QUIC surface at all: no stream wrapper, no
+    #                function, no constant.
+    #   ui-console   reads a passphrase off a terminal through termios, which
+    #                this shim does not implement. PHP passes its own password
+    #                callback everywhere it can be prompted, so the console UI
+    #                is only ever the fallback that would hang.
+    #   secure-mem   an mmap'd, mlock'd arena for private keys. Under wasm there
+    #                is one flat linear memory, nothing can be locked out of a
+    #                core dump, and the API keeps working as a plain allocator.
+    #
+    # The last two groups are pure size, and were measured rather than assumed —
+    # 64 KiB of the gzipped download between them, against 851 KiB for the
+    # library as a whole. Worth taking, and worth knowing they are the small
+    # half: what is left is BIGNUM, EVP, ASN.1, X.509, the providers and TLS,
+    # and none of that is optional.
+    #
+    #   ml-dsa       the post-quantum algorithms new in 3.5. They are registered
+    #   ml-kem       by the DEFAULT provider, so the linker cannot drop them, and
+    #   slh-dsa      ext/openssl has no name for any of them. 44 KiB gzipped.
+    #   cmp/ct/ts/   certificate management, certificate transparency, time
+    #   srp/rfc3779/ stamping, TLS-SRP, IP-address certificate extensions, OCSP
+    #   ocsp/http    and the HTTP client the last two use to fetch responders.
+    #                Checked one by one against ext/openssl's sources: not a
+    #                symbol from any of them is referenced. 20 KiB gzipped.
+    #
+    # -DL_ENDIAN because the generic target states no byte order and falls back
+    # to the portable path; wasm is little-endian by specification, so this is a
+    # known answer rather than an assumption.
+    #
+    # --with-rand-seed=devrandom, and it is the load-bearing choice. The default
+    # is `os`, which is getrandom-then-devrandom, and the getrandom half cannot
+    # work here: the weak-symbol probe for getentropy() is guarded on __ELF__,
+    # which a wasm object is not, the DSO_global_lookup fallback is compiled out
+    # by no-dso, and the syscall path is guarded on __linux. So `os` would spend
+    # a failed probe per seed before falling through to exactly where this
+    # points it. Emscripten's /dev/urandom is crypto.getRandomValues() in a
+    # browser and randomBytes() under node — a real CSPRNG in both.
+    #
+    # OPENSSLDIR is a guest path, not the sysroot. It is compiled in as where
+    # openssl.cnf and the CA bundle are looked for AT RUN TIME, inside the
+    # module's filesystem; pointing it at the build machine's sysroot would bake
+    # a path that exists on exactly one computer into every artifact.
+    #
+    # --cross-compile-prefix= (empty, and not droppable) is the one line here
+    # that is not about OpenSSL at all. emconfigure exports BOTH an absolute
+    # CC=<emsdk>/emcc and CROSS_COMPILE=<emsdk>/em, the second so that a build
+    # system following the GNU convention can form ${CROSS_COMPILE}cc. OpenSSL
+    # follows that convention AND honours CC, so it concatenates them and every
+    # compile shells out to `<emsdk>/em<emsdk>/emcc` — which fails as `not
+    # found` per object, naming a path nothing ever wrote down.
+    emconfigure ./Configure linux-generic32 \
+        --cross-compile-prefix= \
+        --prefix="${SYSROOT_DIR}" \
+        --openssldir=/usr/local/ssl \
+        --libdir=lib \
+        -O2 -DL_ENDIAN \
+        --with-rand-seed=devrandom \
+        no-asm \
+        no-threads \
+        no-shared \
+        no-dso \
+        no-module \
+        no-engine \
+        no-afalgeng \
+        no-devcryptoeng \
+        no-ktls \
+        no-apps \
+        no-docs \
+        no-tests \
+        no-legacy \
+        no-comp \
+        no-zlib \
+        no-zstd \
+        no-brotli \
+        no-quic \
+        no-ui-console \
+        no-secure-memory \
+        no-ml-dsa \
+        no-ml-kem \
+        no-slh-dsa \
+        no-cmp \
+        no-ct \
+        no-ts \
+        no-srp \
+        no-rfc3779 \
+        no-ocsp \
+        no-http
+
+    emmake make -j"$(nproc)" build_sw
+    emmake make install_sw
+
+    # And the config file, which `install_sw` does not install and
+    # `install_ssldirs` would install to the HOST's --openssldir. PHP does not
+    # treat it as optional: php_openssl_parse_config() ends in
+    # NCONF_load(req_config, ...) and returns FAILURE when that file cannot be
+    # read, so with no openssl.cnf anywhere, openssl_pkey_new(), openssl_csr_*
+    # and everything else built on php_x509_request fail before doing any work
+    # — reporting "error:8000002C:system library::No such file or directory",
+    # an errno with no filename in it. Everything that takes its key as an
+    # argument (encrypt, decrypt, digest, sign, verify) works regardless, which
+    # is what makes the gap look random from PHP.
+    #
+    # Upstream's own apps/openssl.cnf, copied verbatim: it is the file a distro
+    # package installs, so this build reads what every other PHP reads rather
+    # than a policy we invented. It is embedded into the artifact at the guest
+    # path libcrypto was compiled to look in — see EMCC_ABI_FLAGS in env.sh.
+    mkdir -p "${SYSROOT_DIR}/ssl"
+    cp apps/openssl.cnf "${SYSROOT_DIR}/ssl/openssl.cnf"
+    popd >/dev/null
+fi
+
 pushd "libzip-${LIBZIP_VERSION}" >/dev/null
 mkdir -p build
 pushd build >/dev/null

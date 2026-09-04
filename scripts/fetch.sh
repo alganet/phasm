@@ -92,6 +92,14 @@ fetch_and_extract "libxml2-${LIBXML2_VERSION}.tar.xz" "${SOURCES_DIR}/libxml2-${
 	"https://download.gnome.org/sources/libxml2/${LIBXML2_SERIES}/libxml2-${LIBXML2_VERSION}.tar.xz" \
 	"https://ftp.gnome.org/pub/gnome/sources/libxml2/${LIBXML2_SERIES}/libxml2-${LIBXML2_VERSION}.tar.xz"
 
+# OpenSSL. The GitHub release asset first — it is the artifact upstream signs
+# and the one that stays reachable from CI — with openssl.org/source behind it.
+# Both publish the same bytes and therefore the same pin, which is how the hash
+# above was cross-checked: two independent publishers, one digest.
+fetch_and_extract "openssl-${OPENSSL_VERSION}.tar.gz" "${SOURCES_DIR}/openssl-${OPENSSL_VERSION}" "${OPENSSL_SHA256}" \
+	"https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" \
+	"https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+
 # sqlite amalgamation (zip)
 SQLITE_ZIP="sqlite-amalgamation-${SQLITE_AMALG_VERSION}.zip"
 if [[ ! -d "${SOURCES_DIR}/sqlite-amalgamation-${SQLITE_AMALG_VERSION}" ]]; then

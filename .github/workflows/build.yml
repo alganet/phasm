@@ -34,7 +34,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config python3 git curl zip
+          sudo apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config perl python3 git curl zip
 
       # The SDK pin is the only thing the emsdk cache depends on. Keying it on
       # the whole of env.sh threw away a ~1 GB download every time a C library

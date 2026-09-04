@@ -11,7 +11,7 @@ SPDX-License-Identifier: ISC
 Install the following system packages (Debian/Ubuntu):
 
 ```sh
-apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config python3 git curl zip
+apt-get install -y build-essential autoconf bison re2c libonig-dev cmake wget pkg-config perl python3 git curl zip
 ```
 
 ## Building from Source
@@ -22,7 +22,7 @@ The build is split into sequential scripts. Run them in order:
 ./scripts/setup.sh           # Install the pinned Emscripten SDK
 ./scripts/fetch.sh           # Download and verify PHP and dependency sources
 ./scripts/apply-patches.sh   # Patch PHP for Emscripten compatibility
-./scripts/deps.sh            # Build C libraries (zlib, libzip, iconv, oniguruma, sqlite, libxml2)
+./scripts/deps.sh            # Build C libraries (zlib, libzip, iconv, oniguruma, sqlite, libxml2, openssl)
 ./scripts/build.sh           # Compile PHP to WebAssembly
 npm test                     # Verify the result actually runs PHP
 ```
@@ -147,6 +147,7 @@ See `scripts/env.sh` for the full list:
 | `SQLITE_AMALG_VERSION` | `3530400`                        | SQLite amalgamation version |
 | `ONIGURUMA_VERSION`    | `6.9.10`                         | Oniguruma version           |
 | `LIBXML2_VERSION`      | `2.15.3`                         | libxml2 version             |
+| `OPENSSL_VERSION`      | `3.5.7`                          | OpenSSL version (LTS series)|
 | `EMCC_FLAGS`           | `-O2 -g0 -s EXPORT_NAME='Phasm' ...` | Emscripten codegen flags |
 | `PHASM_STACK_SIZE`     | `8MB`                            | C stack for the module      |
 
@@ -174,12 +175,20 @@ Extensions are toggled in `scripts/build.sh` via `configure` flags. To add an
 extension, add the corresponding `--enable-*` or `--with-*` flag. Extensions
 that depend on C libraries also need their dependency built in `scripts/deps.sh`.
 
-Where PHP detects that library with `PKG_CHECK_MODULES` — zlib, sqlite, libxml2
-— `build.sh` also exports a `<MODULE>_CFLAGS`/`<MODULE>_LIBS` pair, because
+Where PHP detects that library with `PKG_CHECK_MODULES` — zlib, sqlite, libxml2,
+openssl — `build.sh` also exports a `<MODULE>_CFLAGS`/`<MODULE>_LIBS` pair, because
 pkg-config's convention is that a preset pair short-circuits the probe. Without
 it a cross build asks the *host's* pkg-config about the *host's* library, and
 the answer is a host include path plus a bare `-l`, which the sysroot on the
 link path can then satisfy with a different version than the headers describe.
+
+OpenSSL is the one dependency that does not build through autotools or CMake.
+Its Perl configuration system takes a target name rather than guessing one, and
+`linux-generic32` is the honest description of what emcc compiles for. It also
+needs `--cross-compile-prefix=` passed empty: `emconfigure` exports both an
+absolute `CC` and a `CROSS_COMPILE` prefix, on the GNU convention that a build
+system forms one from the other, and OpenSSL honours both — so without it every
+compile shells out to the two concatenated and fails as `not found`.
 
 ## Adding Patches
 
