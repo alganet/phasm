@@ -305,6 +305,28 @@ mistyped setting shows up immediately instead of only on the paths that were
 already failing. One naming a file that is not there leaves the 404 alone, as
 Apache does.
 
+### Where the site is deployed
+
+The docroot deliberately knows nothing about where the site is mounted in the
+browser's URL space — `requestToPhasm()` strips its `base` — so the same
+project serves from anywhere without being rebuilt. `prefix` hands that back:
+
+```js
+php.phasmHandleRequest({ url: "/users/1", docroot: "/site", prefix: "/phasm/dev" });
+```
+
+It rejoins the three variables that say **where the request came from** —
+`REQUEST_URI`, `SCRIPT_NAME`, `PHP_SELF` — and none of the ones that say where
+the files are, so `SCRIPT_FILENAME`, `DOCUMENT_ROOT` and `PATH_TRANSLATED` stay
+inside the guest's filesystem. Without it an app cannot build a correct link to
+itself: `SCRIPT_NAME` says `/index.php` while the address bar says
+`/phasm/dev/index.php`, and every root-absolute URL it generates misses.
+
+`requestToPhasm()` fills it in from `base` on its own, so a service worker gets
+this for free. It must be absolute with no trailing slash; anything else is a
+**500**, because a prefix that is silently trimmed or silently ignored produces
+wrong links, which is the failure nobody traces back to a setting.
+
 The shape is the web platform's on purpose, so a service worker can pass a
 `Request` almost straight in and build a `Response` almost straight out —
 `headers` comes back as `[name, value]` pairs, which `new Headers()` accepts and
