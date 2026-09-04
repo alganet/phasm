@@ -794,3 +794,66 @@ describe('the standard descriptors', opts, () => {
     assert.ok(mod.FS.streams[0], 'and stdin with it');
   });
 });
+
+// ─── the shape a caller actually has ─────────────────────────────────────────
+
+describe('headers as the web platform hands them over', opts, () => {
+  // The docs say a service worker can pass `request.headers` straight in, and
+  // it could not: a Headers has no own enumerable keys, so Object.entries()
+  // returned [] and the request reached PHP with none of them. Nothing failed —
+  // a POST simply arrived with no Content-Type, so $_POST was empty and the
+  // form did nothing, and with no Cookie, so session_start() opened a new
+  // session every time.
+  test('a Headers reaches php, not an empty list', async () => {
+    const r = await serve({
+      url: '/h.php',
+      method: 'POST',
+      headers: new Headers({ 'content-type': 'application/x-www-form-urlencoded', 'x-note': 'kept' }),
+      body: 'who=world',
+      files: { '/h.php': '<?php echo $_POST["who"], "|", $_SERVER["HTTP_X_NOTE"];' },
+    });
+    assert.equal(r.status, 200, r.stderr);
+    assert.equal(r.text, 'world|kept');
+  });
+
+  test('a Map and an array of pairs work the same way', async () => {
+    const files = { '/h.php': '<?php echo $_SERVER["HTTP_X_NOTE"];' };
+    const asMap = await serve({ url: '/h.php', headers: new Map([['x-note', 'map']]), files });
+    assert.equal(asMap.text, 'map', asMap.stderr);
+    const asPairs = await serve({ url: '/h.php', headers: [['x-note', 'pairs']], files });
+    assert.equal(asPairs.text, 'pairs', asPairs.stderr);
+  });
+
+  // Repeats are why HTTP headers are pairs and not a map, and the pair form is
+  // the only one that can carry them — as far as the SAPI, which then keeps
+  // the last and drops the rest. RFC 6265 says a repeated Cookie is joined
+  // with '; ', and the same shape reaches $_SERVER['HTTP_*'] for every other
+  // repeatable header. A todo rather than a skip, so it re-checks itself.
+  test('a repeated header arrives repeated', { todo: 'the SAPI keeps the last of a repeated header instead of joining them' }, async () => {
+    const r = await serve({
+      url: '/h.php',
+      headers: [['cookie', 'a=1'], ['cookie', 'b=2']],
+      files: { '/h.php': '<?php echo implode(",", array_keys($_COOKIE));' },
+    });
+    assert.equal(r.text, 'a,b', r.stderr);
+  });
+
+  test('a plain object is still a plain object', async () => {
+    const r = await serve({
+      url: '/h.php',
+      headers: { 'x-note': 'object' },
+      files: { '/h.php': '<?php echo $_SERVER["HTTP_X_NOTE"];' },
+    });
+    assert.equal(r.text, 'object', r.stderr);
+  });
+
+  // A string is iterable, and spreading one yields single characters — a
+  // header per letter rather than an error.
+  test('a string is refused rather than spread into characters', async () => {
+    const mod = await freshModule();
+    assert.throws(
+      () => mod.phasmHandleRequest({ url: '/x.php', headers: 'x-note: no' }),
+      /must be an object, a Headers, a Map or an array of pairs/,
+    );
+  });
+});

@@ -117,7 +117,7 @@ export interface PhasmRequest {
   method?: string;
   /** Request headers. `Cookie` and `Content-Type` are handed to PHP directly;
    *  the rest arrive as `$_SERVER['HTTP_*']`. */
-  headers?: Record<string, string>;
+  headers?: Record<string, string> | Headers | Map<string, string> | [string, string][];
   /** Request body. Drives `$_POST`, `php://input` and `$_FILES`. A string is
    *  encoded as UTF-8, as `run()`'s `stdin` does. */
   body?: string | Uint8Array;

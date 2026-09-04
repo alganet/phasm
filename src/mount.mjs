@@ -173,9 +173,14 @@ export async function mountStore(php, store, options = {}) {
       root,
       unmount() {
         if (!live) throw new Error(`mountStore: ${path} is already unmounted`);
-        live = false;
+        // Marked spent only once both halves are actually gone. Clearing the
+        // flag first meant a throwing FS.unmount() left the ZenFS mountpoint
+        // claimed for the life of the page AND refused the retry that would
+        // have released it, reporting "already unmounted" for a mount that
+        // was still very much there.
         php.FS.unmount(path);
         core.umount(at);
+        live = false;
       },
     };
   } catch (e) {
