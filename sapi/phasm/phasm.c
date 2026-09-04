@@ -1733,7 +1733,7 @@ EMSCRIPTEN_KEEPALIVE
 int phasm_handle_request(const char *method, const char *uri,
 	const char *packed_headers, int header_count,
 	char *body, int body_len,
-	const char *docroot, const char *fallback,
+	const char *docroot, const char *fallback, const char *prefix,
 	const char *packed_env, int envc)
 {
 	phasm_request r;
@@ -1741,6 +1741,9 @@ int phasm_handle_request(const char *method, const char *uri,
 	char *script = NULL;
 	char *script_name = NULL;
 	char *path_translated = NULL;
+	char *prefixed_uri = NULL;
+	char *php_self = NULL;
+	size_t prefix_len = 0;
 	const char *path_info = NULL;
 	const char *query = NULL;
 	size_t decoded_len = 0;
@@ -1833,6 +1836,45 @@ int phasm_handle_request(const char *method, const char *uri,
 	if (fallback != NULL
 		&& (fallback[0] != '/' || phasm_path_escapes(fallback) || !phasm_has_php_suffix(fallback))) {
 		return phasm_request_done(500);
+	}
+
+	/*
+	 * Where the site is mounted in the browser's URL space, put back.
+	 *
+	 * The docroot deliberately knows nothing about it: a service worker at
+	 * /phasm/dev/site/ strips its own base before handing the path over, so the
+	 * same project serves from any prefix without being rebuilt. The cost of
+	 * that was an app that could not build a correct link to itself —
+	 * SCRIPT_NAME said /index.php while the browser's URL said
+	 * /phasm/dev/site/index.php, and every root-absolute URL a framework
+	 * generates (Laravel's url(), asset() and route() are all of them) pointed
+	 * at the origin root.
+	 *
+	 * So the prefix rejoins exactly the three variables that describe WHERE the
+	 * request came from — REQUEST_URI, SCRIPT_NAME and PHP_SELF — and none of
+	 * the ones that describe where the files are. SCRIPT_FILENAME,
+	 * PATH_TRANSLATED and DOCUMENT_ROOT stay inside the guest's filesystem,
+	 * which is the whole point of stripping it in the first place.
+	 *
+	 * Both halves are needed together and that is not obvious. Symfony's
+	 * base-URL detection walks SCRIPT_NAME's directory against REQUEST_URI, so
+	 * a prefix on one and not the other leaves it matching nothing: routing
+	 * still works, getBaseUrl() answers "", and the links are wrong again with
+	 * everything apparently fine.
+	 *
+	 * No trailing slash, because SCRIPT_NAME is built as prefix + a path that
+	 * already starts with one. Refusing that rather than trimming it keeps one
+	 * spelling of the setting.
+	 */
+	if (prefix != NULL && prefix[0] == '\0') {
+		prefix = NULL;
+	}
+	if (prefix != NULL) {
+		prefix_len = strlen(prefix);
+		if (prefix[0] != '/' || prefix[prefix_len - 1] == '/'
+			|| phasm_path_escapes(prefix) || strchr(prefix, '?') != NULL) {
+			return phasm_request_done(500);
+		}
 	}
 
 	/*
@@ -1973,9 +2015,18 @@ int phasm_handle_request(const char *method, const char *uri,
 	 * where index.php was appended to a directory or path info was taken off
 	 * the end — and a router that reads it to strip its own prefix needs the
 	 * difference. */
-	script_name = phasm_call_own(strdup(script + droot_len));
-	if (script_name == NULL) {
-		return phasm_request_done(500);
+	{
+		const char *resolved = script + droot_len;
+		size_t need = prefix_len + strlen(resolved) + 1;
+
+		script_name = phasm_call_own(malloc(need));
+		if (script_name == NULL) {
+			return phasm_request_done(500);
+		}
+		if (prefix_len > 0) {
+			memcpy(script_name, prefix, prefix_len);
+		}
+		strcpy(script_name + prefix_len, resolved);
 	}
 
 	if (path_info != NULL) {
@@ -1992,15 +2043,40 @@ int phasm_handle_request(const char *method, const char *uri,
 		strcpy(path_translated + droot_len, path_info);
 	}
 
+	if (prefix_len > 0) {
+		size_t need = prefix_len + strlen(uri) + 1;
+
+		prefixed_uri = phasm_call_own(malloc(need));
+		if (prefixed_uri == NULL) {
+			return phasm_request_done(500);
+		}
+		memcpy(prefixed_uri, prefix, prefix_len);
+		strcpy(prefixed_uri + prefix_len, uri);
+
+		/* PHP_SELF is script_name plus the path info, and script_name already
+		 * carries the prefix — so only the path-info case needs building, and
+		 * only because `path` is the un-prefixed one the filesystem used. */
+		if (path_info != NULL) {
+			need = prefix_len + strlen(path) + 1;
+			php_self = phasm_call_own(malloc(need));
+			if (php_self == NULL) {
+				return phasm_request_done(500);
+			}
+			memcpy(php_self, prefix, prefix_len);
+			strcpy(php_self + prefix_len, path);
+		}
+	}
+
 	r.method = method;
-	r.uri = uri;
+	r.uri = prefixed_uri != NULL ? prefixed_uri : uri;
 	r.path = path;
 	r.query = query;
 	r.script_filename = script;
 	r.script_name = script_name;
-	/* script_name + path_info is `path`, exactly — the two were cut out of it
-	 * — so PHP_SELF needs no third string built for it. */
-	r.php_self = path_info != NULL ? path : script_name;
+	/* script_name + path_info is `path`, exactly — the two were cut out of it —
+	 * so with no prefix PHP_SELF needs no third string built for it. */
+	r.php_self = path_info == NULL ? script_name
+		: (php_self != NULL ? php_self : path);
 	r.path_info = path_info;
 	r.path_translated = path_translated;
 	r.docroot = docroot;

@@ -147,6 +147,15 @@ export interface PhasmRequest {
    *  not only the ones it would have answered; one naming a file that is not
    *  there leaves the **404** alone, as Apache does. */
   fallback?: string;
+  /** Where the site sits in the browser's URL space, put back — `"/phasm/dev"`
+   *  for a project served from there. The docroot never sees it, because the
+   *  service worker strips its own base before handing the path over; without
+   *  it an app cannot build a correct link to itself, since `SCRIPT_NAME` says
+   *  `/index.php` while the address bar says `/phasm/dev/index.php`. It
+   *  rejoins `REQUEST_URI`, `SCRIPT_NAME` and `PHP_SELF` and nothing that
+   *  names a file. Must be absolute with no trailing slash; anything else is a
+   *  **500**. `requestToPhasm()` fills it in from `base` on its own. */
+  prefix?: string;
   /** Environment for this request only, as with `phasmRun()`. */
   env?: Record<string, string>;
   /** Polled while the handler runs, exactly as `run()`'s is. A request stopped

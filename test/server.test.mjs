@@ -367,6 +367,94 @@ describe('the front controller', opts, () => {
   });
 });
 
+// ─── the deployment prefix ───────────────────────────────────────────────────
+
+// A service worker strips its own base before handing the path over, so the
+// same project serves from any URL prefix without being rebuilt. The cost of
+// that was an app that could not build a correct link to itself: SCRIPT_NAME
+// said /index.php while the address bar said /phasm/dev/site/index.php, and
+// every root-absolute URL a framework generates — Laravel's url(), asset() and
+// route() are all of them — pointed at the origin root.
+//
+// `prefix` puts it back on exactly the three variables that say WHERE the
+// request came from, and none that say where the files are. The split is the
+// whole design, so it is what these tests assert.
+describe('the deployment prefix', opts, () => {
+  const DUMP =
+    '<?php echo json_encode(["uri" => $_SERVER["REQUEST_URI"], "script" => $_SERVER["SCRIPT_NAME"],'
+    + ' "self" => $_SERVER["PHP_SELF"], "info" => $_SERVER["PATH_INFO"] ?? null,'
+    + ' "file" => $_SERVER["SCRIPT_FILENAME"], "root" => $_SERVER["DOCUMENT_ROOT"],'
+    + ' "trans" => $_SERVER["PATH_TRANSLATED"] ?? null]);';
+  const PREFIX = '/phasm/dev/site';
+  const ask = async (url, extra = {}) => {
+    await site({ '/px/index.php': DUMP, '/px/deep.php': DUMP });
+    const r = await serve({ url, docroot: `${DOCROOT}/px`, ...extra });
+    return { status: r.status, ...(r.status === 200 ? JSON.parse(r.text) : {}) };
+  };
+
+  test('the three URL variables carry it and the three path variables do not', async () => {
+    const got = await ask('/deep.php', { prefix: PREFIX });
+    assert.deepEqual(got, {
+      status: 200,
+      uri: `${PREFIX}/deep.php`,
+      script: `${PREFIX}/deep.php`,
+      self: `${PREFIX}/deep.php`,
+      info: null,
+      // The guest's filesystem never hears about the prefix — that is what
+      // keeps the project portable across wherever it is deployed.
+      file: `${DOCROOT}/px/deep.php`,
+      root: `${DOCROOT}/px`,
+      trans: null,
+    });
+  });
+
+  // REQUEST_URI and SCRIPT_NAME have to move together. Symfony walks
+  // SCRIPT_NAME's directory against REQUEST_URI to find its base URL, so a
+  // prefix on one and not the other leaves it matching nothing: routing still
+  // works, getBaseUrl() answers "", and the links are wrong again with
+  // everything apparently fine.
+  test('path info rides on the end of a prefixed PHP_SELF', async () => {
+    const got = await ask('/deep.php/users/1', { prefix: PREFIX });
+    assert.equal(got.uri, `${PREFIX}/deep.php/users/1`);
+    assert.equal(got.script, `${PREFIX}/deep.php`);
+    assert.equal(got.self, `${PREFIX}/deep.php/users/1`);
+    assert.equal(got.info, '/users/1', 'the path info is after the script, so the prefix is not on it');
+    assert.equal(got.trans, `${DOCROOT}/px/users/1`, 'CGI resolves it against the docroot, prefix or no prefix');
+  });
+
+  test('it composes with the front controller and the query string', async () => {
+    const got = await ask('/users/1?x=2', { prefix: PREFIX, fallback: '/index.php' });
+    assert.equal(got.uri, `${PREFIX}/users/1?x=2`);
+    assert.equal(got.script, `${PREFIX}/index.php`);
+    assert.equal(got.self, `${PREFIX}/index.php`);
+    assert.equal(got.file, `${DOCROOT}/px/index.php`);
+  });
+
+  test('a directory index gets it too', async () => {
+    const got = await ask('/', { prefix: PREFIX });
+    assert.equal(got.uri, `${PREFIX}/`);
+    assert.equal(got.script, `${PREFIX}/index.php`);
+  });
+
+  test('no prefix leaves every variable exactly as it was', async () => {
+    const bare = await ask('/deep.php/users/1');
+    const empty = await ask('/deep.php/users/1', { prefix: '' });
+    assert.deepEqual(empty, bare);
+    assert.equal(bare.script, '/deep.php');
+    assert.equal(bare.uri, '/deep.php/users/1');
+  });
+
+  // One spelling of the setting, checked on every request for the same reason
+  // `fallback`'s shape is: a prefix that is silently trimmed or silently
+  // ignored produces wrong links, which is the failure nobody traces back here.
+  test('a malformed prefix is a 500', async () => {
+    for (const bad of ['phasm', '/phasm/', '/a/../..', '/x?y']) {
+      const r = await ask('/deep.php', { prefix: bad });
+      assert.equal(r.status, 500, `expected 500 for prefix ${JSON.stringify(bad)}`);
+    }
+  });
+});
+
 describe('the request', opts, () => {
   test('$_GET comes from the query string', async () => {
     await site({ '/get.php': '<?php echo json_encode($_GET);' });
