@@ -190,6 +190,45 @@ absolute `CC` and a `CROSS_COMPILE` prefix, on the GNU convention that a build
 system forms one from the other, and OpenSSL honours both — so without it every
 compile shells out to the two concatenated and fails as `not found`.
 
+## The Composer platform pin
+
+Composer runs on the **host**, never in the guest. The pipeline is: a host
+`composer install` produces `vendor/`, `composer.json`'s `post-install-cmd`
+zips it into `web/assets/vendor.zip`, and the guest expands that archive and
+`require`s the autoloader — `web/assets/main.php` is the worked example.
+
+That means Composer resolves against a platform that is **not the one the code
+will run on**. A full host PHP has extensions this build does not, so a
+transitive dependency requiring `ext-curl` or `ext-sodium` resolves green,
+ships inside `vendor.zip`, and fails in the guest at run time — far from the
+install that chose it, and with nothing pointing back at Composer.
+
+`config.platform` in `composer.json` is the fix. It describes phasm to the
+resolver: this build's PHP version, every extension it has at the version it
+reports, every extension it does **not** have set to `false`, and the `lib-*`
+versions of the C libraries `scripts/env.sh` pins. A dependency that needs
+something missing then fails at resolve time, naming it:
+
+```
+Root composer.json requires PHP extension ext-curl * but the ext-curl package
+is disabled by your platform config.
+```
+
+Two things follow for anyone changing the extension list:
+
+- **Adding an extension is a two-file change.** The `configure` flag in
+  `scripts/build.sh` and the entry in `composer.json` — flip it from `false` to
+  the version the binary reports, or add it if it is not listed. Three tests in
+  `test/php.test.mjs` compare the pin against the built artifact in both
+  directions and fail if the two disagree, so this cannot drift silently; it is
+  still a two-file change.
+- **`config.platform` is an override layer, not an allowlist.** Listing what
+  this build *has* is not enough — Composer still sees the host's real
+  extensions for anything undeclared, which is why absent ones are spelled out
+  as `false` rather than left out. The list is the extensions php-src bundles
+  plus the widely-required PECL ones; it is finite by construction and not
+  exhaustive, so an exotic requirement can still slip through to the host.
+
 ## Adding Patches
 
 Place patch files in `patches/php-<version>/`. They are applied in

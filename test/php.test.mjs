@@ -88,6 +88,82 @@ describe('extensions', opts, () => {
     assert.equal(r.stdout, 'absent');
   });
 
+  // ─── the Composer platform pin ────────────────────────────────────────────
+  //
+  // composer.json pins `config.platform` to this build's PHP version, its
+  // extension list and the C libraries behind it. Composer resolves against
+  // the machine it RUNS on, which is a host with a full PHP — 17 extensions
+  // this build does not have, at the time this was written — so without the
+  // pin a transitive dependency requiring ext-curl or ext-sodium resolves
+  // green on the host, ships inside vendor.zip, and fails in the guest at run
+  // time, far from the install that chose it. With it, that is a resolve-time
+  // error naming the extension.
+  //
+  // The pin is a second copy of a fact the binary already owns, so it can
+  // drift — and drift silently, since nothing installs anything today. These
+  // three tests are what make it a two-place edit that fails loudly instead of
+  // a two-place edit that does not.
+  //
+  // Composer's naming: lowercased, spaces to dashes (`Zend OPcache` becomes
+  // `ext-zend-opcache`), underscores kept (`ext-pdo_sqlite`), and `Core` and
+  // `standard` are not exposed as platform packages at all.
+  const PLATFORM = JSON.parse(
+    readFileSync(join(DIST, '..', 'composer.json'), 'utf8')
+  ).config.platform;
+  const NOT_PLATFORM_PACKAGES = ['core', 'standard'];
+  const composerName = (ext) => ext.toLowerCase().replaceAll(' ', '-');
+
+  test('every extension the binary loads is pinned, at the version it reports', async () => {
+    const r = await evalPhp(
+      '$o = [];'
+      + 'foreach (get_loaded_extensions() as $e) { $o[] = $e . "=" . phpversion($e); }'
+      + 'echo implode(",", $o);'
+    );
+    const wrong = [];
+    for (const pair of r.stdout.split(',')) {
+      const at = pair.lastIndexOf('=');
+      const name = composerName(pair.slice(0, at));
+      if (NOT_PLATFORM_PACKAGES.includes(name)) continue;
+      const pinned = PLATFORM[`ext-${name}`];
+      if (pinned !== pair.slice(at + 1)) wrong.push(`ext-${name}: pinned ${JSON.stringify(pinned)}, binary says ${JSON.stringify(pair.slice(at + 1))}`);
+    }
+    assert.deepEqual(wrong, [], `composer.json's config.platform disagrees with the build:\n  ${wrong.join('\n  ')}`);
+  });
+
+  // The other direction, and the one that actually costs something when it is
+  // wrong: an extension disabled in the pin that the build in fact has would
+  // make Composer refuse a package this runtime could have run.
+  test('nothing the binary loads is pinned as disabled', async () => {
+    const r = await evalPhp('echo implode(",", array_map("strtolower", get_loaded_extensions()));');
+    const loaded = new Set(r.stdout.split(',').map(composerName));
+    const lying = Object.entries(PLATFORM)
+      .filter(([k, v]) => v === false && loaded.has(k.slice('ext-'.length)))
+      .map(([k]) => k);
+    assert.deepEqual(lying, [], `pinned as absent but actually loaded: ${lying.join(', ')}`);
+  });
+
+  // The lib-* half. These are the versions scripts/env.sh pins, arriving by a
+  // completely different route — PHP's own constants, read out of the built
+  // wasm — so a dependency bump that misses composer.json fails here.
+  test('the lib-* pins match the C libraries actually linked', async () => {
+    const r = await evalPhp(
+      'echo implode("|", ['
+      + '  "openssl=" . explode(" ", OPENSSL_VERSION_TEXT)[1],'
+      + '  "libxml=" . LIBXML_DOTTED_VERSION,'
+      + '  "zlib=" . ZLIB_VERSION,'
+      + '  "zip-libzip=" . ZipArchive::LIBZIP_VERSION,'
+      + '  "iconv=" . ICONV_VERSION,'
+      + '  "mbstring-oniguruma=" . MB_ONIGURUMA_VERSION,'
+      + '  "sqlite3-sqlite=" . SQLite3::version()["versionString"],'
+      + ']);'
+    );
+    const wrong = r.stdout.split('|')
+      .map((pair) => pair.split('='))
+      .filter(([name, version]) => PLATFORM[`lib-${name}`] !== version)
+      .map(([name, version]) => `lib-${name}: pinned ${JSON.stringify(PLATFORM[`lib-${name}`])}, binary says ${JSON.stringify(version)}`);
+    assert.deepEqual(wrong, [], `composer.json's lib-* pins disagree with the build:\n  ${wrong.join('\n  ')}`);
+  });
+
   test('mbstring handles multibyte (oniguruma linked correctly)', async () => {
     const r = await evalPhp('echo mb_strlen("日本語"), ":", mb_substr("日本語", 1, 1), ":", mb_strtoupper("áé");');
     assert.equal(r.stdout, '3:本:ÁÉ');
