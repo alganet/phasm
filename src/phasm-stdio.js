@@ -32,6 +32,22 @@
 
 var phasmStdio = (() => {
   const decoder = new TextDecoder();
+  /**
+   * What run() decodes its collected output with, and the only difference is
+   * `ignoreBOM`.
+   *
+   * A TextDecoder eats a leading U+FEFF by default, so `run()` used to hand
+   * back a string a byte shorter than what PHP wrote while `onOutput` and a
+   * response body — both raw bytes — kept it. Three paths disagreeing about
+   * identical output is the kind of difference that surfaces as a checksum
+   * mismatch on a file the terminal displays correctly. PHP prints what a
+   * script printed; a BOM in it is content, not an encoding announcement.
+   *
+   * The line-buffered decoder above stays as it is: it is Emscripten's own
+   * behaviour, reproduced for output produced when no run() is in flight, and
+   * changing it would change what an embedder's `print` has always received.
+   */
+  const collected = new TextDecoder('utf-8', { ignoreBOM: true });
   const EMPTY = new Uint8Array(0);
 
   // Read before we overwrite them: these are the embedder's, straight off the
@@ -183,8 +199,27 @@ var phasmStdio = (() => {
       if (!src.pull) return null;
       // Chunked, and only when PHP actually asks. Draining up front would park
       // an interactive shell on a `php -v` that never reads a byte.
-      const more = src.pull(65536);
-      if (!more || !more.length) {
+      //
+      // Normalised, for the same reason begin() normalises what it was handed:
+      // a pull returning a *string* is the shape someone writes first, and
+      // indexing a string hands the device a one-character string instead of a
+      // byte — which String.fromCharCode() then turns into a run of NULs of
+      // exactly the right length. A body of the right size made of nothing at
+      // all is the failure req.body already carries a guard against.
+      let more;
+      try {
+        more = toBytes(src.pull(65536));
+      } catch (e) {
+        // Recorded rather than raised, for the reason flush() records: this
+        // runs inside a wasm frame, and Emscripten's tty turns anything raised
+        // there into a bare read error. phasmCapture() rethrows it where the
+        // caller can see which of its arguments was wrong. EOF meanwhile, so
+        // the call ends rather than parking on a descriptor nobody will fill.
+        if (!call.failure) call.failure = e;
+        src.pull = null;
+        return null;
+      }
+      if (!more.length) {
         src.pull = null;
         return null;
       }
@@ -219,9 +254,33 @@ var phasmStdio = (() => {
     };
   }].concat(preRuns || []);
 
+  /**
+   * Bytes, out of whatever stdin was given as — and the one place that decides
+   * it, for both the value `begin()` was handed and every chunk a `pull`
+   * returns.
+   *
+   * It used to pass anything that was not a string straight through, and
+   * stdinRouter()'s own invariant is that it never answers `undefined` because
+   * `undefined` is EAGAIN on a blocking descriptor. An `ArrayBuffer` broke
+   * exactly that: no `.length`, so `pos >= bytes.length` is false however many
+   * bytes have been read, and indexing it answers `undefined` on the very
+   * first read — PHP waiting on a fd nothing will ever fill.
+   *
+   * So the shapes that mean bytes are converted and the ones that do not are
+   * refused here, where the caller's own stack frame is still the one being
+   * blamed.
+   */
   function toBytes(data) {
     if (data == null) return EMPTY;
-    return typeof data === 'string' ? new TextEncoder().encode(data) : data;
+    if (data instanceof Uint8Array) return data;
+    if (typeof data === 'string') return new TextEncoder().encode(data);
+    if (data instanceof ArrayBuffer) return new Uint8Array(data);
+    if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    if (Array.isArray(data)) return Uint8Array.from(data);
+    throw new TypeError(
+      'phasm: stdin must be a string, a Uint8Array, an ArrayBuffer or a function '
+      + `returning one of those — got ${Object.prototype.toString.call(data)}`,
+    );
   }
 
   return {
@@ -286,8 +345,8 @@ var phasmStdio = (() => {
         try { flush(call, 'stderr'); } catch (e) { /* recorded on the call */ }
       }
       return {
-        stdout: call.collect ? decoder.decode(call.out.view()) : '',
-        stderr: call.collect ? decoder.decode(call.err.view()) : '',
+        stdout: call.collect ? collected.decode(call.out.view()) : '',
+        stderr: call.collect ? collected.decode(call.err.view()) : '',
         failure: call.failure || null,
       };
     },

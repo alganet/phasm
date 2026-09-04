@@ -211,7 +211,11 @@ export interface PhasmModule {
    * on first use without them, so this is only needed to pass settings —
    * per-call `-d` is not supported on this path.
    *
-   * Returns 0, or -1 if this module has already run `callMain()`.
+   * Returns 0, or -1 where the settings cannot be applied — PHP is already up,
+   * and these are module-startup settings. A module that has already run
+   * `callMain()` throws, as it does from `phasmRun()` and
+   * `phasmHandleRequest()`: a status is what a script's own failure looks like,
+   * and a mistake this structural reported as one is a mistake nobody finds.
    */
   phasmStartup(ini?: string): number;
   /**

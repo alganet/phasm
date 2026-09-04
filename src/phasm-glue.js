@@ -139,11 +139,17 @@ function phasmPairs(value, what) {
   });
 }
 
-/** Checked before anything is allocated, so a rejected call leaks nothing. */
-function phasmRejectNuls(list, what) {
+/**
+ * Checked before anything is allocated, so a rejected call leaks nothing.
+ *
+ * `where` names the entry point rather than always saying phasmRun(), because
+ * this is the one message a caller gets for a mistake three layers down and
+ * being told the wrong function made it is worse than being told nothing.
+ */
+function phasmRejectNuls(list, what, where) {
   for (const s of list) {
     if (s.indexOf('\0') !== -1) {
-      throw new TypeError(`phasmRun: ${what} may not contain a NUL byte: ${JSON.stringify(s)}`);
+      throw new TypeError(`${where}: ${what} may not contain a NUL byte: ${JSON.stringify(s)}`);
     }
   }
 }
@@ -167,9 +173,9 @@ Module['phasmRun'] = function (args, opts) {
   const argv = ['php'].concat(args || []).map(String);
   const env = Object.entries(opts.env || {}).map(([k, v]) => `${k}=${v}`);
 
-  phasmRejectNuls(argv, 'an argument');
-  phasmRejectNuls(env, 'an environment entry');
-  if (opts.cwd) phasmRejectNuls([opts.cwd], 'cwd');
+  phasmRejectNuls(argv, 'an argument', 'phasmRun');
+  phasmRejectNuls(env, 'an environment entry', 'phasmRun');
+  if (opts.cwd) phasmRejectNuls([opts.cwd], 'cwd', 'phasmRun');
 
   // Inside the try, so that a second allocation failing does not strand the
   // first. Same reasoning as phasmHandleRequest(); nothing here is reachable
@@ -209,6 +215,24 @@ function phasmMkdirp(path) {
 const PHASM_MAIN = '/main.php';
 
 /**
+ * A `files` key, resolved where the call is going to run.
+ *
+ * The chdir() to `options.cwd` happens inside phasm_run(), which is after
+ * everything here is written — so a relative key used to land wherever the
+ * module's directory happened to be, and `run({ cwd: '/app', files: {
+ * 'index.php': … }, args: ['index.php'] })` wrote /index.php and then could
+ * not open it. The two halves of one call have to agree about what a relative
+ * path means, and `cwd` is what the caller said it means.
+ *
+ * `script` needs none of this: it goes to an absolute path and is run by that
+ * absolute path, so it lands the same wherever the call runs.
+ */
+function phasmAt(path, cwd) {
+  if (!cwd || path.charAt(0) === '/') return path;
+  return `${cwd.replace(/\/+$/, '')}/${path}`;
+}
+
+/**
  * Run PHP once and collect everything it produced.
  *
  * ```js
@@ -236,7 +260,8 @@ const PHASM_MAIN = '/main.php';
 Module['run'] = function (options) {
   options = options || {};
 
-  for (const [path, content] of Object.entries(options.files || {})) {
+  for (const [key, content] of Object.entries(options.files || {})) {
+    const path = phasmAt(key, options.cwd);
     phasmMkdirp(path);
     FS.writeFile(path, content);
   }
@@ -327,9 +352,9 @@ Module['phasmHandleRequest'] = function (req) {
   const headers = phasmPairs(req.headers, 'headers').map(([k, v]) => `${k}: ${v}`);
   const env = phasmPairs(req.env, 'env').map(([k, v]) => `${k}=${v}`);
 
-  phasmRejectNuls([method, url, docroot], 'the request');
-  phasmRejectNuls(headers, 'a header');
-  phasmRejectNuls(env, 'an environment entry');
+  phasmRejectNuls([method, url, docroot], 'the request', 'phasmHandleRequest');
+  phasmRejectNuls(headers, 'a header', 'phasmHandleRequest');
+  phasmRejectNuls(env, 'an environment entry', 'phasmHandleRequest');
 
   // A string is encoded rather than refused, the same way run()'s stdin takes
   // one: `body: 'a=1'` is the obvious thing to write and it used to be the
@@ -433,11 +458,28 @@ Module['phasmHandleRequest'] = function (req) {
  * stop. It also means a spent instance says so here too, instead of being the
  * one door left open into a module that cannot be used.
  *
+ * **-1 is not what callMain() gets**, and this used to say it was. A module
+ * that already ran callMain() *throws* here, exactly as it does from
+ * phasmRun() and phasmHandleRequest(), and for the reason written at
+ * phasmRefuseAfterCallMain(): a status is what a script's own failure looks
+ * like, and a structural mistake reported as one is a mistake nobody finds.
+ * What -1 does mean is settings that cannot be applied — ini passed to an
+ * instance where PHP is already up, where these are module-startup settings
+ * and there is no honest way to honour them.
+ *
  * @param {string} [ini] newline-separated "name=value" lines
- * @returns {number} 0 on success, -1 if this module already ran callMain()
+ * @returns {number} 0, or -1 if PHP is already up and `ini` cannot be applied
+ * @throws {TypeError} if `ini` holds a NUL byte
+ * @throws {Error} if this module already ran callMain()
  */
 Module['phasmStartup'] = function (ini) {
   phasmRefuseAfterCallMain('phasmStartup()');
+
+  // The one entry point that skipped this. The packing is NUL-terminated, so a
+  // NUL in an ini block is not an error anywhere: it is an early terminator,
+  // and everything after it is dropped while the call reports success — a
+  // module running on half the settings it was given, and nothing said.
+  if (ini) phasmRejectNuls([String(ini)], 'ini settings', 'phasmStartup');
 
   let iniPtr = 0;
   try {
