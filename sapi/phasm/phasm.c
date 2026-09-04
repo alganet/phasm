@@ -1733,7 +1733,8 @@ EMSCRIPTEN_KEEPALIVE
 int phasm_handle_request(const char *method, const char *uri,
 	const char *packed_headers, int header_count,
 	char *body, int body_len,
-	const char *docroot, const char *packed_env, int envc)
+	const char *docroot, const char *fallback,
+	const char *packed_env, int envc)
 {
 	phasm_request r;
 	char *path = NULL;
@@ -1815,6 +1816,26 @@ int phasm_handle_request(const char *method, const char *uri,
 	}
 
 	/*
+	 * The front controller, validated for SHAPE before anything is served —
+	 * not at the 404 where it is first needed. A misspelled one is a
+	 * configuration mistake, and a configuration mistake that only shows up on
+	 * the paths that were already failing is one nobody attributes correctly:
+	 * every route 404s and the fallback looks like it is simply not working.
+	 * Refusing the first request instead puts it in front of whoever set it.
+	 *
+	 * Shape only. Whether the file EXISTS is deliberately not checked here —
+	 * see the fallback site below, where Apache's answer for a missing
+	 * FallbackResource is the one taken.
+	 */
+	if (fallback != NULL && fallback[0] == '\0') {
+		fallback = NULL;
+	}
+	if (fallback != NULL
+		&& (fallback[0] != '/' || phasm_path_escapes(fallback) || !phasm_has_php_suffix(fallback))) {
+		return phasm_request_done(500);
+	}
+
+	/*
 	 * An encoded NUL truncates every C string that follows it, so the checks
 	 * below would inspect a prefix while something else acted on the whole
 	 * thing — and phasm_path_escapes()'s strstr() would stop at the NUL and
@@ -1836,7 +1857,17 @@ int phasm_handle_request(const char *method, const char *uri,
 	/* docroot + path, then index.php for a directory. */
 	size_t droot_len = strlen(docroot);
 	{
-		size_t need = droot_len + strlen(path) + sizeof("/index.php") + 1;
+		/* Big enough for whichever of the two paths is longer, so the fallback
+		 * below rewrites this buffer in place rather than owning a sixth
+		 * allocation for the one request that needs it. */
+		size_t longest = strlen(path);
+		size_t fallback_len = fallback != NULL ? strlen(fallback) : 0;
+		size_t need;
+
+		if (fallback_len > longest) {
+			longest = fallback_len;
+		}
+		need = droot_len + longest + sizeof("/index.php") + 1;
 
 		/* A trailing slash on the docroot would produce "//" here, which is a
 		 * different path to opcache and to include_once. */
@@ -1884,13 +1915,55 @@ int phasm_handle_request(const char *method, const char *uri,
 		size_t cut = phasm_split_path_info(script, droot_len);
 
 		if (cut == 0) {
-			return phasm_request_done(404);
+			/*
+			 * Nothing at that path and nothing along it — which for a framework
+			 * is the ordinary case, not the error one. `try_files $uri
+			 * /index.php` and Apache's `FallbackResource /index.php` both exist
+			 * because a router owns every URL that is not a file, and without
+			 * one of them a pretty URL is a 404 for a route that is right
+			 * there.
+			 *
+			 * The shape is nginx's, which is what Laravel's own documented
+			 * config produces and therefore what its Request::capture() is
+			 * tested against: REQUEST_URI stays exactly what was asked for,
+			 * SCRIPT_NAME becomes the front controller, and there is **no
+			 * PATH_INFO** — the app derives its route from the URI it can see.
+			 * That is why path_info is left NULL here rather than set to the
+			 * unmatched path: setting it would give Symfony's base-URL
+			 * detection two disagreeing answers to work from.
+			 *
+			 * The rule this draws, and it is worth stating because it is the
+			 * one a reader will test: **a decline is not a miss.** A `.css`
+			 * that is there, and a directory with no index.php, both still
+			 * answer 0 — "there is something here, it just is not PHP" — and
+			 * the embedder serves them exactly as before. The front controller
+			 * takes only the paths where there is *nothing*, which is
+			 * `try_files $uri $uri/` having found neither. Without that line
+			 * drawn, configuring a fallback would quietly stop a stylesheet
+			 * from being served and hand the app an HTML 200 in its place.
+			 */
+			if (fallback == NULL) {
+				return phasm_request_done(404);
+			}
+
+			strcpy(script + droot_len, fallback);
+
+			/* A configured front controller that is not there is Apache's
+			 * case, and Apache 404s the request rather than 500ing the server.
+			 * The shape check at the top of the call is what catches the
+			 * mistake worth catching; this is a file that was deleted. */
+			if (stat(script, &st) != 0 || !S_ISREG(st.st_mode)) {
+				return phasm_request_done(404);
+			}
+			path_info = NULL;
+		} else {
+			/* `script` is docroot + path, so an offset in one is an offset in
+			 * the other once the docroot is taken off. `path` itself is left
+			 * whole: script_name + path_info is exactly it, which is what
+			 * PHP_SELF is. */
+			path_info = path + (cut - droot_len);
+			script[cut] = '\0';
 		}
-		/* `script` is docroot + path, so an offset in one is an offset in the
-		 * other once the docroot is taken off. `path` itself is left whole:
-		 * script_name + path_info is exactly it, which is what PHP_SELF is. */
-		path_info = path + (cut - droot_len);
-		script[cut] = '\0';
 	}
 	if (!phasm_has_php_suffix(script)) {
 		return phasm_request_done(0); /* not ours — the embedder serves it */

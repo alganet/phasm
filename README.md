@@ -281,17 +281,29 @@ carries the path info too, and `PATH_TRANSLATED` is the path info resolved
 against the docroot. The deepest script that exists wins, and a prefix that is
 a file but not a script is a 404 rather than a decline.
 
-There is still no front-controller *rewrite*: `/users/1`, with no script in it
-anywhere, is a 404 and not `/index.php`. That is the caller's decision to make,
-the same way declining a `.css` file is — a framework that wants every request
-to reach one script asks for it directly:
+For the rewrite a framework needs, pass `fallback` — `try_files $uri
+/index.php` and Apache's `FallbackResource` in one option:
 
 ```js
-let res = php.phasmHandleRequest({ url, docroot: "/site" });
-if (res.status === 404) {
-  res = php.phasmHandleRequest({ url: `/index.php?${query}`, docroot: "/site" });
-}
+php.phasmHandleRequest({ url: "/users/1", docroot: "/site", fallback: "/index.php" });
 ```
+
+Then a path with **nothing** behind it runs the front controller, with nginx's
+shape: `REQUEST_URI` is what was asked for, `SCRIPT_NAME` is the front
+controller, and there is no `PATH_INFO` — the app routes from the URI it can
+see, which is what Laravel and Symfony expect.
+
+**A decline is not a miss**, and that is the line worth knowing. A `.css` that
+is there, and a directory with no `index.php`, still answer **0** so the caller
+serves them; only paths with nothing behind them reach the fallback. Without
+that line, turning this on would quietly stop serving stylesheets and hand the
+app an HTML 200 in their place.
+
+A malformed `fallback` — not absolute, not `.php`, or climbing out of the
+docroot — is a **500 on every request**, including ones that resolve, so a
+mistyped setting shows up immediately instead of only on the paths that were
+already failing. One naming a file that is not there leaves the 404 alone, as
+Apache does.
 
 The shape is the web platform's on purpose, so a service worker can pass a
 `Request` almost straight in and build a `Response` almost straight out —

@@ -257,6 +257,116 @@ describe('routing', opts, () => {
 
 // ─── the request reaching PHP ────────────────────────────────────────────────
 
+// ─── the front controller ────────────────────────────────────────────────────
+
+// `fallback` is `try_files $uri /index.php` and Apache's `FallbackResource` in
+// one option, and it exists because without it a framework is unusable rather
+// than merely awkward: every pretty URL is a 404 for a route that is right
+// there. Measured against a real Laravel app before this was written — its
+// front controller worked at /index.php/whoami/42 through the PATH_INFO split
+// and 404'd at /whoami/42.
+//
+// The line these tests are really about is **a decline is not a miss**. A file
+// that is there and is not PHP, and a directory with no index.php, both keep
+// answering 0 so the embedder serves them; only paths with *nothing* behind
+// them reach the front controller. Get that wrong and configuring a fallback
+// silently stops serving stylesheets and hands the app an HTML 200 instead.
+describe('the front controller', opts, () => {
+  const FC = {
+    '/fc/index.php':
+      '<?php echo json_encode(["uri" => $_SERVER["REQUEST_URI"], "script" => $_SERVER["SCRIPT_NAME"],'
+      + ' "self" => $_SERVER["PHP_SELF"], "info" => $_SERVER["PATH_INFO"] ?? null,'
+      + ' "query" => $_SERVER["QUERY_STRING"], "who" => "front"]);',
+    '/fc/real.php': '<?php echo json_encode(["who" => "real", "info" => $_SERVER["PATH_INFO"] ?? null]);',
+    '/fc/style.css': 'body{}',
+    '/fc/sub/index.php': '<?php echo json_encode(["who" => "sub"]);',
+  };
+  const ask = async (url, extra = {}) => serve({ url, docroot: `${DOCROOT}/fc`, ...extra });
+
+  test('a path with nothing behind it reaches the front controller', async () => {
+    await site(FC);
+    const plain = await ask('/users/1');
+    assert.equal(plain.status, 404, 'without a fallback this is still a 404');
+
+    const r = await ask('/users/1', { fallback: '/index.php' });
+    assert.equal(r.status, 200);
+    assert.deepEqual(JSON.parse(r.text), {
+      who: 'front',
+      // nginx's shape, which is what Laravel's documented config produces and
+      // therefore what Symfony's base-URL detection is written against: the
+      // URI is what was asked for, the script is the front controller, and
+      // PATH_INFO is absent rather than carrying the unmatched path.
+      uri: '/users/1',
+      script: '/index.php',
+      self: '/index.php',
+      info: null,
+      query: '',
+    });
+  });
+
+  test('the query string survives the rewrite', async () => {
+    await site(FC);
+    const r = await ask('/search?q=cats&page=2', { fallback: '/index.php' });
+    const got = JSON.parse(r.text);
+    assert.equal(got.uri, '/search?q=cats&page=2');
+    assert.equal(got.query, 'q=cats&page=2');
+  });
+
+  // Everything that already resolved has to keep resolving, or the option is
+  // not a fallback, it is a takeover.
+  test('a path that resolves on its own is untouched', async () => {
+    await site(FC);
+    const fb = { fallback: '/index.php' };
+
+    assert.equal(JSON.parse((await ask('/real.php', fb)).text).who, 'real');
+    assert.equal(JSON.parse((await ask('/index.php', fb)).text).who, 'front');
+    assert.equal(JSON.parse((await ask('/', fb)).text).who, 'front');
+    assert.equal(JSON.parse((await ask('/sub', fb)).text).who, 'sub');
+  });
+
+  test('the PATH_INFO split still wins over the fallback', async () => {
+    await site(FC);
+    const r = await ask('/real.php/a/b', { fallback: '/index.php' });
+    assert.deepEqual(JSON.parse(r.text), { who: 'real', info: '/a/b' });
+  });
+
+  // The one that would be a real outage: a stylesheet swallowed by the front
+  // controller is served as an HTML 200, and the page loses its CSS with
+  // nothing anywhere reporting an error.
+  test('a decline is not a miss — static files and bare directories still decline', async () => {
+    await site({ ...FC, '/fc/bare/.keep': '' });
+    const fb = { fallback: '/index.php' };
+
+    assert.equal((await ask('/style.css', fb)).status, 0, 'a file that is there is not PHP\u2019s');
+    assert.equal((await ask('/bare', fb)).status, 0, 'a directory with no index.php is the embedder\u2019s');
+  });
+
+  // Shape is checked on every request, not at the 404 where it is first
+  // needed: a misspelled front controller that only misbehaves on the paths
+  // that were already failing is one nobody attributes correctly.
+  test('a malformed fallback is a 500 even for a path that resolves', async () => {
+    await site(FC);
+    for (const bad of ['index.php', '/../escape.php', '/index.html', '/a/../../x.php']) {
+      const r = await ask('/real.php', { fallback: bad });
+      assert.equal(r.status, 500, `expected 500 for fallback ${JSON.stringify(bad)}`);
+    }
+  });
+
+  // Apache's answer for a FallbackResource that is not there, and deliberately
+  // not the 500 above: this is a deleted file, not a mistyped setting.
+  test('a well-formed fallback that is missing leaves the 404 alone', async () => {
+    await site(FC);
+    const r = await ask('/users/1', { fallback: '/not-here.php' });
+    assert.equal(r.status, 404);
+    assert.equal(r.text, '');
+  });
+
+  test('an empty fallback means the same as none', async () => {
+    await site(FC);
+    assert.equal((await ask('/users/1', { fallback: '' })).status, 404);
+  });
+});
+
 describe('the request', opts, () => {
   test('$_GET comes from the query string', async () => {
     await site({ '/get.php': '<?php echo json_encode($_GET);' });

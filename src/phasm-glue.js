@@ -382,8 +382,17 @@ Module['phasmCapture'] = function (fn, opts) {
  * rather than as nothing at all — which is the point, since the fetch on the
  * other side of it is being held open.
  *
+ * `fallback` is the front controller: a docroot-relative `.php` script that
+ * answers any path with no file behind it, which is `try_files $uri
+ * /index.php` and Apache's `FallbackResource` in one option. Without it a
+ * framework's pretty URLs are 404s for routes that are right there. It changes
+ * nothing for a path that does resolve, and a request it does answer gets
+ * nginx's shape — REQUEST_URI as asked, SCRIPT_NAME the front controller, no
+ * PATH_INFO.
+ *
  * @param {{method?: string, url: string, headers?: Record<string, string>,
- *          body?: Uint8Array, docroot?: string, env?: Record<string, string>,
+ *          body?: Uint8Array, docroot?: string, fallback?: string,
+ *          env?: Record<string, string>,
  *          interrupted?: () => boolean}} req
  * @returns {{status: number, headers: [string, string][], body: Uint8Array}}
  */
@@ -393,10 +402,14 @@ Module['phasmHandleRequest'] = function (req) {
   const method = String(req.method || 'GET');
   const url = String(req.url);
   const docroot = String(req.docroot || '/');
+  // '' rather than a null pointer: the C side treats an empty string as "no
+  // front controller", so `fallback: undefined` and `fallback: ''` mean the
+  // same thing and neither needs a second allocation path here.
+  const fallback = req.fallback == null ? '' : String(req.fallback);
   const headers = phasmPairs(req.headers, 'headers').map(([k, v]) => `${k}: ${v}`);
   const env = phasmPairs(req.env, 'env').map(([k, v]) => `${k}=${v}`);
 
-  phasmRejectNuls([method, url, docroot], 'the request', 'phasmHandleRequest');
+  phasmRejectNuls([method, url, docroot, fallback], 'the request', 'phasmHandleRequest');
   phasmRejectNuls(headers, 'a header', 'phasmHandleRequest');
   phasmRejectNuls(env, 'an environment entry', 'phasmHandleRequest');
 
@@ -422,6 +435,7 @@ Module['phasmHandleRequest'] = function (req) {
   let methodPtr = 0;
   let urlPtr = 0;
   let docrootPtr = 0;
+  let fallbackPtr = 0;
   let headersPtr = 0;
   let envPtr = 0;
   let bodyPtr = 0;
@@ -431,6 +445,7 @@ Module['phasmHandleRequest'] = function (req) {
     methodPtr = stringToNewUTF8(method);
     urlPtr = stringToNewUTF8(url);
     docrootPtr = stringToNewUTF8(docroot);
+    fallbackPtr = stringToNewUTF8(fallback);
     headersPtr = phasmPackStrings(headers);
     envPtr = phasmPackStrings(env);
 
@@ -453,12 +468,13 @@ Module['phasmHandleRequest'] = function (req) {
 
     status = phasmWithInterrupt(req.interrupted, () => phasmEnter(() => _phasm_handle_request(
       methodPtr, urlPtr, headersPtr, headers.length,
-      bodyPtr, bodyBytes.length, docrootPtr, envPtr, env.length,
+      bodyPtr, bodyBytes.length, docrootPtr, fallbackPtr, envPtr, env.length,
     )));
   } finally {
     if (methodPtr) _free(methodPtr);
     if (urlPtr) _free(urlPtr);
     if (docrootPtr) _free(docrootPtr);
+    if (fallbackPtr) _free(fallbackPtr);
     if (headersPtr) _free(headersPtr);
     if (envPtr) _free(envPtr);
     if (bodyPtr) _free(bodyPtr);
