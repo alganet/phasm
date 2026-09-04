@@ -1,0 +1,47 @@
+<!--
+SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas <alganet@gmail.com>
+
+SPDX-License-Identifier: ISC
+-->
+
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Not found — phasm</title>
+	<style>
+		body {
+			font: 15px/1.6 system-ui, sans-serif;
+			margin: 4rem auto;
+			max-width: 34rem;
+			padding: 0 1rem;
+			color: #1b1b1f;
+		}
+
+		code {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			background: #f2f2f6;
+			padding: .1em .35em;
+			border-radius: 3px;
+		}
+	</style>
+</head>
+
+<body>
+	<h1 id="title">Not found</h1>
+	<p id="message">There is nothing at <code id="path"></code>.</p>
+	<p><a href="/">phasm</a></p>
+
+	<script type="module">
+		// All this page does is name the path that was asked for. A page that
+		// serves itself needs more than that — its deep links resolve to files
+		// a static host has nothing at, so something has to install a worker in
+		// front of them first — and `wide` is that page, carrying its own 404
+		// for exactly that reason.
+		document.getElementById("path").textContent = location.pathname;
+	</script>
+</body>
+
+</html>
