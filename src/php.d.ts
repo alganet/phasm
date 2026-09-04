@@ -111,7 +111,9 @@ export interface PhasmCaptured<T> {
 
 /** One HTTP request for `phasmHandleRequest()`. */
 export interface PhasmRequest {
-  /** Request target, path and query string — e.g. `/blog/?page=2`. */
+  /** Request target, path and query string — e.g. `/blog/?page=2`. A path that
+   *  continues past a script is split as CGI splits it, so
+   *  `/index.php/users/1` runs `index.php` with `PATH_INFO=/users/1`. */
   url: string;
   /** Defaults to `"GET"`. */
   method?: string;

@@ -91,6 +91,71 @@ describe('routing', opts, () => {
     assert.equal(r.text, '');
   });
 
+  // The standard no-rewrite front controller: everything under one script,
+  // addressed by what follows it. Without the split it is a 404 for a script
+  // that is right there, and $_SERVER carries no PATH_INFO at all — so the one
+  // routing shape a project can rely on before anybody has configured a server
+  // was unreachable.
+  test('a path after a script is PATH_INFO, not a 404', async () => {
+    await site({
+      '/front.php': '<?php echo json_encode(['
+        + '"script" => $_SERVER["SCRIPT_NAME"], "self" => $_SERVER["PHP_SELF"],'
+        + '"info" => $_SERVER["PATH_INFO"], "translated" => $_SERVER["PATH_TRANSLATED"],'
+        + '"file" => $_SERVER["SCRIPT_FILENAME"], "uri" => $_SERVER["REQUEST_URI"]]);',
+    });
+    const r = await serve({ url: '/front.php/users/1?page=2', docroot: DOCROOT });
+
+    assert.equal(r.status, 200);
+    assert.deepEqual(JSON.parse(r.text), {
+      script: '/front.php',
+      // PHP_SELF carries the path info and SCRIPT_NAME does not: that is the
+      // whole difference between the two, and it is what a front controller
+      // reads to tell "what ran" from "what was asked for".
+      self: '/front.php/users/1',
+      info: '/users/1',
+      // CGI's meaning: the path info against the DOCROOT, not the script's own
+      // filename, which is what used to be registered here.
+      translated: `${DOCROOT}/users/1`,
+      file: `${DOCROOT}/front.php`,
+      uri: '/front.php/users/1?page=2',
+    });
+  });
+
+  // Right to left, so the deepest script that actually exists wins — the same
+  // walk php_cli_server.c does.
+  test('the deepest existing script takes the path info', async () => {
+    await site({
+      '/outer.php': '<?php echo "outer:", $_SERVER["PATH_INFO"];',
+      '/outer.php.d/inner.php': '<?php echo "inner:", $_SERVER["PATH_INFO"] ?? "none";',
+    });
+
+    assert.equal((await serve({ url: '/outer.php/x/y', docroot: DOCROOT })).text, 'outer:/x/y');
+    assert.equal(
+      (await serve({ url: '/outer.php.d/inner.php/z', docroot: DOCROOT })).text,
+      'inner:/z',
+    );
+  });
+
+  // A prefix that is a file but not a script is a 404 rather than a decline.
+  // Declining says "serve this path yourself", and the path the embedder would
+  // be handed still has the extra component on it — a file that is not there.
+  test('a path after a non-script is 404, not a decline', async () => {
+    await site({ '/asset.css': 'body{}' });
+    const r = await serve({ url: '/asset.css/extra', docroot: DOCROOT });
+
+    assert.equal(r.status, 404);
+    assert.equal(r.text, '');
+  });
+
+  // The split runs after the traversal refusal and after normalisation, like
+  // everything else that resolves a path here.
+  test('path info cannot climb out of the docroot', async () => {
+    await site({ '/guard.php': '<?php echo "ran";' });
+
+    assert.equal((await serve({ url: '/guard.php/../../etc', docroot: DOCROOT })).status, 403);
+    assert.equal((await serve({ url: '/guard.php/%2e%2e/x', docroot: DOCROOT })).status, 403);
+  });
+
   // Two spellings of one path must not reach a route table as two routes.
   test('duplicate and dot segments collapse', async () => {
     await site({ '/seg.php': '<?php echo $_SERVER["SCRIPT_NAME"];' });
@@ -349,6 +414,17 @@ describe('the request', opts, () => {
     const r = await serve({ url: '/blog/', docroot: DOCROOT });
 
     assert.equal(r.text, '/blog/index.php /blog/');
+  });
+
+  // PATH_INFO is absent rather than empty for an ordinary request, which is
+  // what php-cgi and the built-in server both answer — code tests `isset()` on
+  // it to decide whether there is any, and an empty string is an answer of
+  // "yes, and it is nothing".
+  test('a plain script gets no PATH_INFO and no PATH_TRANSLATED', async () => {
+    await site({ '/plain.php': '<?php echo json_encode([isset($_SERVER["PATH_INFO"]), isset($_SERVER["PATH_TRANSLATED"])]);' });
+    const r = await serve({ url: '/plain.php', docroot: DOCROOT });
+
+    assert.equal(r.text, '[false,false]');
   });
 });
 

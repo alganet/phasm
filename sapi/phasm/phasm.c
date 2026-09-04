@@ -131,19 +131,57 @@ static int phasm_call_cwd_saved = 0;
 static char phasm_call_docroot[MAXPATHLEN];
 
 /*
+ * Whether the call in flight is a request rather than a command — raised at the
+ * top of phasm_handle_request() and lowered by phasm_request_done(), its single
+ * exit, so a trap is exactly what leaves it raised.
+ *
+ * phasm_recover() needs to know, because a request that never finished has to
+ * leave a status behind and a command has none to leave. SG(server_context)
+ * looks like it would answer and does not: do_cli() points it at a
+ * php_cli_server_context on its own stack, so it is set during an ordinary
+ * `php -r` too.
+ */
+static int phasm_call_in_request = 0;
+
+/*
  * Allocations the call owns. Freeing these in the epilogue rather than at each
  * return is not tidiness: on the trap path there is no return to free them at,
  * and one of them is pointed to by SG(request_info), which the *next* call
- * reads. Four is the most any one call holds (argv, path, script, script_name).
+ * reads.
+ *
+ * Five is the most any one call holds — a request takes path, script,
+ * script_name and, where the URL had path info, the translated path; a command
+ * takes argv. The slack above that is for the next thing a call needs to own,
+ * and the overflow below is what makes running out of it visible.
  */
-static void *phasm_call_owned[4];
+static void *phasm_call_owned[8];
 static int phasm_call_owned_count = 0;
 
+/*
+ * Take ownership, or refuse.
+ *
+ * Refusing is the whole point. This used to hand the pointer back unrecorded
+ * once the array was full, which is a per-request leak inside the one module
+ * whose entire premise is that a fixed per-call leak kills the instance at
+ * around call 104 — and it would have been invisible until it was fatal. So an
+ * overflow frees what it cannot keep and answers NULL, which every caller
+ * already treats as an allocation failure and turns into a 500, and it says on
+ * stderr what actually happened so that the 500 is diagnosable rather than
+ * mysterious.
+ */
 static void *phasm_call_own(void *p)
 {
-	if (p != NULL && phasm_call_owned_count < (int) (sizeof(phasm_call_owned) / sizeof(*phasm_call_owned))) {
-		phasm_call_owned[phasm_call_owned_count++] = p;
+	if (p == NULL) {
+		return NULL;
 	}
+	if (phasm_call_owned_count >= (int) (sizeof(phasm_call_owned) / sizeof(*phasm_call_owned))) {
+		fprintf(stderr, "php: a call tried to own more than %d allocations; "
+			"raise phasm_call_owned[] in sapi/phasm/phasm.c\n",
+			(int) (sizeof(phasm_call_owned) / sizeof(*phasm_call_owned)));
+		free(p);
+		return NULL;
+	}
+	phasm_call_owned[phasm_call_owned_count++] = p;
 	return p;
 }
 
@@ -820,6 +858,9 @@ typedef struct {
 	const char *query;            /* after the '?', or NULL */
 	const char *script_filename;  /* absolute, resolved under docroot */
 	const char *script_name;      /* what the script sees as SCRIPT_NAME */
+	const char *php_self;         /* script_name, plus any path info after it */
+	const char *path_info;        /* the URL left over after the script, or NULL */
+	const char *path_translated;  /* docroot + path_info, CGI's meaning of it */
 	const char *docroot;
 	const char *packed_headers;   /* "Name: value" entries, NUL-separated */
 	int header_count;
@@ -994,9 +1035,27 @@ static void phasm_register_variables(zval *track_vars_array)
 	php_register_variable("REQUEST_URI", r->uri, track_vars_array);
 	php_register_variable("QUERY_STRING", r->query != NULL ? r->query : "", track_vars_array);
 	php_register_variable("SCRIPT_NAME", r->script_name, track_vars_array);
-	php_register_variable("PHP_SELF", r->script_name, track_vars_array);
+	/* PHP_SELF carries the path info and SCRIPT_NAME does not, which is the
+	 * difference every other CGI-shaped SAPI draws between the two and the
+	 * reason a front controller can tell "which script ran" from "what was
+	 * asked for". */
+	php_register_variable("PHP_SELF", r->php_self, track_vars_array);
 	php_register_variable("SCRIPT_FILENAME", r->script_filename, track_vars_array);
-	php_register_variable("PATH_TRANSLATED", r->script_filename, track_vars_array);
+
+	/*
+	 * PATH_INFO, and PATH_TRANSLATED as CGI means it: the path info resolved
+	 * against the docroot, not the script. This used to register the script
+	 * for PATH_TRANSLATED unconditionally, which is the opposite of its
+	 * meaning — and it was registered on every request, so code that tests
+	 * `isset($_SERVER['PATH_INFO'])` to decide whether there is any could not.
+	 * Both are absent when there is no path info, which is what a request for
+	 * a plain script gets from php-cgi and from the built-in server.
+	 */
+	if (r->path_info != NULL) {
+		php_register_variable("PATH_INFO", r->path_info, track_vars_array);
+		php_register_variable("PATH_TRANSLATED", r->path_translated, track_vars_array);
+	}
+
 	php_register_variable("DOCUMENT_ROOT", r->docroot, track_vars_array);
 	php_register_variable("SERVER_PROTOCOL", "HTTP/1.1", track_vars_array);
 	php_register_variable("SERVER_SOFTWARE", "phasm", track_vars_array);
@@ -1075,6 +1134,19 @@ static struct {
 
 static void phasm_hooks_install(void)
 {
+	/*
+	 * Idempotent, and it has to be said rather than assumed. A second install
+	 * with no restore between would save phasm's OWN hooks as the originals,
+	 * and phasm_hooks_restore() is a no-op from then on — so every later
+	 * command's output goes into a response buffer nobody reads, `php -v`
+	 * exits 0 having printed nothing, and it stays that way for the life of
+	 * the instance. The state that decides is already recorded here; all this
+	 * costs is reading it.
+	 */
+	if (phasm_saved_hooks.installed) {
+		return;
+	}
+
 	phasm_saved_hooks.ub_write = sapi_module.ub_write;
 	phasm_saved_hooks.flush = sapi_module.flush;
 	phasm_saved_hooks.header_handler = sapi_module.header_handler;
@@ -1189,6 +1261,55 @@ static int phasm_has_php_suffix(const char *path)
 	return len >= 4 && strcasecmp(path + len - 4, ".php") == 0;
 }
 
+/*
+ * The CGI split: /index.php/users/1 is index.php run with PATH_INFO=/users/1.
+ *
+ * Without it that URL is a 404 for a script that is right there, and the
+ * standard no-rewrite front controller — the one shape a project can rely on
+ * before anybody has configured a server — is simply unreachable. It is also
+ * what `$_SERVER['PATH_INFO']` is for, and there was none.
+ *
+ * Right to left, so the DEEPEST existing script wins: /a.php/b.php is b.php's
+ * request when b.php is there and a.php's when it is not, which is what every
+ * other CGI-shaped SAPI answers and what php_cli_server.c's own walk does.
+ *
+ * The prefix has to be a PHP script and not merely a file. A `.css` with a
+ * component after it is a 404 rather than a decline, deliberately: declining
+ * tells the embedder "serve this path yourself", and the path it would be
+ * handed is the one with the extra component still on it — a file that does
+ * not exist. Declining a path nobody can serve is the shape that turns into a
+ * source disclosure one refactor later, so this stays narrow.
+ *
+ * Returns the length of the script prefix within `script`, or 0 for no split.
+ * `script` is left exactly as it was found.
+ */
+static size_t phasm_split_path_info(char *script, size_t droot_len)
+{
+	struct stat st;
+	size_t cut = strlen(script);
+
+	while (cut > droot_len + 1) {
+		char saved;
+		int found;
+
+		cut--;
+		if (script[cut] != '/') {
+			continue;
+		}
+
+		saved = script[cut];
+		script[cut] = '\0';
+		found = stat(script, &st) == 0 && S_ISREG(st.st_mode) && phasm_has_php_suffix(script);
+		script[cut] = saved;
+
+		if (found) {
+			return cut;
+		}
+	}
+
+	return 0;
+}
+
 /* }}} */
 
 /* {{{ phasm_handle_request */
@@ -1220,6 +1341,7 @@ static int phasm_request_done(int status)
 {
 	phasm_call_epilogue();
 	phasm_resp_status = status;
+	phasm_call_in_request = 0;
 	return status;
 }
 
@@ -1246,12 +1368,15 @@ int phasm_handle_request(const char *method, const char *uri,
 	char *path = NULL;
 	char *script = NULL;
 	char *script_name = NULL;
+	char *path_translated = NULL;
+	const char *path_info = NULL;
 	const char *query = NULL;
 	size_t decoded_len = 0;
 	struct stat st;
 	int status;
 
 	phasm_response_reset();
+	phasm_call_in_request = 1;
 
 	if (!phasm_started && phasm_startup(NULL) != 0) {
 		return phasm_request_done(500);
@@ -1382,18 +1507,45 @@ int phasm_handle_request(const char *method, const char *uri,
 	}
 
 	if (stat(script, &st) != 0 || !S_ISREG(st.st_mode)) {
-		return phasm_request_done(404);
+		/* Nothing at that path — but a script may be sitting part of the way
+		 * along it, with the rest addressed to the script rather than to the
+		 * filesystem. See phasm_split_path_info(). */
+		size_t cut = phasm_split_path_info(script, droot_len);
+
+		if (cut == 0) {
+			return phasm_request_done(404);
+		}
+		/* `script` is docroot + path, so an offset in one is an offset in the
+		 * other once the docroot is taken off. `path` itself is left whole:
+		 * script_name + path_info is exactly it, which is what PHP_SELF is. */
+		path_info = path + (cut - droot_len);
+		script[cut] = '\0';
 	}
 	if (!phasm_has_php_suffix(script)) {
 		return phasm_request_done(0); /* not ours — the embedder serves it */
 	}
 
 	/* SCRIPT_NAME is the resolved script's own path, which is `path` except
-	 * where index.php was appended to a directory — and a router that reads it
-	 * to strip its own prefix needs the difference. */
+	 * where index.php was appended to a directory or path info was taken off
+	 * the end — and a router that reads it to strip its own prefix needs the
+	 * difference. */
 	script_name = phasm_call_own(strdup(script + droot_len));
 	if (script_name == NULL) {
 		return phasm_request_done(500);
+	}
+
+	if (path_info != NULL) {
+		/* PATH_TRANSLATED is the path info resolved against the DOCROOT, which
+		 * is CGI's meaning of it and not the script's own filename. It names a
+		 * file that need not exist; that is the caller's business, not ours. */
+		size_t need = droot_len + strlen(path_info) + 1;
+
+		path_translated = phasm_call_own(malloc(need));
+		if (path_translated == NULL) {
+			return phasm_request_done(500);
+		}
+		memcpy(path_translated, docroot, droot_len);
+		strcpy(path_translated + droot_len, path_info);
 	}
 
 	r.method = method;
@@ -1402,6 +1554,11 @@ int phasm_handle_request(const char *method, const char *uri,
 	r.query = query;
 	r.script_filename = script;
 	r.script_name = script_name;
+	/* script_name + path_info is `path`, exactly — the two were cut out of it
+	 * — so PHP_SELF needs no third string built for it. */
+	r.php_self = path_info != NULL ? path : script_name;
+	r.path_info = path_info;
+	r.path_translated = path_translated;
 	r.docroot = docroot;
 	r.packed_headers = packed_headers;
 	r.header_count = header_count;
@@ -1607,6 +1764,11 @@ EMSCRIPTEN_KEEPALIVE
 int phasm_recover(void)
 {
 	int finished = 0;
+	/* Whether what the trap abandoned was a request. Taken and cleared here,
+	 * because this is the only place that will ever get to. */
+	int was_request = phasm_call_in_request;
+
+	phasm_call_in_request = 0;
 
 	if (!phasm_started) {
 		return 0;
@@ -1632,6 +1794,12 @@ int phasm_recover(void)
 	 * may still hold is exactly the guessing this branch exists to refuse.
 	 */
 	if (SG(sapi_started) && (EG(flags) & EG_FLAGS_IN_SHUTDOWN)) {
+		/* Except the status, which is not PHP state to guess at: 0 is the
+		 * decline, and this request is the one thing that certainly did not
+		 * decline. Same reasoning as at the end of this function. */
+		if (was_request) {
+			phasm_resp_status = 500;
+		}
 		return -1;
 	}
 
@@ -1662,6 +1830,24 @@ int phasm_recover(void)
 
 	phasm_hooks_restore();
 	phasm_call_epilogue();
+
+	/*
+	 * A status, because 0 is not "no status" in this ABI — it is the DECLINE
+	 * that tells an embedder to serve the path as a static file. A request
+	 * abandoned by a trap left phasm_response_status() answering whatever
+	 * phasm_response_reset() had cleared it to, so a caller driving the
+	 * exports directly was told a request had finished, read 0, and served the
+	 * script's own source: the disclosure the refusals were made to answer for,
+	 * still open on this path. The JS API never saw it only because
+	 * phasmEnter() rethrows the trap before anyone reads the status.
+	 *
+	 * The body stays as it is. It is whatever the script had produced plus
+	 * whatever the shutdown flushed, which is truncated but not misleading, and
+	 * there is nothing better to put in a 500 than what actually happened.
+	 */
+	if (was_request) {
+		phasm_resp_status = 500;
+	}
 
 	return finished;
 }

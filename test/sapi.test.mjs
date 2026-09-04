@@ -705,6 +705,43 @@ describe('surviving a trap', opts, () => {
     assert.throws(() => mod.phasmStartup('memory_limit=64M'), /no longer usable/);
   });
 
+  // 0 is not "no status" in this ABI: it is the DECLINE that tells an embedder
+  // to serve the path as a static file. So a request abandoned by a trap used
+  // to leave phasm_response_status() answering "not a script, serve it
+  // yourself" for the script that had just failed — the source disclosure the
+  // refusals were written to prevent, still open on the recovery path. The JS
+  // API never saw it because phasmEnter() rethrows first; an embedder driving
+  // the exports has nothing else to ask.
+  test('a trapped request is a 500 to the exports, not a decline', async () => {
+    const mod = await freshModule();
+    mod.FS.mkdir('/trapsite');
+    mod.FS.writeFile('/trapsite/boom.php', `<?php ${TRAPPING_SCRIPT}`);
+
+    assert.throws(
+      () => mod.phasmHandleRequest({ url: '/boom.php', docroot: '/trapsite' }),
+      RangeError,
+    );
+
+    assert.equal(mod._phasm_response_status(), 500);
+  });
+
+  // And the other half of it: a command has no response, so recovery must not
+  // invent a 500 for one. phasm_run() clears the accessors at its start —
+  // deliberately, so that they never answer with the previous request's page —
+  // and a trapped command has to leave them exactly as cleared.
+  test('a trapped command invents no response of its own', async () => {
+    const mod = await freshModule();
+    mod.FS.mkdir('/quietsite');
+    mod.FS.writeFile('/quietsite/i.php', '<?php http_response_code(201); echo "made";');
+    mod.phasmHandleRequest({ url: '/i.php', docroot: '/quietsite' });
+    assert.equal(mod._phasm_response_status(), 201);
+
+    trap(mod);
+
+    assert.equal(mod._phasm_response_status(), 0);
+    assert.equal(mod._phasm_response_body_length(), 0);
+  });
+
   // The instances above are fresh so that a regression names itself instead of
   // cascading. This one is the claim an embedder actually cares about: the
   // shared instance the rest of this suite runs on takes a trap and carries on.

@@ -230,11 +230,18 @@ a missing one is a 404. A status of **0** means the path is not a PHP script:
 that is a decline rather than an error, and the caller should serve the file
 itself — PHP has no business deciding that a `.css` file is `text/css`.
 
-Resolution stops there: the path names a script or it does not. There is no
-`PATH_INFO` split and no front-controller rewrite, so `/users/1` is a 404 rather
-than `/index.php` with `PATH_INFO=/users/1`. That is the caller's decision to
-make, the same way declining a `.css` file is — a framework that wants every
-request to reach one script asks for it directly:
+A path that continues past a script is split the way CGI splits it, so
+`/index.php/users/1` runs `index.php` with `PATH_INFO=/users/1` — the
+no-rewrite front controller, which is the one routing shape a project can rely
+on with nothing configured anywhere. `SCRIPT_NAME` is the script, `PHP_SELF`
+carries the path info too, and `PATH_TRANSLATED` is the path info resolved
+against the docroot. The deepest script that exists wins, and a prefix that is
+a file but not a script is a 404 rather than a decline.
+
+There is still no front-controller *rewrite*: `/users/1`, with no script in it
+anywhere, is a 404 and not `/index.php`. That is the caller's decision to make,
+the same way declining a `.css` file is — a framework that wants every request
+to reach one script asks for it directly:
 
 ```js
 let res = php.phasmHandleRequest({ url, docroot: "/site" });
