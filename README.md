@@ -125,6 +125,30 @@ exit status: there is no PHP error left to raise, so the call **throws** rather
 than returning. Catch it if the call site cares — the instance itself survives,
 because the abandoned request is finished before the error reaches you.
 
+**A script that will not stop can be stopped from outside.** Pass an
+`interrupted` callback and PHP polls it while the script runs; answering `true`
+ends the call with a fatal and an exit status of **130**, the status a shell
+reports for a ^C:
+
+```js
+const started = Date.now();
+const r = php.run({
+  code: "while (true) {}",
+  interrupted: () => Date.now() - started > 5000,
+});
+r.exitCode; // 130 — and the instance, its filesystem and its opcache are intact
+```
+
+Nothing else can be running to interrupt a script — one wasm guest owns its
+thread for as long as it runs — so PHP asks for itself, at the safe points its
+VM already checks, about one opcode in a few hundred. Keep the callback cheap.
+What it does not reach is a loop with no PHP opcode in it: catastrophic
+backtracking inside `preg_match`, a huge `str_repeat`, `usleep()`. Those stop
+when the function returns. Passing nothing installs no polling at all, and a
+call with no `interrupted` cannot be stopped — the only honest default for work
+that never opted in. `phasmHandleRequest()` takes the same option, and a
+request stopped that way still answers, with a 500.
+
 Underneath, `phasmRun(args, opts)` returns the status and leaves output wherever
 the module's stdio points — reach for it when you are routing stdio yourself,
 and for anything else `phasmCapture(fn)` collects around a call `run()` does not
@@ -207,6 +231,14 @@ has installed the redirections. What cannot work is anything needing a
 is not one. Both guests must share one filesystem: paths are passed through as
 typed and nothing is copied. The [shared filesystem](#sharing-a-filesystem)
 is one more call.
+
+**^C works, and this is the option that makes it work.** `interrupted` is a
+closure the embedder passes; PHP samples it at the VM safe points it already
+runs, so a runaway `php -r 'while (true);'` comes back in milliseconds with
+`130` in `$?` and the instance, its filesystem and its warm opcache intact.
+Without it the only way out of that command is `terminate()`, which takes all
+three. `test/interrupt.test.mjs` proves it over real shared memory, which is the
+only place it can be proved.
 ## Serving HTTP
 
 `phasmHandleRequest()` runs a real PHP request rather than a command, so

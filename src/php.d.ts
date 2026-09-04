@@ -58,6 +58,18 @@ export interface PhasmCallOptions {
   cwd?: string;
   /** Environment for this call only; cleared before the next one. */
   env?: Record<string, string>;
+  /** Polled while the script runs; answering `true` stops it with a fatal and
+   *  an exit status of **130**, the status a shell reports for a ^C. It is what
+   *  makes a runaway script survivable: nothing else can be running to
+   *  interrupt one, so PHP samples this at the safe points its VM already
+   *  checks. Absent, the sampling is not installed and the call cannot be
+   *  stopped — which is the only honest default for work that never opted in.
+   *
+   *  Pass `ctx.interrupted` straight through from a `wasi-sh` builtin context.
+   *  It is asked once in a few hundred opcodes, so it must be cheap; a loop in
+   *  C with no VM safe point in it (catastrophic backtracking, `usleep`) is not
+   *  reached until it returns. */
+  interrupted?: () => boolean;
 }
 
 /** Which of a call's two output streams a chunk came from. */
@@ -127,6 +139,10 @@ export interface PhasmRequest {
   docroot?: string;
   /** Environment for this request only, as with `phasmRun()`. */
   env?: Record<string, string>;
+  /** Polled while the handler runs, exactly as `run()`'s is. A request stopped
+   *  that way comes back as an ordinary **500** rather than as nothing at all,
+   *  which is the point: the fetch on the other side of it is being held. */
+  interrupted?: () => boolean;
 }
 
 /** What PHP produced for a `PhasmRequest`. */

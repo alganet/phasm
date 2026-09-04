@@ -59,6 +59,15 @@ does not own. It needs the optional ZenFS peers, so run `npm ci` first; without
 them that suite skips with a diagnostic and the rest of the suite still runs, on
 a checkout with no `node_modules` at all.
 
+`test/interrupt.test.mjs` is the only suite that runs a **real shell**: busybox
+ash from `wasi-sh`, a dev dependency, on a thread of its own, with `php` wired
+in as a host builtin by hand. It is the one place ^C into a running script can
+be proved, because the answer has to come off a `SharedArrayBuffer` the two
+threads share — while `php -r 'while (true);'` runs, the shell's thread is one
+synchronous `_start()` frame and a `postMessage` into it is not slow, it is
+undelivered. Every case is bounded: a ^C that is not delivered is a hang, and a
+test that hangs reports nothing at all.
+
 The whole suite shares ONE module instance (`test/helper.mjs`), which is itself
 the regression test: through the stock CLI's `main()` the same suite would latch
 its exit status on the first non-zero one and stop working entirely at call

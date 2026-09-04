@@ -490,6 +490,101 @@ describe('phasmCapture()', opts, () => {
 
 });
 
+// ─── the cooperative interrupt ───────────────────────────────────────────────
+
+// `interrupted` is the option that makes a running script stoppable, and the
+// reason it is an option rather than a module-wide setting is that it has to
+// answer "was THIS call interrupted": a ^C typed at an idle prompt must not
+// cancel whatever is typed next. interrupt.test.mjs drives the same thing
+// through a real shell; these are about the module's own API.
+
+describe('run() interrupted', opts, () => {
+  test('stops a script that would never stop on its own', async () => {
+    const php = await sharedModule();
+    let polls = 0;
+    const t0 = Date.now();
+
+    const r = php.run({
+      code: 'while (true) { $n = ($n ?? 0) + 1; }',
+      interrupted: () => ++polls > 20,
+    });
+
+    assert.equal(r.exitCode, 130, '128 + SIGINT, the status a shell reports for a ^C');
+    assert.match(r.stderr, /Fatal error: Interrupted/,
+      'and it SAYS so — a script that vanished silently could not be told from a crash');
+    assert.ok(Date.now() - t0 < 5000, 'delivered at a safe point, not at some deadline');
+  });
+
+  test('the instance is intact afterwards — this is not terminate()', async () => {
+    const php = await sharedModule();
+    php.run({ code: 'while (true) {}', interrupted: () => true });
+
+    const after = php.run({ code: 'echo 6 * 7;' });
+    assert.equal(after.stdout, '42');
+    assert.equal(after.exitCode, 0);
+    assert.equal(after.stderr, '', 'and the abandoned request left nothing behind');
+  });
+
+  test('a poll that never says yes changes nothing', async () => {
+    const php = await sharedModule();
+    let polls = 0;
+
+    // A loop, because the sampling is one check in a few hundred: a script
+    // short enough never to reach a sample is a script that already ended, and
+    // asserting on `polls` needs one long enough to be asked.
+    const r = php.run({
+      code: 'for ($i = 0; $i < 100000; $i++) {} echo "done";',
+      interrupted: () => { polls++; return false; },
+    });
+
+    assert.equal(r.stdout, 'done');
+    assert.equal(r.exitCode, 0);
+    assert.ok(polls > 0, 'it was asked; the VM samples at its own safe points');
+  });
+
+  test('it is scoped to the call that asked for it', async () => {
+    const php = await sharedModule();
+    php.run({ code: 'echo "first";', interrupted: () => false });
+
+    // No `interrupted` at all: the poll is not installed, so the previous
+    // call's cannot be sampled by this one.
+    const r = php.run({ code: 'while (true) { break; } echo "second";' });
+    assert.equal(r.stdout, 'second');
+    assert.equal(r.exitCode, 0);
+  });
+
+  test('a poll that throws is dropped rather than unwound out of the VM', async () => {
+    const php = await sharedModule();
+    let calls = 0;
+
+    // It is sampled from an arbitrary VM safe point, so letting it throw would
+    // put a JS exception through the middle of any opcode at all. The call
+    // finishes uninterruptible instead, which is what an embedder that passed
+    // nothing already gets.
+    const r = php.run({
+      code: 'for ($i = 0; $i < 200000; $i++) {} echo "finished";',
+      interrupted: () => { calls++; throw new Error('poll blew up'); },
+    });
+
+    assert.equal(r.stdout, 'finished');
+    assert.equal(r.exitCode, 0);
+    assert.equal(calls, 1, 'asked once, then dropped for the rest of the call');
+  });
+
+  test('a script stopped mid-output keeps what it had already written', async () => {
+    const php = await sharedModule();
+    let polls = 0;
+
+    const r = php.run({
+      code: 'echo "before"; while (true) {}',
+      interrupted: () => ++polls > 20,
+    });
+
+    assert.match(r.stdout, /^before/, 'the request was shut down, not abandoned');
+    assert.equal(r.exitCode, 130);
+  });
+});
+
 // ─── holding on to output ────────────────────────────────────────────────────
 
 describe('large output', opts, () => {
