@@ -111,6 +111,34 @@ Module['phasmStackPointer'] = function () {
   return stackSave();
 };
 
+/**
+ * Name/value pairs out of whatever the caller had.
+ *
+ * `Object.entries()` alone is not enough, and the shape it misses is the one
+ * the docs invite: a `Headers` has no own enumerable keys, so
+ * `Object.entries(request.headers)` is `[]` — a POST arriving with no
+ * Content-Type and no Cookie, which PHP reports as an empty `$_POST` and a
+ * brand-new session rather than as an error. Anything iterable of pairs works
+ * now (`Headers`, `Map`, an array of pairs); a plain object still does.
+ *
+ * A string is iterable too and is never what was meant, so it is refused
+ * rather than spread into single characters.
+ */
+function phasmPairs(value, what) {
+  if (value === null || value === undefined) return [];
+  if (typeof value === 'string') {
+    throw new TypeError(`phasmHandleRequest: ${what} must be an object, a Headers, a Map or an array of pairs, not a string`);
+  }
+  const entries = typeof value[Symbol.iterator] === 'function' ? [...value] : Object.entries(value);
+  return entries.map((pair) => {
+    if (!pair || typeof pair[Symbol.iterator] !== 'function') {
+      throw new TypeError(`phasmHandleRequest: ${what} must yield [name, value] pairs`);
+    }
+    const [k, v] = pair;
+    return [String(k), String(v)];
+  });
+}
+
 /** Checked before anything is allocated, so a rejected call leaks nothing. */
 function phasmRejectNuls(list, what) {
   for (const s of list) {
@@ -296,8 +324,8 @@ Module['phasmHandleRequest'] = function (req) {
   const method = String(req.method || 'GET');
   const url = String(req.url);
   const docroot = String(req.docroot || '/');
-  const headers = Object.entries(req.headers || {}).map(([k, v]) => `${k}: ${v}`);
-  const env = Object.entries(req.env || {}).map(([k, v]) => `${k}=${v}`);
+  const headers = phasmPairs(req.headers, 'headers').map(([k, v]) => `${k}: ${v}`);
+  const env = phasmPairs(req.env, 'env').map(([k, v]) => `${k}=${v}`);
 
   phasmRejectNuls([method, url, docroot], 'the request');
   phasmRejectNuls(headers, 'a header');

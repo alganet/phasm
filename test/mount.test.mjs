@@ -396,3 +396,19 @@ describe('mountStore', opts, () => {
     await assert.rejects(() => mountStore(null, store, { path: '/app' }), TypeError);
   });
 });
+
+test('a failed unmount leaves the mount retryable', opts, async () => {
+  // `live = false` used to come first, so an FS.unmount() that threw left the
+  // ZenFS mountpoint claimed for the life of the page and refused the retry
+  // that would have released it — "already unmounted" for a mount still there.
+  const php = await freshModule();
+  const mounted = await mountStore(php, contractStore({ '/f.txt': 'x' }), { path: '/m' });
+
+  const real = php.FS.unmount;
+  php.FS.unmount = () => { throw new Error('busy'); };
+  assert.throws(() => mounted.unmount(), /busy/);
+  php.FS.unmount = real;
+
+  mounted.unmount();
+  assert.throws(() => mounted.unmount(), /already unmounted/);
+});
