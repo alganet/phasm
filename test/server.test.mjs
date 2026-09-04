@@ -901,17 +901,28 @@ describe('headers as the web platform hands them over', opts, () => {
   });
 
   // Repeats are why HTTP headers are pairs and not a map, and the pair form is
-  // the only one that can carry them — as far as the SAPI, which then keeps
-  // the last and drops the rest. RFC 6265 says a repeated Cookie is joined
-  // with '; ', and the same shape reaches $_SERVER['HTTP_*'] for every other
-  // repeatable header. A todo rather than a skip, so it re-checks itself.
-  test('a repeated header arrives repeated', { todo: 'the SAPI keeps the last of a repeated header instead of joining them' }, async () => {
+  // the only one that can carry them. Keeping the last dropped every cookie
+  // but one, which is a session that will not stay logged in — and Cookie is
+  // the header that really does arrive split, since HTTP/2 may send each one
+  // as its own field line. RFC 6265 says to rejoin with '; '.
+  test('a repeated Cookie is one cookie jar, not the last line', async () => {
     const r = await serve({
       url: '/h.php',
       headers: [['cookie', 'a=1'], ['cookie', 'b=2']],
       files: { '/h.php': '<?php echo implode(",", array_keys($_COOKIE));' },
     });
     assert.equal(r.text, 'a,b', r.stderr);
+  });
+
+  // Everything else joins with ', ', which is HTTP's general rule and what
+  // $_SERVER's HTTP_* entries hold under every other SAPI.
+  test('any other repeated header is joined, not resolved', async () => {
+    const r = await serve({
+      url: '/h.php',
+      headers: [['x-note', 'one'], ['x-other', 'kept'], ['x-note', 'two']],
+      files: { '/h.php': '<?php echo $_SERVER["HTTP_X_NOTE"], "|", $_SERVER["HTTP_X_OTHER"];' },
+    });
+    assert.equal(r.text, 'one, two|kept', r.stderr);
   });
 
   test('a plain object is still a plain object', async () => {

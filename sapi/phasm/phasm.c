@@ -992,6 +992,122 @@ static char *phasm_read_cookies(void)
 
 /* {{{ $_SERVER */
 
+/* The packed headers are NUL-terminated entries back to back. */
+#define PHASM_NEXT_HEADER(entry) ((entry) + strlen(entry) + 1)
+
+/* Whether a packed entry's field name is `name`, case-insensitively. */
+static int phasm_header_named(const char *entry, const char *name, size_t name_len)
+{
+	const char *sep = strchr(entry, ':');
+
+	return sep != NULL && (size_t) (sep - entry) == name_len
+		&& strncasecmp(entry, name, name_len) == 0;
+}
+
+/* A packed entry's value: after the colon, leading blanks skipped. */
+static const char *phasm_header_value(const char *entry)
+{
+	const char *value = strchr(entry, ':');
+
+	if (value == NULL) {
+		return NULL;
+	}
+	value++;
+	while (*value == ' ' || *value == '\t') {
+		value++;
+	}
+	return value;
+}
+
+/* Whether the entry at `index` is the first one carrying that field name. */
+static int phasm_header_is_first(const char *packed, int count, int index,
+	const char *name, size_t name_len)
+{
+	const char *entry = packed;
+
+	for (int i = 0; i < index && entry != NULL; i++, entry = PHASM_NEXT_HEADER(entry)) {
+		if (phasm_header_named(entry, name, name_len)) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+/*
+ * Every value sent for one field name, joined with `sep`.
+ *
+ * A repeated header is not a mistake to resolve by keeping one of them. HTTP
+ * says a field sent more than once means the values joined, and a client
+ * really does send more than one: `Cookie` above all, which HTTP/2 is
+ * explicitly allowed to split at each `; ` and which RFC 6265 says to rejoin
+ * exactly that way. Keeping the last of them silently dropped every cookie but
+ * one, which surfaces as a session that will not stay logged in.
+ *
+ * `, ` for everything else, which is the general rule and what $_SERVER's
+ * HTTP_* entries get from every other SAPI.
+ *
+ * Returns a string the caller frees, or NULL if the name is absent or there is
+ * no room for it.
+ */
+static char *phasm_header_join(const char *packed, int count,
+	const char *name, size_t name_len, const char *sep)
+{
+	size_t sep_len = strlen(sep);
+	size_t total = 0;
+	int found = 0;
+	const char *entry;
+	char *out;
+	char *p;
+
+	entry = packed;
+	for (int i = 0; i < count && entry != NULL; i++, entry = PHASM_NEXT_HEADER(entry)) {
+		if (!phasm_header_named(entry, name, name_len)) {
+			continue;
+		}
+		if (found++ > 0) {
+			total += sep_len;
+		}
+		total += strlen(phasm_header_value(entry));
+	}
+	if (found == 0) {
+		return NULL;
+	}
+
+	out = malloc(total + 1);
+	if (out == NULL) {
+		return NULL;
+	}
+
+	p = out;
+	found = 0;
+	entry = packed;
+	for (int i = 0; i < count && entry != NULL; i++, entry = PHASM_NEXT_HEADER(entry)) {
+		const char *value;
+		size_t len;
+
+		if (!phasm_header_named(entry, name, name_len)) {
+			continue;
+		}
+		if (found++ > 0) {
+			memcpy(p, sep, sep_len);
+			p += sep_len;
+		}
+		value = phasm_header_value(entry);
+		len = strlen(value);
+		memcpy(p, value, len);
+		p += len;
+	}
+	*p = '\0';
+	return out;
+}
+
+/* The separator a repeat of this field name is joined with. */
+static const char *phasm_header_separator(const char *name, size_t name_len)
+{
+	return (name_len == sizeof("cookie") - 1 && strncasecmp(name, "cookie", name_len) == 0)
+		? "; " : ", ";
+}
+
 /* "Content-Type" -> "CONTENT_TYPE"; anything else -> "HTTP_X_FORWARDED_FOR". */
 static char *phasm_header_var_name(const char *name, size_t name_len)
 {
@@ -1089,23 +1205,38 @@ static void phasm_register_variables(zval *track_vars_array)
 	php_register_variable("REQUEST_SCHEME", "http", track_vars_array);
 	php_register_variable("REMOTE_ADDR", "127.0.0.1", track_vars_array);
 
+	/*
+	 * One $_SERVER entry per field NAME, not per line sent — a repeat is
+	 * joined, not resolved by keeping one of them. See phasm_header_join().
+	 * The first line carrying a name is the one that registers it, and the
+	 * rest are skipped because they were folded into that one.
+	 */
 	entry = r->packed_headers;
-	for (int i = 0; i < r->header_count && entry != NULL; i++) {
+	for (int i = 0; i < r->header_count && entry != NULL; i++, entry = PHASM_NEXT_HEADER(entry)) {
 		const char *sep = strchr(entry, ':');
-		if (sep != NULL && sep != entry) {
-			const char *value = sep + 1;
-			char *var;
+		size_t name_len;
+		char *var;
+		char *value;
 
-			while (*value == ' ' || *value == '\t') {
-				value++;
-			}
-			var = phasm_header_var_name(entry, (size_t) (sep - entry));
-			if (var != NULL) {
-				php_register_variable(var, value, track_vars_array);
-				free(var);
-			}
+		if (sep == NULL || sep == entry) {
+			continue;
 		}
-		entry += strlen(entry) + 1;
+		name_len = (size_t) (sep - entry);
+		if (!phasm_header_is_first(r->packed_headers, r->header_count, i, entry, name_len)) {
+			continue;
+		}
+
+		var = phasm_header_var_name(entry, name_len);
+		if (var == NULL) {
+			continue;
+		}
+		value = phasm_header_join(r->packed_headers, r->header_count, entry, name_len,
+			phasm_header_separator(entry, name_len));
+		if (value != NULL) {
+			php_register_variable(var, value, track_vars_array);
+			free(value);
+		}
+		free(var);
 	}
 }
 
@@ -1566,22 +1697,31 @@ int phasm_handle_request(const char *method, const char *uri,
 	r.body_len = body_len > 0 ? (size_t) body_len : 0;
 	r.status = 200;
 
-	/* Cookie and Content-Type are the two headers PHP wants handed to it
-	 * directly rather than found in $_SERVER. */
+	/*
+	 * Cookie and Content-Type are the two headers PHP wants handed to it
+	 * directly rather than found in $_SERVER.
+	 *
+	 * Cookie is joined rather than read off one line, because it is the header
+	 * that really does arrive split: HTTP/2 is explicitly allowed to send each
+	 * cookie as its own field line, and taking one of them means $_COOKIE holds
+	 * one cookie out of however many the browser sent. It is owned, so
+	 * phasm_read_cookies() can still hand PHP a plain pointer and the epilogue
+	 * frees it after cookie_data has been cleared.
+	 */
+	r.cookies = phasm_header_join(packed_headers, header_count, "cookie", sizeof("cookie") - 1, "; ");
+	if (r.cookies != NULL && phasm_call_own(r.cookies) == NULL) {
+		r.cookies = NULL;   /* phasm_call_own() freed what it could not keep */
+		return phasm_request_done(500);
+	}
+
 	{
 		const char *entry = packed_headers;
-		for (int i = 0; i < header_count && entry != NULL; i++) {
+		for (int i = 0; i < header_count && entry != NULL; i++, entry = PHASM_NEXT_HEADER(entry)) {
 			const char *sep = strchr(entry, ':');
 			if (sep != NULL) {
 				size_t name_len = (size_t) (sep - entry);
-				const char *value = sep + 1;
-				while (*value == ' ' || *value == '\t') {
-					value++;
-				}
-				if (name_len == sizeof("cookie") - 1
-					&& strncasecmp(entry, "cookie", name_len) == 0) {
-					r.cookies = (char *) value;
-				} else if (name_len == sizeof("content-type") - 1
+				const char *value = phasm_header_value(entry);
+				if (name_len == sizeof("content-type") - 1
 					&& strncasecmp(entry, "content-type", name_len) == 0) {
 					SG(request_info).content_type = value;
 				} else if (name_len == sizeof("host") - 1
@@ -1589,7 +1729,6 @@ int phasm_handle_request(const char *method, const char *uri,
 					r.host = value;
 				}
 			}
-			entry += strlen(entry) + 1;
 		}
 	}
 
