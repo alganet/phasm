@@ -137,6 +137,16 @@ export interface PhasmRequest {
   body?: string | Uint8Array;
   /** Directory the path is resolved against. Defaults to `"/"`. */
   docroot?: string;
+  /** The front controller: a docroot-relative `.php` script that answers any
+   *  path with no file behind it — `try_files $uri /index.php` and Apache's
+   *  `FallbackResource` in one option, and what a framework's pretty URLs
+   *  need. A path that resolves on its own is unaffected; one this answers
+   *  gets nginx's shape, with `REQUEST_URI` as asked, `SCRIPT_NAME` the front
+   *  controller and **no** `PATH_INFO`. A malformed value (not absolute, not
+   *  `.php`, or climbing out of the docroot) is a **500** on every request,
+   *  not only the ones it would have answered; one naming a file that is not
+   *  there leaves the **404** alone, as Apache does. */
+  fallback?: string;
   /** Environment for this request only, as with `phasmRun()`. */
   env?: Record<string, string>;
   /** Polled while the handler runs, exactly as `run()`'s is. A request stopped
