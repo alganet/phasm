@@ -164,6 +164,36 @@ describe('run() environment', opts, () => {
     assert.equal(php.run({ code: 'echo getenv("APP_ENV");', env: { APP_ENV: 'dev' } }).stdout, 'dev');
     assert.equal(php.run({ code: 'var_export(getenv("APP_ENV"));' }).stdout, 'false');
   });
+
+  test('a relative file is written where cwd says the call will run', async () => {
+    // The chdir() to cwd happens inside the call, so a relative key used to
+    // land in whatever directory the module was left in — and then the very
+    // argv that named it could not open it. The two halves of one call have to
+    // agree about what a relative path means.
+    const php = await sharedModule();
+    const r = php.run({
+      cwd: '/rel-app',
+      files: { 'index.php': '<?php echo "here: ", getcwd();' },
+      args: ['index.php'],
+    });
+
+    assert.equal(r.exitCode, 0);
+    assert.equal(r.stdout, 'here: /rel-app');
+    assert.equal(php.run({ code: 'var_export(file_exists("/index.php"));' }).stdout, 'false');
+  });
+
+  test('an absolute file ignores cwd, and a relative one without cwd is unchanged', async () => {
+    const php = await sharedModule();
+    php.run({
+      cwd: '/rel-app',
+      files: { '/elsewhere/abs.php': '<?php echo "abs";' },
+      code: 'echo "ran";',
+    });
+    assert.equal(php.run({ args: ['/elsewhere/abs.php'] }).stdout, 'abs');
+
+    php.run({ files: { 'bare.php': '<?php echo "bare";' }, code: 'echo "ran";' });
+    assert.equal(php.run({ args: ['/bare.php'] }).stdout, 'bare');
+  });
 });
 
 // ─── stdin ───────────────────────────────────────────────────────────────────
@@ -203,6 +233,43 @@ describe('run() stdin', opts, () => {
     const r = php.run({ code: READ_ALL, stdin: () => chunks.shift() || new Uint8Array(0) });
 
     assert.equal(r.stdout, 'ONE TWO');
+  });
+
+  test('takes an ArrayBuffer, rather than parking on it for ever', async () => {
+    // An ArrayBuffer has no `.length`, so the refill loop was skipped however
+    // many bytes were in it and the read answered `undefined` — which is
+    // EAGAIN on a blocking descriptor, not EOF. PHP waited on a stdin nothing
+    // was ever going to fill.
+    const php = await sharedModule();
+    const bytes = new TextEncoder().encode('buffered');
+    const r = php.run({
+      code: READ_ALL,
+      stdin: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    });
+
+    assert.equal(r.stdout, 'BUFFERED');
+  });
+
+  test('a pull that answers with a string answers with its bytes', async () => {
+    // The same hole from the other end, and it corrupted rather than hung:
+    // indexing a string hands the device a one-character string, which
+    // String.fromCharCode() turns into a NUL — a body of exactly the right
+    // length made of nothing at all.
+    const php = await sharedModule();
+    const chunks = ['piece one ', 'piece two'];
+    const r = php.run({ code: READ_ALL, stdin: () => chunks.shift() || '' });
+
+    assert.equal(r.stdout, 'PIECE ONE PIECE TWO');
+  });
+
+  test('stdin that is not bytes at all says so, and names what it got', async () => {
+    const php = await sharedModule();
+    assert.throws(() => php.run({ code: READ_ALL, stdin: 42 }), /stdin must be/);
+    // From a pull it is raised after the call, because the throw itself
+    // happens inside a wasm frame where the reason would be lost.
+    assert.throws(() => php.run({ code: READ_ALL, stdin: () => ({ nope: true }) }), /stdin must be/);
+    // And the instance is still usable afterwards.
+    assert.equal(php.run({ code: 'echo "still here";' }).stdout, 'still here');
   });
 
   test('a function is never called for a command that does not read', async () => {
@@ -296,6 +363,21 @@ describe('run() onOutput', opts, () => {
 
     assert.throws(() => php.run({ code: 'echo "x\\n";', onOutput: () => { throw new Error('no'); } }));
     assert.deepEqual(php.run({ code: 'echo 42;' }), { stdout: '42', stderr: '', exitCode: 0 });
+  });
+
+  test('a leading BOM is content, and every path agrees it is', async () => {
+    // A TextDecoder eats a leading U+FEFF by default, so run()'s strings used
+    // to be a character shorter than the bytes onOutput was handed and shorter
+    // than a response body — three paths disagreeing about identical output.
+    const php = await sharedModule();
+    const seen = [];
+    const r = php.run({
+      code: 'echo "\\xEF\\xBB\\xBFdata";',
+      onOutput: (bytes) => seen.push(bytes),
+    });
+
+    assert.equal(r.stdout, '\uFEFFdata');
+    assert.deepEqual([...seen[0]], [0xEF, 0xBB, 0xBF, 0x64, 0x61, 0x74, 0x61]);
   });
 
   test('collect: false skips the buffering and still streams', async () => {

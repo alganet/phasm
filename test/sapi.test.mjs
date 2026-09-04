@@ -197,6 +197,22 @@ describe('phasmStartup', opts, () => {
     assert.equal(mod.phasmStartup(), 0, 'a no-op start should still succeed');
     assert.equal(mod.phasmStartup('precision=3'), -1);
   });
+
+  test('refuses a NUL in the ini rather than starting on half of it', async () => {
+    // The one entry point that skipped the check the other two run. The
+    // packing is NUL-terminated, so a NUL is not an error further down: it is
+    // an early terminator, and everything after it is silently dropped while
+    // the call reports success — an instance running on some of the settings
+    // it was given, with nothing to say which.
+    const mod = await freshModule();
+    assert.throws(
+      () => mod.phasmStartup('precision=3\0memory_limit=64M'),
+      /may not contain a NUL byte/,
+    );
+    // Refused before anything started, so the instance is still configurable.
+    assert.equal(mod.phasmStartup('precision=3'), 0);
+    assert.equal(mod.run({ code: 'echo ini_get("precision");' }).stdout, '3');
+  });
 });
 
 // ─── defect 1: the latched exit status ───────────────────────────────────────
