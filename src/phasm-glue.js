@@ -155,6 +155,33 @@ function phasmRejectNuls(list, what, where) {
 }
 
 /**
+ * Run `fn` with the caller's interrupt poll installed.
+ *
+ * The poll is what makes a running script stoppable at all: PHP samples it at
+ * the VM safe points it already checks EG(vm_interrupt) at, because under
+ * single-threaded wasm nothing else can be running to raise that flag (the long
+ * version is in sapi/phasm/phasm.c). Absent, the sampling is not installed and
+ * the VM pays one predictable branch on a null global.
+ *
+ * It must answer the question "was THIS call interrupted", so it is installed
+ * per call rather than per module: wasi-sh's `ctx.interrupted()` closes over the
+ * interrupt count the command started at, which is what keeps a ^C typed at an
+ * idle prompt from cancelling whatever is typed next.
+ *
+ * The previous one is put back rather than cleared, because a run() reached
+ * from inside another call's output sink is a shape nothing forbids.
+ */
+function phasmWithInterrupt(interrupted, fn) {
+  const previous = Module['phasmInterruptPoll'];
+  Module['phasmInterruptPoll'] = typeof interrupted === 'function' ? interrupted : null;
+  try {
+    return fn();
+  } finally {
+    Module['phasmInterruptPoll'] = previous;
+  }
+}
+
+/**
  * Run PHP once on this instance. `args` is argv without argv[0].
  *
  * Unlike callMain(), this can be called any number of times: it never exits the
@@ -162,8 +189,13 @@ function phasmRejectNuls(list, what, where) {
  * only. The two entry points are mutually exclusive — a module that has run
  * callMain() cannot use phasmRun() and vice versa.
  *
+ * `interrupted` is polled while the script runs; answering true stops it with a
+ * fatal and an exit status of 130, the status a shell reports for SIGINT. Pass
+ * `ctx.interrupted` straight through from a wasi-sh builtin context.
+ *
  * @param {string[]} args
- * @param {{cwd?: string, env?: Record<string, string>}} [opts]
+ * @param {{cwd?: string, env?: Record<string, string>,
+ *          interrupted?: () => boolean}} [opts]
  * @returns {number} the exit status
  */
 Module['phasmRun'] = function (args, opts) {
@@ -189,7 +221,8 @@ Module['phasmRun'] = function (args, opts) {
     envPtr = phasmPackStrings(env);
     cwdPtr = opts.cwd ? stringToNewUTF8(opts.cwd) : 0;
 
-    return phasmEnter(() => _phasm_run(argvPtr, argv.length, cwdPtr, envPtr, env.length));
+    return phasmWithInterrupt(opts.interrupted,
+      () => phasmEnter(() => _phasm_run(argvPtr, argv.length, cwdPtr, envPtr, env.length)));
   } finally {
     if (argvPtr) _free(argvPtr);
     if (envPtr) _free(envPtr);
@@ -253,6 +286,7 @@ function phasmAt(path, cwd) {
  *          files?: Record<string, string|Uint8Array>,
  *          stdin?: string|Uint8Array|((max: number) => Uint8Array|null),
  *          cwd?: string, env?: Record<string, string>,
+ *          interrupted?: () => boolean,
  *          onOutput?: (bytes: Uint8Array, channel: 'stdout'|'stderr') => void,
  *          collect?: boolean}} [options]
  * @returns {{stdout: string, stderr: string, exitCode: number}}
@@ -280,7 +314,11 @@ Module['run'] = function (options) {
   }
 
   const captured = Module['phasmCapture'](
-    () => Module['phasmRun'](args, { cwd: options.cwd, env: options.env }),
+    () => Module['phasmRun'](args, {
+      cwd: options.cwd,
+      env: options.env,
+      interrupted: options.interrupted,
+    }),
     options,
   );
 
@@ -339,8 +377,14 @@ Module['phasmCapture'] = function (fn, opts) {
  *
  * Response headers come back as [name, value] pairs, repeats included.
  *
+ * `interrupted` is polled while the handler runs, exactly as run()'s is. A
+ * request stopped that way is a fatal, so it comes back as an ordinary 500
+ * rather than as nothing at all — which is the point, since the fetch on the
+ * other side of it is being held open.
+ *
  * @param {{method?: string, url: string, headers?: Record<string, string>,
- *          body?: Uint8Array, docroot?: string, env?: Record<string, string>}} req
+ *          body?: Uint8Array, docroot?: string, env?: Record<string, string>,
+ *          interrupted?: () => boolean}} req
  * @returns {{status: number, headers: [string, string][], body: Uint8Array}}
  */
 Module['phasmHandleRequest'] = function (req) {
@@ -407,10 +451,10 @@ Module['phasmHandleRequest'] = function (req) {
       HEAPU8.set(bodyBytes, bodyPtr);
     }
 
-    status = phasmEnter(() => _phasm_handle_request(
+    status = phasmWithInterrupt(req.interrupted, () => phasmEnter(() => _phasm_handle_request(
       methodPtr, urlPtr, headersPtr, headers.length,
       bodyPtr, bodyBytes.length, docrootPtr, envPtr, env.length,
-    ));
+    )));
   } finally {
     if (methodPtr) _free(methodPtr);
     if (urlPtr) _free(urlPtr);

@@ -194,6 +194,224 @@ static void phasm_call_free_owned(void)
 }
 /* }}} */
 
+/* {{{ the cooperative interrupt */
+
+/*
+ * ^C, for a script that is already running.
+ *
+ * The transport belongs to whoever embeds this — wasi-sh raises a count in the
+ * stdin ring and hands a host builtin `ctx.interrupted()` — and everything from
+ * the ring to the JS side of this call is built and shipped. What was missing
+ * was a runtime that reads it, and the reason it was missing is worth stating
+ * once here because it is not the reason anyone expects.
+ *
+ * PHP has the hook. `zend_interrupt_function` is exactly a check-a-flag-and-bail
+ * callback, ZEND_VM_INTERRUPT_CHECK runs at loop back-edges and function entry,
+ * and both are compiled into this build already. What PHP does NOT have here is
+ * anything to SET the flag: every setter upstream — zend_timeout off SIGPROF,
+ * the Win32 timer callback, pcntl's signal handler — runs concurrently with the
+ * VM, and single-threaded wasm has nothing that does. A `while (true);` owns the
+ * thread; no timer fires, no message is delivered, and installing a callback
+ * changes nothing because the callback is never reached.
+ *
+ * So the VM asks. Zend/zend_execute.c gains one sampled call
+ * (0006-emscripten-vm-interrupt-poll.patch), this file points it at
+ * phasm_vm_poll(), and from the store into EG(vm_interrupt) onwards the path is
+ * upstream's own, zend_interrupt_function included. The alternative route — a
+ * -pthread build whose memory is shared, so the page could poke EG(vm_interrupt)
+ * from outside — needs every dependency rebuilt, cross-origin isolation for the
+ * node suite as well as the page, and shared-memory growth; it buys a check
+ * that costs literally nothing, and this one costs almost nothing.
+ *
+ * WHAT IT COSTS. Measured against the same build without the patch, median of
+ * seven, three runs, on the loops the macros actually run in:
+ *
+ *                                  unpatched   armed    every check
+ *   a bare for-loop back-edge         58.7 ms   61.7      81.4
+ *   userland function entry           37.9 ms   38.9      51.5
+ *   internal calls (strlen)           14.9 ms   14.9      20.1
+ *   associative build + foreach       50.1 ms   ~47       ~50
+ *   preg_match_all (no VM loop)        139 ms    138       140
+ *
+ * SAMPLING IS THE WHOLE DESIGN, and the third column is the argument: calling
+ * out at every check costs 39% of a tight loop's throughput, which is a price
+ * this project has refused for far more than an interrupt (-Oz buys 1.1% of
+ * download for 3.2% of throughput and is not used). At one check in 256 the
+ * same loop pays 5%, and the *call* is not what it pays — 256 and 1024 measure
+ * identically, so what is left is the countdown itself, one decrement and one
+ * store per check. 256 is therefore the lower number for free, and a ^C is
+ * answered within a few hundred opcodes rather than a few thousand.
+ *
+ * An embedder that passes no `interrupted` pays neither: the poll is not
+ * installed, the countdown never ticks, and the check is one predictable
+ * branch on a null global — 60.1 ms against 58.7 on the same loop, which is
+ * about a tenth of a nanosecond per check and therefore code layout rather
+ * than work.
+ *
+ * WHAT IT DOES NOT REACH, and none of it is new — upstream's own timeout
+ * reaches the first two only because a signal can land anywhere:
+ *
+ *   - a C-level loop with no VM safe point in it: catastrophic backtracking in
+ *     preg_match, a huge str_repeat, usleep(). The script stops at the next
+ *     opcode, which for these is when the function returns.
+ *   - PHP's request shutdown. The bail is delivered once per call, so a
+ *     register_shutdown_function() that loops for ever is not stopped by a
+ *     second ^C. Upstream has the same hole for the same reason.
+ *   - a call that never armed it, which is every embedder that passes no
+ *     `interrupted` callback. A transport that could stop work which never
+ *     opted in is terminate() under a nicer name.
+ */
+
+#ifdef __EMSCRIPTEN__
+/*
+ * Whether the embedder wants this call interruptible, and whether it wants it
+ * stopped now. Two questions rather than one because the answer to the first is
+ * fixed for a call and the second is asked hundreds of thousands of times.
+ *
+ * A poll that throws is treated as "no", and phasm-glue.js drops it for the
+ * rest of the call: it is called from an arbitrary VM safe point, so letting it
+ * unwind would put a JS exception through the middle of any opcode at all, and
+ * the recovery that exists (phasm_recover) is for a trap that has already
+ * happened rather than one this file arranges.
+ */
+EM_JS(int, phasm_js_wants_interrupt, (void), {
+	return Module['phasmInterruptPoll'] ? 1 : 0;
+})
+
+EM_JS(int, phasm_js_interrupted, (void), {
+	var poll = Module['phasmInterruptPoll'];
+	if (!poll) return 0;
+	try {
+		return poll() ? 1 : 0;
+	} catch (e) {
+		Module['phasmInterruptPoll'] = null;
+		return 0;
+	}
+})
+#else
+static int phasm_js_wants_interrupt(void) { return 0; }
+static int phasm_js_interrupted(void) { return 0; }
+/* The patch declares this only for Emscripten, which is the only target that
+ * needs a poll. A file-static of the same name keeps everything below free of
+ * #ifdefs and inert everywhere else. */
+static void (*zend_vm_poll_function)(void);
+#endif
+
+/* Raised by the poll, lowered by the handler that acts on it — the two are a
+ * pair, and the split is what keeps the bail at a safe point rather than inside
+ * whatever opcode happened to sample. */
+static int phasm_interrupt_pending = 0;
+
+/* Whether this call was stopped by an interrupt, so that phasm_run() can report
+ * 130 for it — the status a shell gives a command killed by SIGINT, and what
+ * the busybox half of the same ^C already puts in `$?`. */
+static int phasm_interrupt_delivered = 0;
+
+/* pcntl installs an interrupt function of its own in MINIT and chains to
+ * whatever it displaced, so ours goes on the front of that chain and calls it.
+ * Overwriting it instead would silently disable pcntl_signal_dispatch(). */
+static void (*phasm_prev_interrupt_function)(zend_execute_data *execute_data);
+
+/*
+ * Sampled by the VM. It sets a flag and returns; it does not stop anything,
+ * because the caller is an interrupt CHECK and the next thing it does is take
+ * the upstream path this store enables.
+ */
+static void phasm_vm_poll(void)
+{
+	/*
+	 * Not once the request is being torn down, and this is the one boundary the
+	 * whole feature turns on. php_request_shutdown() runs shutdown functions
+	 * and destructors — userland code, with VM safe points in it — so a ^C
+	 * arriving in that window is sampled there and raises a fatal in the middle
+	 * of the one shutdown this request gets. What that costs is not a message:
+	 * a REQUEST comes back 200 with a truncated body and no error anywhere,
+	 * because the status was settled by a script that had already finished
+	 * successfully. Silent short output is worse than any ^C that did nothing.
+	 *
+	 * And there is nothing left to cancel by then. The work the user asked to
+	 * stop is over; what is still running is PHP putting the request away, which
+	 * is exactly what an interrupt must not take with it — the argument
+	 * phasm_recover() makes for the trap path, on the ordinary one.
+	 *
+	 * The cost is that a register_shutdown_function() which never returns cannot
+	 * be stopped. Upstream's timeout has the same hole, it needs a script
+	 * written to have it, and the alternative is truncating every ordinary
+	 * teardown that a ^C happens to land in.
+	 *
+	 * EG_FLAGS_IN_SHUTDOWN is php_request_shutdown()'s own flag, raised on entry
+	 * and cleared by the next request's zend_activate(). Disarming rather than
+	 * merely declining, because from here to the end of the call the answer
+	 * cannot change.
+	 */
+	if (EG(flags) & EG_FLAGS_IN_SHUTDOWN) {
+		zend_vm_poll_function = NULL;
+		return;
+	}
+
+	if (!phasm_js_interrupted()) {
+		return;
+	}
+
+	phasm_interrupt_pending = 1;
+	zend_atomic_bool_store_ex(&EG(vm_interrupt), true);
+}
+
+/*
+ * The bail, at a safe point PHP chose.
+ *
+ * zend_error_noreturn() rather than a bare zend_bailout(), because this is
+ * exactly the shape of upstream's own zend_timeout(): a fatal, from the same
+ * call sites, so the request cycle around it is one PHP already runs. It leaves
+ * an error for error_get_last(), it flushes and shuts the request down instead
+ * of abandoning it, and — the part that matters at a terminal — it SAYS
+ * something. A script that vanished silently on ^C cannot be told from one that
+ * crashed the runtime.
+ *
+ * Disarming first makes it once per call. The poll would otherwise still answer
+ * true all the way through request shutdown, and a second fatal raised from
+ * inside the shutdown of the first is the one case phasm_recover() cannot undo.
+ */
+static void phasm_interrupt_function(zend_execute_data *execute_data)
+{
+	/* A bailout with no address to unwind to is exit(-1) — the one outcome
+	 * worse than a ^C that did nothing. Every point the poll is sampled from
+	 * is inside one of this file's zend_first_try blocks, so this cannot be
+	 * false; it is here because the cost of being wrong is the whole instance
+	 * and the cost of the check is a load. */
+	if (phasm_interrupt_pending && EG(bailout) != NULL) {
+		phasm_interrupt_pending = 0;
+		phasm_interrupt_delivered = 1;
+		zend_vm_poll_function = NULL;
+		zend_error_noreturn(E_ERROR, "Interrupted");
+	}
+
+	if (phasm_prev_interrupt_function != NULL) {
+		phasm_prev_interrupt_function(execute_data);
+	}
+}
+
+/*
+ * Per call, from both entry points. The embedder's callback is installed and
+ * removed by the JS side around one call, so asking here is asking about this
+ * call and nothing else — which is also why the count comparison lives out
+ * there: `interrupted` is a closure over the count the command started at, and
+ * a ^C typed while nothing was running must not cancel the next thing.
+ */
+static void phasm_interrupt_arm(void)
+{
+	phasm_interrupt_pending = 0;
+	phasm_interrupt_delivered = 0;
+	zend_vm_poll_function = phasm_js_wants_interrupt() ? phasm_vm_poll : NULL;
+}
+
+static void phasm_interrupt_disarm(void)
+{
+	phasm_interrupt_pending = 0;
+	zend_vm_poll_function = NULL;
+}
+/* }}} */
+
 /* {{{ ini defaults */
 
 /*
@@ -499,6 +717,13 @@ int phasm_startup(const char *ini)
 	zend_call_stack_init();
 #endif
 
+	/* After module startup, so that pcntl's MINIT has already installed its own
+	 * and this one displaces it rather than being displaced by it. It chains,
+	 * so pcntl_signal_dispatch() still runs at every safe point an interrupt
+	 * did not claim. */
+	phasm_prev_interrupt_function = zend_interrupt_function;
+	zend_interrupt_function = phasm_interrupt_function;
+
 	phasm_started = 1;
 	return 0;
 }
@@ -634,6 +859,11 @@ static void phasm_call_epilogue(void)
 	 * cookies — so leaving a stale non-NULL pointer here is one refactor away
 	 * from mattering. */
 	SG(server_context) = NULL;
+
+	/* The poll reads a JS callback the caller is about to drop, and on the trap
+	 * path this is the only place that runs. Leaving it armed would have the
+	 * NEXT call sampling the last one's `interrupted`. */
+	phasm_interrupt_disarm();
 
 	phasm_call_free_owned();
 }
@@ -800,9 +1030,19 @@ int phasm_run(char *packed_argv, int argc, const char *cwd, const char *packed_e
 	 * what "none" is spelled as. */
 	SG(sapi_headers).http_response_code = 0;
 
+	phasm_interrupt_arm();
+
 	zend_first_try {
 		status = do_cli(argc, argv);
 	} zend_end_try();
+
+	/* An interrupt is a fatal, and a fatal is 255 — which is the status of a
+	 * script that failed rather than of one that was stopped. 130 is what a
+	 * shell reports for SIGINT and what the applet half of the same ^C already
+	 * puts in `$?`, so the two halves of one keystroke agree. */
+	if (phasm_interrupt_delivered) {
+		status = 130;
+	}
 
 	phasm_call_epilogue();
 
@@ -1763,6 +2003,11 @@ int phasm_handle_request(const char *method, const char *uri,
 	SG(sapi_headers).http_response_code = 200;
 	EG(exit_status) = 0;
 
+	/* A request handler that hangs is what the interrupt exists for as much as
+	 * a command that does: the fetch behind it is one the page is holding open.
+	 * The fatal lands as an ordinary 500 below, so the reply still arrives. */
+	phasm_interrupt_arm();
+
 	if (php_request_startup() == FAILURE) {
 		/* Started far enough to need tearing down: RINIT has run for some
 		 * modules, sapi_activate() has allocated the header list, and
@@ -1951,6 +2196,19 @@ int phasm_recover(void)
 	 * inside the shutdown installs its own over it.
 	 */
 	EG(bailout) = NULL;
+
+	/*
+	 * And the interrupt, for a reason of the same shape one layer up. The
+	 * shutdown below runs shutdown functions and destructors, which is userland
+	 * code with VM safe points in it — so a ^C that is still unanswered would be
+	 * sampled there and raise a fatal in the middle of the one shutdown this
+	 * instance gets. What that costs is measurable: a
+	 * register_shutdown_function() prints its first line and never its last.
+	 *
+	 * The trapped call is over either way, so there is nothing left for an
+	 * interrupt to cancel — the epilogue disarms too, and this is only earlier.
+	 */
+	phasm_interrupt_disarm();
 
 	/*
 	 * The server-mode request struct is a local of that same frame. Clearing it

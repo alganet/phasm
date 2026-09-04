@@ -1,0 +1,105 @@
+diff --git a/Zend/zend_execute.c b/Zend/zend_execute.c
+index 6405780f505..d4a6382658b 100644
+--- a/Zend/zend_execute.c
++++ b/Zend/zend_execute.c
+@@ -4296,7 +4296,43 @@ ZEND_API ZEND_COLD void ZEND_FASTCALL zend_fcall_interrupt(zend_execute_data *ca
+ 	}
+ }
+ 
++#ifdef __EMSCRIPTEN__
++/* See Zend/zend_execute.h for why a poll exists at all under Emscripten. */
++ZEND_API void (*zend_vm_poll_function)(void) = NULL;
++ZEND_API unsigned int zend_vm_poll_interval = 256;
++static unsigned int zend_vm_poll_countdown = 0;
++
++/*
++ * One in zend_vm_poll_interval interrupt checks, and the sampling is the whole
++ * design rather than a tuning knob left at a round number. The check itself is
++ * two loads and a branch; the CALL is a cross-module jump into JS, and paying
++ * one of those per VM back-edge is a cost this project has already measured
++ * elsewhere and refused. Sampling makes the delay a ^C waits — a few hundred
++ * opcodes — far smaller than the frame it is going to be drawn in.
++ *
++ * The countdown is deliberately NOT reset when the poll is armed. Arming
++ * happens per call and calls are frequent, so resetting would mean a fresh
++ * full interval before the first sample of every one of them, which is a
++ * `php -r` that ends before it ever looks.
++ */
++static zend_always_inline void zend_vm_poll(void)
++{
++	if (EXPECTED(zend_vm_poll_function == NULL)) {
++		return;
++	}
++	if (EXPECTED(zend_vm_poll_countdown-- != 0)) {
++		return;
++	}
++	zend_vm_poll_countdown = zend_vm_poll_interval;
++	zend_vm_poll_function();
++}
++# define ZEND_VM_POLL() zend_vm_poll()
++#else
++# define ZEND_VM_POLL() do {} while (0)
++#endif
++
+ #define ZEND_VM_INTERRUPT_CHECK() do { \
++		ZEND_VM_POLL(); \
+ 		if (UNEXPECTED(zend_atomic_bool_load_ex(&EG(vm_interrupt)))) { \
+ 			ZEND_VM_INTERRUPT(); \
+ 		} \
+@@ -4309,6 +4345,7 @@ ZEND_API ZEND_COLD void ZEND_FASTCALL zend_fcall_interrupt(zend_execute_data *ca
+ #endif
+ 
+ #define ZEND_VM_LOOP_INTERRUPT_CHECK() do { \
++		ZEND_VM_POLL(); \
+ 		if (UNEXPECTED(zend_atomic_bool_load_ex(&EG(vm_interrupt)))) { \
+ 			ZEND_VM_KIND_TAILCALL_SAVE_OPLINE(); \
+ 			ZEND_VM_LOOP_INTERRUPT(); \
+@@ -4316,6 +4353,7 @@ ZEND_API ZEND_COLD void ZEND_FASTCALL zend_fcall_interrupt(zend_execute_data *ca
+ 	} while (0)
+ 
+ #define ZEND_VM_FCALL_INTERRUPT_CHECK(call) do { \
++		ZEND_VM_POLL(); \
+ 		if (UNEXPECTED(zend_atomic_bool_load_ex(&EG(vm_interrupt)))) { \
+ 			zend_fcall_interrupt(call); \
+ 		} \
+diff --git a/Zend/zend_execute.h b/Zend/zend_execute.h
+index 15df09e58d5..84f72e4f7e6 100644
+--- a/Zend/zend_execute.h
++++ b/Zend/zend_execute.h
+@@ -626,6 +626,36 @@ ZEND_COLD void zend_match_unhandled_error(const zval *value);
+  */
+ ZEND_API ZEND_COLD void ZEND_FASTCALL zend_fcall_interrupt(zend_execute_data *call);
+ 
++#ifdef __EMSCRIPTEN__
++/*
++ * The poll that stands in for a signal, because under Emscripten there is no
++ * signal and no thread to send one from.
++ *
++ * Every setter of EG(vm_interrupt) upstream — zend_timeout off SIGPROF, the
++ * Win32 timer callback, pcntl's handler — needs something running CONCURRENTLY
++ * with the VM. Single-threaded wasm has no such thing: the guest owns the
++ * thread for as long as it runs, so a `while (true);` is a frame nothing else
++ * can get underneath. The check points the macros in zend_execute.c already
++ * execute are therefore live and permanently false, and what is missing is not
++ * a hook but whatever would raise the flag.
++ *
++ * So the VM raises it for itself. When this pointer is non-NULL the interrupt
++ * checks sample it, and whatever it points at is free to store true into
++ * EG(vm_interrupt) — after which the check that called it takes the ordinary
++ * upstream path, zend_interrupt_function and all. Nothing else about the
++ * interrupt changes shape.
++ *
++ * It is SAMPLED rather than called at every check: a call out of wasm is cheap
++ * and a call out of wasm per VM back-edge is not (measurements in
++ * sapi/phasm/phasm.c). NULL — the default, and every non-Emscripten build —
++ * costs one predictable branch on a global.
++ */
++ZEND_API extern void (*zend_vm_poll_function)(void);
++
++/* VM interrupt checks between two calls of zend_vm_poll_function(). */
++ZEND_API extern unsigned int zend_vm_poll_interval;
++#endif
++
+ static zend_always_inline void *zend_get_bad_ptr(void)
+ {
+ 	ZEND_UNREACHABLE();

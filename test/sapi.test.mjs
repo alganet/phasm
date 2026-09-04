@@ -668,6 +668,61 @@ describe('surviving a trap', opts, () => {
     assert.equal(mod.run({ code: 'echo getcwd();' }).stdout, '/');
   });
 
+  // The recovery path runs php_request_shutdown() from a live stack, and a
+  // shutdown function is userland code with VM safe points in it — so an
+  // interrupt still armed from the trapped call would be sampled there and
+  // raise a fatal in the middle of the one shutdown this instance gets. The
+  // symptom is a shutdown function that starts and never finishes, which is
+  // worse than the trap it is recovering from: the trap loses a call, this
+  // loses whatever the script's own teardown was in the middle of.
+  test('a trapped call with a ^C outstanding still finishes its shutdown', async () => {
+    const mod = await freshModule();
+    const dec = new TextDecoder();
+    let seen = '';
+
+    // The ^C is armed by the shutdown's own first line, which puts it exactly
+    // in the window this is about: false while the script runs, so the trap is
+    // what ends the call, and true from the moment the recovery starts running
+    // userland code. Timing it any other way is a race — the trapping call is C
+    // recursion with no safe point in it, so a poll armed earlier fires in the
+    // handful of opcodes before it and interrupts the wrong thing.
+    let armed = false;
+    // onOutput rather than the returned stdout, because a trapped call returns
+    // nothing at all: the recovery's shutdown writes into the capture window
+    // and then phasmEnter() rethrows, so a sink is the only thing still holding
+    // what it produced.
+    assert.throws(
+      () => mod.run({
+        code: 'register_shutdown_function(function () {'
+          + ' fwrite(STDERR, "SHUTDOWN-START\\n");'
+          + ' for ($i = 0; $i < 200000; $i++) {}'
+          + ' fwrite(STDERR, "SHUTDOWN-END\\n"); });'
+          + TRAPPING_SCRIPT,
+        interrupted: () => armed,
+        // The markers end in a newline on purpose: the sink is fed a line at a
+        // time, so an unterminated "SHUTDOWN-START" arrives at the very end
+        // alongside everything else — and this test would then arm the poll
+        // after the window it is about and pass against the defect.
+        onOutput: (bytes) => {
+          const text = dec.decode(bytes);
+          seen += text;
+          if (text.includes('SHUTDOWN-START')) armed = true;
+        },
+        collect: false,
+      }),
+      RangeError,
+    );
+
+    assert.match(seen, /SHUTDOWN-START/, 'the recovery ran the shutdown function');
+    assert.match(seen, /SHUTDOWN-END/,
+      'and it ran to the end — an armed poll would have raised a fatal inside it');
+    assert.doesNotMatch(seen, /Interrupted/);
+
+    const after = mod.run({ code: 'echo "alive";' });
+    assert.equal(after.stdout, 'alive');
+    assert.equal(after.exitCode, 0);
+  });
+
   test('a trapped call does not leave its environment behind', async () => {
     const mod = await freshModule();
 

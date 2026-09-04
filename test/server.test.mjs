@@ -802,6 +802,85 @@ describe('a request that never runs', opts, () => {
   });
 });
 
+// ─── the cooperative interrupt ───────────────────────────────────────────────
+
+describe('a request that will not finish', opts, () => {
+  test('is stopped, and the fetch behind it still gets an answer', async () => {
+    let polls = 0;
+    const res = await serve({
+      url: '/hang.php',
+      files: { '/hang.php': '<?php echo "started"; while (true) {}' },
+      interrupted: () => ++polls > 20,
+      fresh: true,
+    });
+
+    // 500 rather than nothing: a handler that hangs is a fetch the page is
+    // holding open, so the point of stopping it is that a reply arrives.
+    assert.equal(res.status, 500);
+    assert.match(res.stderr, /Fatal error: Interrupted/);
+  });
+
+  // The window on the other side of the script: a ^C that lands while PHP is
+  // running register_shutdown_function() callbacks and destructors. There is
+  // nothing left to cancel there — the work the user asked to stop is over —
+  // and interrupting it truncates the one teardown the request gets. On this
+  // path that is SILENT: the status was settled by a script that finished
+  // successfully, so the answer is a 200 with a short body and no error
+  // anywhere, which is worse than any ^C that did nothing.
+  test('a ^C during the shutdown does not truncate the response', async () => {
+    const mod = await freshModule();
+    const dec = new TextDecoder();
+    // The shutdown function arms the ^C itself, on its first line and through a
+    // NOTICE — which this SAPI sends to stderr, so it reaches the sink below
+    // while the loop after it is still to run, and it is not part of the
+    // response. (STDERR the constant is the CLI's; a request never registers
+    // it, and reaching for it here silently ended the shutdown function.)
+    // Arming from the outside instead fires during compilation and tests the
+    // script, which is the window this is NOT about.
+    mod.FS.writeFile('/late.php', '<?php register_shutdown_function(function () {'
+      + ' trigger_error("TAIL-START", E_USER_NOTICE);'
+      + ' for ($i = 0; $i < 200000; $i++) {}'
+      + ' echo "TAIL-END"; });'
+      + ' echo "BODY";');
+
+    const whole = mod.phasmCapture(() => mod.phasmHandleRequest({ url: '/late.php' }));
+    assert.equal(dec.decode(whole.value.body), 'BODYTAIL-END', 'the control');
+
+    let polls = 0;
+    let pollsWhenArmed = null;
+    const stopped = mod.phasmCapture(() => mod.phasmHandleRequest({
+      url: '/late.php',
+      interrupted: () => { polls++; return pollsWhenArmed !== null; },
+    }), {
+      collect: false,
+      onOutput: (bytes) => {
+        if (pollsWhenArmed === null && dec.decode(bytes).includes('TAIL-START')) {
+          pollsWhenArmed = polls;
+        }
+      },
+    });
+
+    assert.equal(stopped.value.status, 200);
+    assert.equal(dec.decode(stopped.value.body), 'BODYTAIL-END',
+      'a fatal raised inside the shutdown would have left this at "BODY", with a 200 over it');
+    assert.notEqual(pollsWhenArmed, null, 'the shutdown function never ran');
+    assert.equal(polls, pollsWhenArmed,
+      'the poll is dropped when the shutdown starts, rather than asked and ignored');
+  });
+
+  test('the instance serves the next request as if nothing happened', async () => {
+    const mod = await freshModule();
+    mod.FS.writeFile('/hang.php', '<?php while (true) {}');
+    mod.FS.writeFile('/ok.php', '<?php echo "fine";');
+
+    mod.phasmCapture(() => mod.phasmHandleRequest({ url: '/hang.php', interrupted: () => true }));
+
+    const r = mod.phasmHandleRequest({ url: '/ok.php' });
+    assert.equal(r.status, 200);
+    assert.equal(new TextDecoder().decode(r.body), 'fine');
+  });
+});
+
 // ─── the docroot, and what a command leaves in the response ──────────────────
 
 describe('the docroot', opts, () => {
