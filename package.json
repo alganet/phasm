@@ -51,6 +51,6 @@
   "devDependencies": {
     "@zenfs/core": "2.6.3",
     "@zenfs/emscripten": "1.0.7",
-    "wasi-sh": "0.9.0"
+    "wasi-sh": "0.10.0"
   }
 }
