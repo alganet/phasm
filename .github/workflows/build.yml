@@ -122,7 +122,8 @@ jobs:
 
       - name: Verify web bundle
         run: |
-          for f in web/assets/php.js web/assets/php.wasm web/assets/vendor.zip web/assets/main.php; do
+          for f in web/assets/php.js web/assets/php.wasm web/assets/vendor.zip web/assets/main.php \
+                   web/404.html; do
             [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
           done
 

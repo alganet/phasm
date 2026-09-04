@@ -61,7 +61,18 @@ createServer(async (req, res) => {
   try {
     if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
   } catch {
-    res.writeHead(404).end('not found');
+    // GitHub Pages answers an unknown path with 404.html, and a page that
+    // serves itself depends on that: every deep link into the served site is a
+    // path no static host has, and 404.html is the one chance to install the
+    // worker that answers it. Local has to behave the same or the cold-start
+    // path is only ever tested in production.
+    const notFound = join(ROOT, '404.html');
+    try {
+      const body = await readFile(notFound);
+      res.writeHead(404, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' }).end(body);
+    } catch {
+      res.writeHead(404).end('not found');
+    }
     return;
   }
 

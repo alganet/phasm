@@ -323,7 +323,9 @@ npm install @zenfs/core @zenfs/emscripten
 
 ## Live Demo
 
-A live demo is available at [alganet.github.io/phasm](https://alganet.github.io/phasm/).
+[alganet.github.io/phasm](https://alganet.github.io/phasm/) — one file, one Run
+button. The smallest thing that shows PHP running in a page: no build step in
+sight, `php.wasm` fetched and `run()` called.
 
 ## Contributing
 
