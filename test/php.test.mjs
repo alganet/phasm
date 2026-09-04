@@ -54,8 +54,8 @@ describe('interpreter', opts, () => {
 // dependency bump causes, and it is invisible without an assertion.
 const ADVERTISED = [
   'calendar', 'ctype', 'dom', 'fileinfo', 'filter', 'iconv', 'libxml',
-  'mbstring', 'pcntl', 'PDO', 'pdo_sqlite', 'Phar', 'session', 'SimpleXML',
-  'sqlite3', 'tokenizer', 'xml', 'xmlwriter', 'zip', 'zlib',
+  'mbstring', 'openssl', 'pcntl', 'PDO', 'pdo_sqlite', 'Phar', 'session',
+  'SimpleXML', 'sqlite3', 'tokenizer', 'xml', 'xmlwriter', 'zip', 'zlib',
 ];
 
 describe('extensions', opts, () => {

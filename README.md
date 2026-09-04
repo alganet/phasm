@@ -13,14 +13,25 @@ PHP 8.5 compiled to WebAssembly. Run PHP in the browser or in Node.js.
 ## Included Extensions
 
 calendar, ctype, dom, fileinfo, filter, iconv, libxml, mbstring, opcache,
-pcntl, pdo, pdo_sqlite, phar, session, simplexml, sqlite3, tokenizer, xml,
-xmlwriter, zip, zlib.
+openssl, pcntl, pdo, pdo_sqlite, phar, session, simplexml, sqlite3, tokenizer,
+xml, xmlwriter, zip, zlib.
 
 Plus PHP's always-on core: Core, date, hash, json, lexbor, pcre, random,
 Reflection, SPL, standard, uri.
 
 `get_loaded_extensions()` is the authority; `npm test` asserts this list matches
 what the binary actually links, so it cannot drift again.
+
+**`openssl` is the crypto, not the network.** `openssl_encrypt`, the digest and
+HMAC surface, RSA and EC keys, signing, X.509, PKCS#7 and PKCS#12 all work, and
+so does `openssl_random_pseudo_bytes` — seeded from `/dev/urandom`, which is
+`crypto.getRandomValues()` in a browser and `randomBytes()` under Node. The
+`ssl://` and `tls://` transports register and their stream contexts parse, but
+this target has no sockets for them to sit on, so nothing dials out. Use `fetch`
+from the host for that.
+
+Trimmed to what a browser build can reach: no legacy provider (so no RC4), no
+engines or loadable modules, no QUIC, no kernel TLS, no compression, no argon2.
 
 ## Node.js
 
@@ -369,6 +380,12 @@ guidelines.
 `mountStore()` is built on **ZenFS** — [`@zenfs/core`](https://github.com/zen-fs/core)
 and [`@zenfs/emscripten`](https://github.com/zen-fs/emscripten), LGPL-3.0-or-later
 with a web-application exception, used unmodified.
+
+The binary statically links [**OpenSSL**](https://github.com/openssl/openssl)
+(Apache-2.0, unmodified, pinned to a version and a SHA-256 in
+[`scripts/env.sh`](scripts/env.sh)) and carries upstream's own `apps/openssl.cnf`
+verbatim at `/usr/local/ssl/openssl.cnf` inside the module's filesystem —
+`ext/openssl` cannot generate a key without one.
 
 ## License
 

@@ -54,6 +54,21 @@ ONIGURUMA_SHA256="${ONIGURUMA_SHA256:-2a5cfc5ae259e4e97f86b68dfffc152cdaffe94e20
 LIBXML2_VERSION="${LIBXML2_VERSION:-2.15.3}"
 LIBXML2_SHA256="${LIBXML2_SHA256:-78262a6e7ac170d6528ebfe2efccdf220191a5af6a6cd61ea4a9a9a5042c7a07}"
 
+# OpenSSL (ext/openssl, and through it the TLS stream wrappers). 3.5 is the LTS
+# series — supported to April 2030, where 3.6 and 4.0 are short-term releases
+# that stop being fixed inside a year. php-src's own floor is 1.1.1 and PHP 8.5
+# carries separate backends for the 1.x and 3.x APIs
+# (ext/openssl/openssl_backend_v1.c and _v3.c), so 3.x is the supported half.
+#
+# It is by a wide margin the largest dependency here — the source tarball is 53
+# MB where libxml2's is 3 — and the reason it is worth it is that ext-openssl
+# is a hard platform requirement of Laravel: APP_KEY, the encrypter, signed
+# cookies and the session guard all go through it, and Composer refuses to
+# install a package whose requirements are unmet, so nothing runs at all
+# without it.
+OPENSSL_VERSION="${OPENSSL_VERSION:-3.5.7}"
+OPENSSL_SHA256="${OPENSSL_SHA256:-a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8}"
+
 # Pin the Emscripten SDK. `emsdk install latest` moves under you: every CI run
 # and every contributor gets whatever shipped most recently, so a build that
 # worked last month breaks with no commit to blame — and that is not
@@ -140,5 +155,11 @@ PHASM_STACK_SIZE="${PHASM_STACK_SIZE:-8MB}"
 # because a phasm build on the 64 KiB default is one deep C recursion away from
 # overwriting memory with nothing to show for it; PHASM_STACK_SIZE above is the
 # knob for experimenting with it.
-EMCC_ABI_FLAGS="-s INVOKE_RUN=0 -s STACK_SIZE=${PHASM_STACK_SIZE} -s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8','UTF8ToString','HEAPU8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_phasm_is_started','_phasm_recover','_phasm_handle_request','_phasm_response_status','_phasm_response_headers','_phasm_response_body','_phasm_response_body_length','_malloc','_free'] --pre-js ${ROOT_DIR}/src/phasm-stdio.js --post-js ${ROOT_DIR}/src/phasm-glue.js"
+# --embed-file is the last of these and the only one that is not JS: OpenSSL's
+# config file, at the guest path libcrypto was compiled to look in
+# (--openssldir in scripts/deps.sh, where the reason it is mandatory is spelled
+# out). It is upstream's own apps/openssl.cnf, 12.4 KB raw and 4.4 KB of the
+# gzipped download, placed in MEMFS before anything mounts — and mountStore()
+# refuses to mount at "/", so no embedder can shadow it.
+EMCC_ABI_FLAGS="--embed-file ${ROOT_DIR}/build/php-wasm/sysroot/ssl/openssl.cnf@/usr/local/ssl/openssl.cnf -s INVOKE_RUN=0 -s STACK_SIZE=${PHASM_STACK_SIZE} -s EXPORTED_RUNTIME_METHODS=['FS','callMain','stringToNewUTF8','UTF8ToString','HEAPU8'] -s EXPORTED_FUNCTIONS=['_main','_phasm_startup','_phasm_run','_phasm_is_started','_phasm_recover','_phasm_handle_request','_phasm_response_status','_phasm_response_headers','_phasm_response_body','_phasm_response_body_length','_malloc','_free'] --pre-js ${ROOT_DIR}/src/phasm-stdio.js --post-js ${ROOT_DIR}/src/phasm-glue.js"
 EMCC_FLAGS="${EMCC_FLAGS} ${EMCC_ABI_FLAGS}"

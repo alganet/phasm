@@ -58,6 +58,14 @@ if [[ ! -f "${BUILD_DIR}/sysroot/lib/libzip.a" ]]; then
 	exit 1
 fi
 
+# openssl.cnf is named by EMCC_ABI_FLAGS, so a missing one fails at the LINK —
+# after every object has been compiled, in emcc's file packager, naming a path
+# and nothing about which script was meant to put it there.
+if [[ ! -f "${BUILD_DIR}/sysroot/ssl/openssl.cnf" ]]; then
+	echo "openssl.cnf not found in ${BUILD_DIR}/sysroot/ssl. Run ./scripts/deps.sh first."
+	exit 1
+fi
+
 mkdir -p "${BUILD_DIR}" "${DIST_DIR}"
 
 # The phasm SAPI lives in this repo, not in a patch: it is our source, and a
@@ -108,6 +116,17 @@ export SQLITE_LIBS="-L${BUILD_DIR}/sysroot/lib -lsqlite3"
 # headers install; PHP's sources include <libxml/parser.h>, one level below it.
 export LIBXML_CFLAGS="-I${BUILD_DIR}/sysroot/include/libxml2"
 export LIBXML_LIBS="-L${BUILD_DIR}/sysroot/lib -lxml2"
+# OpenSSL, for ext/openssl. PHP_SETUP_OPENSSL is a PKG_CHECK_MODULES call for
+# `openssl >= 1.1.1`, so the same pre-set pair short-circuits it — and here that
+# matters more than it does for zlib or libxml2. The host almost certainly HAS
+# an openssl.pc, so an un-preset probe does not fail; it succeeds, against the
+# host's headers and the host's x86-64 libcrypto.a, and the mismatch only
+# surfaces at the wasm link as undefined symbols with no mention of pkg-config.
+#
+# -lssl before -lcrypto: static archives are resolved left to right and libssl
+# is the one that references libcrypto.
+export OPENSSL_CFLAGS="-I${BUILD_DIR}/sysroot/include"
+export OPENSSL_LIBS="-L${BUILD_DIR}/sysroot/lib -lssl -lcrypto"
 
 # ZEND_CHECK_STACK_LIMIT is PHP's own guard against runaway recursion, and
 # Zend/Zend.m4 decides whether to define it with AC_RUN_IFELSE — it COMPILES a
@@ -140,6 +159,8 @@ echo "SQLITE_CFLAGS=${SQLITE_CFLAGS}"
 echo "SQLITE_LIBS=${SQLITE_LIBS}"
 echo "LIBXML_CFLAGS=${LIBXML_CFLAGS}"
 echo "LIBXML_LIBS=${LIBXML_LIBS}"
+echo "OPENSSL_CFLAGS=${OPENSSL_CFLAGS}"
+echo "OPENSSL_LIBS=${OPENSSL_LIBS}"
 
 emconfigure "${PHP_SRC_DIR}/configure" \
 	--without-pear \
@@ -200,6 +221,18 @@ emconfigure "${PHP_SRC_DIR}/configure" \
 	`# it costs nothing here: the default files handler writes to save_path,` \
 	`# which is an ordinary directory in the store phasm already mounts.` \
 	--enable-session \
+	`# openssl is the extension a real application framework refuses to run` \
+	`# without: Laravel names ext-openssl in its platform requirements, and` \
+	`# APP_KEY, the encrypter, signed cookies and the session guard all go` \
+	`# through it, so Composer stops before any code runs. It also brings` \
+	`# random_bytes' peers — openssl_encrypt/decrypt, the digest and HMAC` \
+	`# surface, RSA and EC key handling, X.509 and PKCS#7/#12.` \
+	`#` \
+	`# What it does NOT bring here is the network. The tls:// and ssl://` \
+	`# stream wrappers are registered and their contexts work, but there are` \
+	`# no sockets under this shim to put them on — see the README. That is a` \
+	`# property of the target, not of this flag.` \
+	--with-openssl \
 	--with-sqlite3 \
 	--with-pdo-sqlite \
 	--enable-static \
