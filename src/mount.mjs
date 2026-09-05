@@ -60,7 +60,8 @@
  * `e.errno === 44`, and ZenFS reports a missing file as 2 — which in
  * Emscripten's table is EACCES, so PHP reports "Permission denied" for a file
  * it was about to create. An upstream bug in `@zenfs/emscripten`; this table
- * goes away when the fix is released there.
+ * goes away when the fix is released there — ../wasi-sh/ZENFS.md finding 3,
+ * recorded rather than filed until the demo that justifies it is public.
  *
  * Everything reaching the translation originates as a Linux errno, because
  * kerium's `Errno` is Linux's numbering and the plugin rethrows `e.errno`
