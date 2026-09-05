@@ -96,6 +96,15 @@ composer install              # Create vendor/ for the demo's vendor.zip
 ./scripts/run-local.sh        # Package artifacts and serve on port 8001
 ```
 
+That install is from a committed lock, so it is deterministic and says "Nothing
+to install" without touching the network once `vendor/` is there.
+
+**It resolves against the host, and the guest checks it.** The platform trap
+below is exactly this: `composer install` ran on a machine whose PHP has
+extensions this build does not, and `test/php.test.mjs` is what turns that into
+a failure with a name — it reads `composer.json`'s `config.platform` and its
+`lib-*` pins and compares them against what the wasm actually reports.
+
 Then open `http://localhost:8001` in your browser.
 
 `run-local.sh` uses `scripts/serve.mjs` rather than `python3 -m http.server`,
