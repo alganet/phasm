@@ -106,9 +106,15 @@ const LINUX_TO_EMSCRIPTEN = {
 let mountSeq = 0;
 
 /**
- * Mount `store` into `php`'s filesystem.
+ * Mount `store` into an Emscripten module's filesystem.
  *
- * @param {object} php a module from `Phasm()`
+ * The first argument is a `Phasm()` module in every use this repo has, and the
+ * type says Emscripten because that is all this reaches for: `.FS`, four
+ * methods of it, and nothing of PHP anywhere. A mount is between a JS store
+ * and an Emscripten filesystem; which language is compiled above it never
+ * comes up.
+ *
+ * @param {object} mod an Emscripten module — `Phasm()` returns one
  * @param {object} store a synchronous store in wasi-sh's `fs` contract shape
  * @param {object} options
  * @param {string} options.path where the store appears in PHP's filesystem;
@@ -120,11 +126,14 @@ let mountSeq = 0;
  *   there yet; set false to make a mount of the wrong tree fail loudly
  * @returns {Promise<{path: string, root: string, unmount: () => void}>}
  */
-export async function mountStore(php, store, options = {}) {
+export async function mountStore(mod, store, options = {}) {
   const { path, root = path, create = true } = options;
 
-  if (!php || typeof php.FS !== 'object') {
-    throw new TypeError('mountStore: first argument must be a phasm module');
+  // The check has always been the honest one — `.FS` is Emscripten's, not
+  // PHP's — and only the message claimed otherwise. Nothing in this module
+  // reaches past it, so a store mounts into any Emscripten module the same way.
+  if (!mod || typeof mod.FS !== 'object') {
+    throw new TypeError('mountStore: first argument must be an Emscripten module (it needs an .FS)');
   }
   if (!store || typeof store.statSync !== 'function') {
     throw new TypeError(
@@ -164,9 +173,9 @@ export async function mountStore(php, store, options = {}) {
     const zenRoot = join(at, root);
     if (create) core.fs.mkdirSync(zenRoot, { recursive: true });
 
-    const plugin = translateErrno(new EmscriptenPlugin(core.fs, php.FS), php.FS);
-    php.FS.mkdirTree(path);
-    php.FS.mount(plugin, { root: zenRoot }, path);
+    const plugin = translateErrno(new EmscriptenPlugin(core.fs, mod.FS), mod.FS);
+    mod.FS.mkdirTree(path);
+    mod.FS.mount(plugin, { root: zenRoot }, path);
 
     let live = true;
     return {
@@ -179,7 +188,7 @@ export async function mountStore(php, store, options = {}) {
         // claimed for the life of the page AND refused the retry that would
         // have released it, reporting "already unmounted" for a mount that
         // was still very much there.
-        php.FS.unmount(path);
+        mod.FS.unmount(path);
         core.umount(at);
         live = false;
       },
