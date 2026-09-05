@@ -43,6 +43,53 @@ const S_IFREG = 0o100000;
 const S_IFDIR = 0o040000;
 
 /**
+ * What the resolver asks of a filesystem, whole: two questions, both about a
+ * path it already has.
+ *
+ * Taking a probe rather than a filesystem is not indirection for its own sake.
+ * The two shapes this has to run against are genuinely different — `ctx.fs` in
+ * a `wasi-sh` builtin answers `stat()` with `{type: 'file'|'dir'}`, while the
+ * `fs` contract and Emscripten's `FS` answer with POSIX mode bits — and a
+ * resolver that named one of them would need the other adapted at every call
+ * site. Naming what it actually needs costs two adapters, below, and lets a
+ * caller with neither shape supply two functions.
+ *
+ * @typedef {{isFile(path: string): boolean, isDir(path: string): boolean}} Probe
+ */
+
+/**
+ * A {@link Probe} over a store in `wasi-sh`'s `fs` contract shape — which is
+ * also Emscripten's `FS` and ZenFS's `FileSystem`, since all three report mode
+ * bits. A throw is read as "nothing there", which is what every one of them
+ * does for a missing path.
+ */
+export function inodeProbe(store) {
+  const type = (path) => {
+    try {
+      return store.statSync(path).mode & S_IFMT;
+    } catch {
+      return 0;
+    }
+  };
+  return {
+    isFile: (path) => type(path) === S_IFREG,
+    isDir: (path) => type(path) === S_IFDIR,
+  };
+}
+
+/**
+ * A {@link Probe} over `ctx.fs`, the filesystem a `wasi-sh` host builtin is
+ * handed — the shell's own view, which is the whole reason the router can move
+ * out of the runtime at all. It answers `null` rather than throwing.
+ */
+export function hostFsProbe(fs) {
+  return {
+    isFile: (path) => fs.stat(path)?.type === 'file',
+    isDir: (path) => fs.stat(path)?.type === 'dir',
+  };
+}
+
+/**
  * The status that means "not mine — serve this path yourself". Not an error.
  * It is spelled out here rather than imported from wherever else it is spelled,
  * because this module is deliberately runtime-free and one shared constant would
@@ -142,24 +189,6 @@ function rawUrlDecode(path) {
   return Uint8Array.from(bytes);
 }
 
-/** Is there a regular file here? A store that throws for a missing path says no. */
-function isFile(fs, path) {
-  try {
-    return (fs.statSync(path).mode & S_IFMT) === S_IFREG;
-  } catch {
-    return false;
-  }
-}
-
-/** Is there a directory here? */
-function isDir(fs, path) {
-  try {
-    return (fs.statSync(path).mode & S_IFMT) === S_IFDIR;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * The CGI split: `/index.php/users/1` is `index.php` run with
  * `PATH_INFO=/users/1`.
@@ -187,13 +216,13 @@ function isDir(fs, path) {
  *
  * @returns {number} the length of the script prefix within `script`, or 0
  */
-function splitPathInfo(fs, script, drootLen) {
+function splitPathInfo(probe, script, drootLen) {
   let cut = script.length;
   while (cut > drootLen + 1) {
     cut--;
     if (script[cut] !== '/') continue;
     const candidate = script.slice(0, cut);
-    if (isFile(fs, candidate) && hasPhpSuffix(candidate)) return cut;
+    if (probe.isFile(candidate) && hasPhpSuffix(candidate)) return cut;
   }
   return 0;
 }
@@ -202,8 +231,8 @@ function splitPathInfo(fs, script, drootLen) {
  * Resolve one request target against a filesystem.
  *
  * @param {string} uri the request target, path and query — e.g. `/blog/?page=2`
- * @param {object} fs a store in wasi-sh's `fs` contract shape; only `statSync`
- *   is used, and a throw is read as "nothing there"
+ * @param {Probe} probe two predicates over the filesystem the RUNTIME will
+ *   see; {@link hostFsProbe} and {@link inodeProbe} build one
  * @param {{docroot?: string, fallback?: string, prefix?: string, cwd?: string}} [options]
  * @returns {{status: number, script?: string, scriptName?: string,
  *   pathInfo?: string, pathTranslated?: string, uri?: string, phpSelf?: string,
@@ -212,7 +241,7 @@ function splitPathInfo(fs, script, drootLen) {
  *   **0** to decline — the path is something the embedder should serve itself —
  *   and 400/403/404/500 for a refusal, exactly as the SAPI answers them.
  */
-export function resolveRequest(uri, fs, options = {}) {
+export function resolveRequest(uri, probe, options = {}) {
   let { docroot = '/', fallback, prefix, cwd = '/' } = options;
 
   if (typeof uri !== 'string' || typeof docroot !== 'string') return { status: 500 };
@@ -283,13 +312,13 @@ export function resolveRequest(uri, fs, options = {}) {
   let script = droot + path;
   let pathInfo;
 
-  if (isDir(fs, script)) {
+  if (probe.isDir(script)) {
     script = `${script.endsWith('/') ? script.slice(0, -1) : script}/index.php`;
     // A directory with no index.php is not a PHP request, and saying 404 here
     // makes it unreachable rather than merely not ours: the embedder can serve
     // the index.html sitting right beside it, but only if it is handed the
     // request back.
-    if (!isFile(fs, script)) return { status: DECLINE };
+    if (!probe.isFile(script)) return { status: DECLINE };
   } else if (path.endsWith('/')) {
     // A trailing slash asks for a directory, and POSIX answers ENOTDIR when
     // the name resolves to a file. Emscripten's stat() answers for the file
@@ -300,10 +329,10 @@ export function resolveRequest(uri, fs, options = {}) {
     return { status: 404 };
   }
 
-  if (!isFile(fs, script)) {
+  if (!probe.isFile(script)) {
     // Nothing at that path — but a script may be sitting part of the way along
     // it, with the rest addressed to the script rather than to the filesystem.
-    const cut = splitPathInfo(fs, script, drootLen);
+    const cut = splitPathInfo(probe, script, drootLen);
 
     if (cut === 0) {
       // Nothing at that path and nothing along it — which for a framework is
@@ -328,7 +357,7 @@ export function resolveRequest(uri, fs, options = {}) {
       // Apache 404s the request rather than 500ing the server. The shape check
       // at the top is what catches the mistake worth catching; this is a file
       // that was deleted.
-      if (!isFile(fs, script)) return { status: 404 };
+      if (!probe.isFile(script)) return { status: 404 };
       pathInfo = undefined;
     } else {
       // `script` is docroot + path, so an offset in one is an offset in the
@@ -339,7 +368,15 @@ export function resolveRequest(uri, fs, options = {}) {
     }
   }
 
-  if (!hasPhpSuffix(script)) return { status: DECLINE }; // not ours
+  // Not ours — and the decline NAMES the file, which the C had no way to do:
+  // it answers a single int. A caller that has to serve the file itself, as
+  // anything embedding a filesystem the network has never heard of does, would
+  // otherwise re-resolve the path to find out which file was meant.
+  //
+  // Only here, and that is the distinction worth keeping: the other decline is
+  // a directory with no index.php, where there is no one file to name and the
+  // embedder is choosing among whatever is in there.
+  if (!hasPhpSuffix(script)) return { status: DECLINE, script };
 
   // SCRIPT_NAME is the resolved script's own path, which is `path` except
   // where index.php was appended to a directory or path info was taken off the
