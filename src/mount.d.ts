@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: ISC
 
-import type { PhasmModule } from './php.js';
+import type { PhasmFS } from './php.js';
 
 /**
  * One node's metadata, as a store reports it. The file type lives in `mode`,
@@ -103,6 +103,15 @@ export interface MountOptions {
  * the Emscripten-side translation is theirs, and embedding PHP in a page
  * without mounting anything installs neither.
  */
-export function mountStore(php: PhasmModule, store: Store, options: MountOptions): Promise<Mount>;
+export function mountStore(mod: EmscriptenModule, store: Store, options: MountOptions): Promise<Mount>;
+
+/**
+ * All this reaches for. A `PhasmModule` is one, and the narrower type is the
+ * honest one: a mount is between a JS store and an Emscripten filesystem, and
+ * which language is compiled above it never comes up.
+ */
+export interface EmscriptenModule {
+  FS: PhasmFS;
+}
 
 export default mountStore;
