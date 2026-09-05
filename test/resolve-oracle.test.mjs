@@ -24,7 +24,7 @@
 import { test, before, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { serve, sharedModule, mkdirp, haveBuild, NO_BUILD_MSG } from './helper.mjs';
-import { resolveRequest } from '../src/resolve.mjs';
+import { resolveRequest, inodeProbe } from '../src/resolve.mjs';
 
 const SKIP = !haveBuild();
 before((t) => { if (SKIP) t.diagnostic(NO_BUILD_MSG); });
@@ -55,7 +55,7 @@ echo json_encode($out);
  * throws for a missing path, which the resolver reads as "nothing there".
  */
 function fsView(mod) {
-  return { statSync: (path) => mod.FS.stat(path) };
+  return inodeProbe({ statSync: (path) => mod.FS.stat(path) });
 }
 
 before(async () => {
