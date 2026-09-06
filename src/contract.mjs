@@ -28,7 +28,7 @@
  *   // where the output belongs and nobody is waiting for a returned string.
  *   // A runtime that ignores it prints nothing at the prompt and looks broken.
  *
- *   // One HTTP request cycle, SYNCHRONOUSLY.               → an HTTP wire       
+ *   // One HTTP request cycle, SYNCHRONOUSLY.               → an HTTP wire
  *   phasmHandleRequest({ url, method, headers, body, docroot, fallback, prefix, env, interrupted }) {
  *     return { status, headers, body };   // headers are [name, value] PAIRS
  *   },
