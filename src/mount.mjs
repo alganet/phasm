@@ -52,53 +52,6 @@
  */
 
 /**
- * Linux errno (what ZenFS and kerium throw) to Emscripten's musl-derived
- * table (what Emscripten's FS checks against).
- *
- * Without this, file *creation* fails while every other operation works:
- * `FS.lookupPath` suppresses a missing final component only when
- * `e.errno === 44`, and ZenFS reports a missing file as 2 — which in
- * Emscripten's table is EACCES, so PHP reports "Permission denied" for a file
- * it was about to create. An upstream bug in `@zenfs/emscripten`; this table
- * goes away when the fix is released there — ../wasi-sh/ZENFS.md finding 3,
- * recorded rather than filed until the demo that justifies it is public.
- *
- * Everything reaching the translation originates as a Linux errno, because
- * kerium's `Errno` is Linux's numbering and the plugin rethrows `e.errno`
- * untouched — so mapping every one of them is right, not a heuristic.
- */
-const LINUX_TO_EMSCRIPTEN = {
-  1: 63,   // EPERM
-  2: 44,   // ENOENT   <- the one that matters
-  5: 29,   // EIO
-  9: 8,    // EBADF
-  11: 6,   // EAGAIN
-  12: 48,  // ENOMEM
-  13: 2,   // EACCES
-  14: 21,  // EFAULT
-  16: 10,  // EBUSY
-  17: 20,  // EEXIST
-  18: 75,  // EXDEV
-  19: 43,  // ENODEV
-  20: 54,  // ENOTDIR
-  21: 31,  // EISDIR
-  22: 28,  // EINVAL
-  24: 33,  // EMFILE
-  27: 22,  // EFBIG
-  28: 51,  // ENOSPC
-  29: 70,  // ESPIPE
-  30: 69,  // EROFS
-  31: 34,  // EMLINK
-  32: 64,  // EPIPE
-  34: 68,  // ERANGE
-  36: 37,  // ENAMETOOLONG
-  38: 52,  // ENOSYS
-  39: 55,  // ENOTEMPTY
-  40: 32,  // ELOOP
-  95: 138, // ENOTSUP / EOPNOTSUPP
-};
-
-/**
  * Mounts this module made, so two of them never claim one ZenFS path. The
  * store is addressed through ZenFS's namespace, and a name nobody else would
  * pick keeps the embedder's own mounts — theirs to arrange — out of it.
@@ -173,7 +126,11 @@ export async function mountStore(mod, store, options = {}) {
     const zenRoot = join(at, root);
     if (create) core.fs.mkdirSync(zenRoot, { recursive: true });
 
-    const plugin = translateErrno(new EmscriptenPlugin(core.fs, mod.FS), mod.FS);
+    // No errno translation here, deliberately. `@zenfs/emscripten` translates at
+    // the point it raises — see ../emscripten/src/errno.ts — and a second pass is
+    // NOT a no-op: EACCES 13 maps to 2 and 2 maps on to 44, so wrapping an
+    // already-translated plugin turns "permission denied" into "no such file".
+    const plugin = new EmscriptenPlugin(core.fs, mod.FS);
     mod.FS.mkdirTree(path);
     mod.FS.mount(plugin, { root: zenRoot }, path);
 
@@ -236,49 +193,6 @@ function storeFs(core) {
 
   storeFsByCore.set(core.FileSystem, StoreFS);
   return StoreFS;
-}
-
-/**
- * Wrap the plugin's operations so a store's errno arrives in the numbering
- * Emscripten reads. Applied to the instance rather than the class: the ops are
- * per-instance objects, and another module's mount is not ours to patch.
- *
- * `mount()` is wrapped alongside them because it is the one thing that reaches
- * the store without going through either table: it stats the mount root to
- * build the root node, and it is a class method, so it rethrew the raw Linux
- * errno. That is `mountStore(..., { create: false })` on a root that is not
- * there — the documented "fail loudly" mode — reporting 2, which Emscripten's
- * table reads as EACCES. A mount of the wrong tree said "Permission denied",
- * which is precisely the mistranslation this table exists to fix, on the one
- * path that skipped it.
- *
- * The plugin's other three methods are deliberately left alone. `getMode()`
- * and `createNode()` are reached from `mount()` — covered here — and otherwise
- * only from inside `node_ops`, which is already wrapped: translating them too
- * would run some errnos through the table twice, and a second pass is not a
- * no-op (EACCES 13 maps to 2, and 2 maps on to 44). `realPath()` touches no
- * store at all.
- */
-function translateErrno(plugin, FS) {
-  const wrap = (fn) => function (...args) {
-    try {
-      return fn.apply(this, args);
-    } catch (e) {
-      const mapped = LINUX_TO_EMSCRIPTEN[e?.errno];
-      if (mapped === undefined) throw e;
-      throw new FS.ErrnoError(mapped);
-    }
-  };
-
-  for (const ops of [plugin.node_ops, plugin.stream_ops]) {
-    for (const [name, op] of Object.entries(ops)) {
-      if (typeof op === 'function') ops[name] = wrap(op);
-    }
-  }
-
-  plugin.mount = wrap(plugin.mount);
-
-  return plugin;
 }
 
 function join(base, path) {
