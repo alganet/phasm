@@ -269,4 +269,12 @@ cp "${ROOT_DIR}/src/php.d.ts" "${DIST_DIR}/php.d.ts"
 cp "${ROOT_DIR}/src/mount.mjs" "${DIST_DIR}/mount.mjs"
 cp "${ROOT_DIR}/src/mount.d.ts" "${DIST_DIR}/mount.d.ts"
 
+# The CGI router: docroot, index, PATH_INFO, fallback, prefix and the decline,
+# as a pure function of a URL and two predicates over a filesystem. It is the
+# one module here with nothing of PHP in it at all — serve.mjs imports it when
+# a caller asks to resolve before the runtime is, and it is a subpath of its
+# own because a router is useful to anything hosting a filesystem in a page.
+cp "${ROOT_DIR}/src/resolve.mjs" "${DIST_DIR}/resolve.mjs"
+cp "${ROOT_DIR}/src/resolve.d.ts" "${DIST_DIR}/resolve.d.ts"
+
 echo "WASM artifacts in ${DIST_DIR}"
