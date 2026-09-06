@@ -19,6 +19,11 @@
       "import": "./dist/mount.mjs",
       "default": "./dist/mount.mjs"
     },
+    "./resolve": {
+      "types": "./dist/resolve.d.ts",
+      "import": "./dist/resolve.mjs",
+      "default": "./dist/resolve.mjs"
+    },
     "./wasm": "./dist/php.wasm",
     "./package.json": "./package.json"
   },

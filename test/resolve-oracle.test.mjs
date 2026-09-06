@@ -24,7 +24,7 @@
 import { test, before, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { serve, sharedModule, mkdirp, haveBuild, NO_BUILD_MSG } from './helper.mjs';
-import { resolveRequest, inodeProbe } from '../src/resolve.mjs';
+import { resolveRequest, inodeProbe, hostFsProbe } from '../src/resolve.mjs';
 
 const SKIP = !haveBuild();
 before((t) => { if (SKIP) t.diagnostic(NO_BUILD_MSG); });
@@ -256,4 +256,49 @@ describe('the resolver agrees with the SAPI that specifies it', opts, () => {
       }
     });
   }
+});
+
+// ─── the two probes ──────────────────────────────────────────────────────────
+
+// `inodeProbe` reads mode bits and `hostFsProbe` reads `{type}`, and the second
+// is the one the serve builtin actually runs on — so a disagreement between
+// them would mean the corpus above proves nothing about production. They are
+// two ways of asking one filesystem the same two questions, and this is the
+// only place that says so.
+//
+// Written after a test double got exactly this wrong: it reported "nothing
+// there" for a directory named with the trailing slash a request carries,
+// which made a decline look like a 404.
+
+describe('the two probes answer alike', opts, () => {
+  test('over every path in the corpus', async () => {
+    const mod = await sharedModule();
+    const byInode = inodeProbe({ statSync: (p) => mod.FS.stat(p) });
+    const byHostFs = hostFsProbe({
+      // `ctx.fs.stat()`'s shape, over the same tree.
+      stat: (p) => {
+        try {
+          const mode = mod.FS.stat(p).mode & 0o170000;
+          if (mode === 0o100000) return { type: 'file', size: 0 };
+          if (mode === 0o040000) return { type: 'dir', size: 0 };
+          return null;
+        } catch {
+          return null;
+        }
+      },
+    });
+
+    const paths = [
+      DOCROOT, `${DOCROOT}/`, `${DOCROOT}/hello.php`, `${DOCROOT}/style.css`,
+      `${DOCROOT}/app`, `${DOCROOT}/app/`, `${DOCROOT}/app/index.php`,
+      `${DOCROOT}/empty`, `${DOCROOT}/empty/`, `${DOCROOT}/a.php`,
+      `${DOCROOT}/a.php/b.php`, `${DOCROOT}/nope`, `${DOCROOT}/README`,
+      `${DOCROOT}/static-index/`, '/', '/nowhere/at/all',
+    ];
+
+    for (const p of paths) {
+      assert.equal(byInode.isFile(p), byHostFs.isFile(p), `isFile disagreed on ${p}`);
+      assert.equal(byInode.isDir(p), byHostFs.isDir(p), `isDir disagreed on ${p}`);
+    }
+  });
 });
