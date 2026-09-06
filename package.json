@@ -14,6 +14,11 @@
       "import": "./dist/php.js",
       "default": "./dist/php.js"
     },
+    "./contract": {
+      "types": "./dist/contract.d.ts",
+      "import": "./dist/contract.mjs",
+      "default": "./dist/contract.mjs"
+    },
     "./mount": {
       "types": "./dist/mount.d.ts",
       "import": "./dist/mount.mjs",

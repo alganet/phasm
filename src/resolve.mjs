@@ -95,13 +95,13 @@ export function hostFsProbe(fs) {
   };
 }
 
-/**
- * The status that means "not mine — serve this path yourself". Not an error.
- * It is spelled out here rather than imported from wherever else it is spelled,
- * because this module is deliberately runtime-free and one shared constant would
- * tie it to something for four characters.
- */
-export const DECLINE = 0;
+// The decline is the stack's one piece of shared vocabulary — this module
+// produces it, the wire carries it, the service worker acts on it — so it is
+// defined once in ./contract.mjs and re-exported here, where a reader of the
+// router will look for it.
+import { DECLINE } from './contract.mjs';
+
+export { DECLINE };
 
 /**
  * A path is refused rather than normalised if it can climb: this runs against

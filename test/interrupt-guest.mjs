@@ -22,6 +22,7 @@ import { parentPort, workerData } from 'node:worker_threads';
 import { createRequire } from 'node:module';
 import { WasiShim, WasiExit } from 'wasi-sh/shim';
 import { RingReader } from 'wasi-sh/ring';
+import { assertRunRuntime } from '../src/contract.mjs';
 
 const { wasm, sab, script } = workerData;
 
@@ -31,10 +32,7 @@ const Phasm = require(new URL('../dist/php.js', import.meta.url).pathname);
 // Booted before the shell starts, which is what `async builtins()` is for in a
 // real embedding: a handler may not return a promise.
 const runtime = await Phasm();
-// Checked here rather than at the first call, so a wiring mistake names itself.
-if (typeof runtime.run !== 'function') {
-  throw new TypeError('interrupt-guest: needs a runtime with run(options)');
-}
+assertRunRuntime(runtime, 'interrupt-guest');
 /** `php` as a host builtin: argv through, descriptors through, ^C through. */
 const php = (ctx) => runtime.run({
   // argv[0] is the name as typed, which PHP supplies for itself.

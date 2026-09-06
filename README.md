@@ -339,6 +339,41 @@ so the headers are committed as soon as a script echoes anything, and a
 Pass `phasmStartup("output_buffering=4096")` before the first call for the
 behaviour php-fpm gives you.
 
+### Hosting a runtime that is not PHP
+
+Everything above except the wasm is language-neutral, and
+`@alganet/phasm/contract` is the short list of what any of it actually asks of
+the thing running the code:
+
+```js
+const runtime = {
+  run({ args, cwd, env, stdin, interrupted, collect, onOutput }) {
+    return { stdout, stderr, exitCode };      // → a shell builtin      
+  },
+  phasmHandleRequest({ url, method, headers, body, docroot, fallback, prefix }) {
+    return { status, headers, body };         // → a request wire     
+  },
+};
+```
+
+That is the whole of it. `phasmCapture` is optional — routing warnings away
+from the reply is PHP's problem, not every runtime's — and `FS` is optional too,
+since a runtime without Emscripten's filesystem is handed its files instead.
+`test/contract.test.mjs` holds a runtime that is not PHP to both assertions
+and boots nothing at all.
+
+Two things a port has to know. **Synchronous is structural**: a live `wasi-sh`
+session is one `_start()` frame, so the worker's event loop never turns and a
+handler returning a promise is not slow, it is *not delivered*. And a runtime
+hosted as a host builtin has to be **JS-callable and re-entrant** —
+Emscripten-shaped, not a plain `wasm32-wasi` `_start` binary, because fork-free
+one worker runs one guest and a second `_start` module is not a second process.
+
+**PHP is the hard case, not the representative one.** Its web semantics live in
+the engine, in C, so `phasmHandleRequest` is ~1,100 lines of SAPI hook-swapping.
+Python's live in `wsgiref`, Ruby's in Rack — fifty lines of glue over the same
+request shape, and no new C at all.
+
 ## Virtual Filesystem
 
 Phasm uses Emscripten's virtual filesystem. `run({ files })` writes into it, and
