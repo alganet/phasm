@@ -269,6 +269,13 @@ cp "${ROOT_DIR}/src/php.d.ts" "${DIST_DIR}/php.d.ts"
 cp "${ROOT_DIR}/src/mount.mjs" "${DIST_DIR}/mount.mjs"
 cp "${ROOT_DIR}/src/mount.d.ts" "${DIST_DIR}/mount.d.ts"
 
+# What a runtime owes this stack, in one file: the decline, the two shapes, and
+# why PHP is the hard case rather than the representative one. Types and two
+# assertions — no logic — but it is the module somebody porting another runtime
+# reads first, so it ships.
+cp "${ROOT_DIR}/src/contract.mjs" "${DIST_DIR}/contract.mjs"
+cp "${ROOT_DIR}/src/contract.d.ts" "${DIST_DIR}/contract.d.ts"
+
 # The CGI router: docroot, index, PATH_INFO, fallback, prefix and the decline,
 # as a pure function of a URL and two predicates over a filesystem. It is the
 # one module here with nothing of PHP in it at all — serve.mjs imports it when
