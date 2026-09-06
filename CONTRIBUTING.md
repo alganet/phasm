@@ -68,6 +68,17 @@ synchronous `_start()` frame and a `postMessage` into it is not slow, it is
 undelivered. Every case is bounded: a ^C that is not delivered is a hang, and a
 test that hangs reports nothing at all.
 
+`test/resolve-oracle.test.mjs` is the differential one: `src/resolve.mjs`
+against `sapi/phasm/phasm.c`, the SAPI that specifies it, over one corpus of 44
+cases. The router is a port, so the C is the oracle and this is what keeps the
+two from drifting.
+
+`test/contract.test.mjs` boots nothing at all, deliberately: it holds a runtime
+that is **not** PHP to `assertRunRuntime()` and `assertServeRuntime()`, which is
+the claim `src/contract.mjs` makes. Its other half — the same toy runtime driven
+through a real shell builtin and a real request wire — lives in
+[`wide`](https://github.com/alganet/wide), which owns both consumers.
+
 The whole suite shares ONE module instance (`test/helper.mjs`), which is itself
 the regression test: through the stock CLI's `main()` the same suite would latch
 its exit status on the first non-zero one and stop working entirely at call
@@ -133,11 +144,11 @@ scripts/
 
 patches/               # Emscripten compatibility patches for PHP
 sapi/phasm/            # The re-entrant SAPI, copied into php-src at build time
-src/                   # Hand-written package sources (the JS halves, types, mount)
+src/                   # Hand-written package sources (the JS halves, types, contract, router, mount)
 test/                  # Test suite (node --test)
 sources/               # Downloaded source trees (gitignored)
 build/                 # Intermediate build artifacts (gitignored)
-dist/                  # Final npm output (php.js + php.wasm + the .d.ts and mount)
+dist/                  # Final npm output (php.js + php.wasm + the .d.ts, contract, resolve and mount)
 web/                   # Live demo website
 ```
 

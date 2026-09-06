@@ -63,7 +63,8 @@ const { stdout, stderr, exitCode } = php.run({
 Types ship with the package — `Phasm`, `PhasmOptions`, `PhasmModule`, `PhasmFS`,
 `PhasmRunOptions`, `PhasmRunResult`, `PhasmRequest` and `PhasmResponse` are all
 declared, no `@types` package needed. The subpaths carry their own: `Store` and
-`MountOptions` on `@alganet/phasm/mount`.
+`MountOptions` on `@alganet/phasm/mount`, the router's request and result shapes
+on `@alganet/phasm/resolve`.
 
 ```ts
 import Phasm, { type PhasmModule, type PhasmRunResult } from "@alganet/phasm";
@@ -240,8 +241,9 @@ redirects, `$(…)` and `$?` already working, because by dispatch time the shell
 has installed the redirections. What cannot work is anything needing a
 *process* — `php &`, `(php x)`, `exec php`, `find -exec php` — because a builtin
 is not one. Both guests must share one filesystem: paths are passed through as
-typed and nothing is copied. The [shared filesystem](#sharing-a-filesystem)
-is one more call.
+typed and nothing is copied. [`wide`](https://github.com/alganet/wide) ships
+that builtin, and the [shared filesystem](#sharing-a-filesystem) is one more
+call.
 
 **^C works, and this is the option that makes it work.** `interrupted` is a
 closure the embedder passes; PHP samples it at the VM safe points it already
@@ -250,6 +252,7 @@ runs, so a runaway `php -r 'while (true);'` comes back in milliseconds with
 Without it the only way out of that command is `terminate()`, which takes all
 three. `test/interrupt.test.mjs` proves it over real shared memory, which is the
 only place it can be proved.
+
 ## Serving HTTP
 
 `phasmHandleRequest()` runs a real PHP request rather than a command, so
@@ -339,6 +342,52 @@ so the headers are committed as soon as a script echoes anything, and a
 Pass `phasmStartup("output_buffering=4096")` before the first call for the
 behaviour php-fpm gives you.
 
+### The router runs before PHP does
+
+A request does not have to reach PHP to be answered, and most do not.
+`@alganet/phasm/resolve` is the same rules the SAPI applies — docroot, index,
+`PATH_INFO`, fallback, prefix and the decline — ported to JS as a pure function
+of a URL and two predicates over a filesystem, and held to
+`sapi/phasm/phasm.c` by a differential test over 44 cases
+(`test/resolve-oracle.test.mjs`):
+
+```js
+import { resolveRequest } from "@alganet/phasm/resolve";
+
+const r = resolveRequest("/style.css", files, { docroot: "/site" });
+// -> { kind: "file", path: "/site/style.css" } — no PHP involved
+```
+
+Run it in front of the runtime and a stylesheet is **82% cheaper** to serve and
+a 3 KB asset **62%**, because a static file used to cost a decline followed by a
+whole second PHP request through a `static.php` that read it back. A *miss* is
+unchanged, and that is worth knowing: a decline and a 404 never paid a request
+cycle at all, since the SAPI answers both long before `php_request_startup()`.
+A PHP script pays 0.004 ms for being resolved twice, which is 0.008% of a
+framework request and the reason there is no second entry point to skip it.
+
+A static file under the docroot is **served**, not handed back. The docroot is
+a path in the guest's filesystem, so the guest has those bytes and nothing else
+does — answering from the network would serve a different resource or none. So
+the decline that reaches an embedder means exactly one thing: a directory with
+no `index.php`, where there is no single file to serve and no business guessing
+at `index.html`.
+
+### Putting it in a page
+
+A service worker cannot host PHP — it is killed after ~30s idle and restarted
+arbitrarily, and re-booting a framework per request costs seconds — so it
+proxies to a warm instance instead. That instance lives in the worker a shell
+runs in, and a running shell is one synchronous `_start()` frame: nothing
+reaches it by `postMessage`. wasi-sh's host port is the way in, and the wire
+over it, the service-worker proxy and the shell loop between them are
+[`wide`](https://github.com/alganet/wide) — along with the editor, the terminal
+and the file tree that use them.
+
+What phasm owes that arrangement is on this page: `run()`, `phasmHandleRequest()`,
+the router above, and the contract below. What `wide` owes it is a wire, and the
+seam between the two is `resolveRequest()` plus four function shapes.
+
 ### Hosting a runtime that is not PHP
 
 Everything above except the wasm is language-neutral, and
@@ -348,19 +397,20 @@ the thing running the code:
 ```js
 const runtime = {
   run({ args, cwd, env, stdin, interrupted, collect, onOutput }) {
-    return { stdout, stderr, exitCode };      // → a shell builtin      
+    return { stdout, stderr, exitCode };      // → a shell host builtin
   },
   phasmHandleRequest({ url, method, headers, body, docroot, fallback, prefix }) {
-    return { status, headers, body };         // → a request wire     
+    return { status, headers, body };         // → an HTTP wire
   },
 };
 ```
 
 That is the whole of it. `phasmCapture` is optional — routing warnings away
 from the reply is PHP's problem, not every runtime's — and `FS` is optional too,
-since a runtime without Emscripten's filesystem is handed its files instead.
-`test/contract.test.mjs` holds a runtime that is not PHP to both assertions
-and boots nothing at all.
+since a runtime without Emscripten's filesystem passes `files` to the router
+instead. `test/contract.test.mjs` holds the worked example to both halves and
+boots nothing; `wide` drives that same example through a real shell builtin and
+a real request wire, which is the other half of the same suite.
 
 Two things a port has to know. **Synchronous is structural**: a live `wasi-sh`
 session is one `_start()` frame, so the worker's event loop never turns and a
@@ -438,6 +488,13 @@ npm install @zenfs/core @zenfs/emscripten
 [alganet.github.io/phasm](https://alganet.github.io/phasm/) — one file, one Run
 button. The smallest thing that shows PHP running in a page: no build step in
 sight, `php.wasm` fetched and `run()` called.
+
+For the thing that uses all of the above at once — a file tree, an editor, the
+site it is serving and a terminal with `php` as a shell command, with **one
+filesystem behind all four**, and no server anywhere — see
+[`wide`](https://github.com/alganet/wide). It is where the shell builtin, the
+request wire and the service-worker proxy live, and it is the reason the seams
+on this page are seams rather than internals.
 
 ## Contributing
 

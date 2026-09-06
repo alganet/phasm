@@ -278,9 +278,9 @@ cp "${ROOT_DIR}/src/contract.d.ts" "${DIST_DIR}/contract.d.ts"
 
 # The CGI router: docroot, index, PATH_INFO, fallback, prefix and the decline,
 # as a pure function of a URL and two predicates over a filesystem. It is the
-# one module here with nothing of PHP in it at all — serve.mjs imports it when
-# a caller asks to resolve before the runtime is, and it is a subpath of its
-# own because a router is useful to anything hosting a filesystem in a page.
+# one module here with nothing of PHP in it at all, and it is a subpath of its
+# own because a router is useful to anything hosting a filesystem in a page —
+# `wide` is the first caller, resolving before the runtime is asked anything.
 cp "${ROOT_DIR}/src/resolve.mjs" "${DIST_DIR}/resolve.mjs"
 cp "${ROOT_DIR}/src/resolve.d.ts" "${DIST_DIR}/resolve.d.ts"
 

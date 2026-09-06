@@ -33,6 +33,7 @@ const Phasm = require(new URL('../dist/php.js', import.meta.url).pathname);
 // real embedding: a handler may not return a promise.
 const runtime = await Phasm();
 assertRunRuntime(runtime, 'interrupt-guest');
+
 /** `php` as a host builtin: argv through, descriptors through, ^C through. */
 const php = (ctx) => runtime.run({
   // argv[0] is the name as typed, which PHP supplies for itself.

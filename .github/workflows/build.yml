@@ -105,8 +105,9 @@ jobs:
       - name: Verify package contents
         run: |
           for f in dist/php.js dist/php.wasm dist/php.d.ts \
+                   dist/contract.mjs dist/contract.d.ts \
                    dist/mount.mjs dist/mount.d.ts \
-                   ; do
+                   dist/resolve.mjs dist/resolve.d.ts; do
             [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
           done
           npm pack --dry-run
