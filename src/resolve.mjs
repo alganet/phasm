@@ -19,20 +19,20 @@
  *
  * ## Why it can move out of the SAPI at all
  *
- * Resolution needs `stat()` against the guest's filesystem, and a service
- * worker has none — which is the argument that put it in C. But it proves the
- * router must run *inside the worker*, not inside the *runtime*: `ctx.fs` in a
- * host builtin is that same filesystem, synchronously, and `wide`'s file wire
- * already does 646 lines of work over it with no runtime involved.
+ * Resolution needs `stat()` against a filesystem, and a service worker has
+ * none — which is the argument that put it in C. What it actually proves is
+ * that the router must run where a filesystem is reachable synchronously, and
+ * a host builtin is such a place: `wide`'s file wire already does 646 lines
+ * of work over one with no runtime involved.
  *
- * The precondition that buys is worth stating, because it used to be
- * incidental: **the resolver's view of the filesystem and the runtime's must
- * agree.** An embedder gets that by mounting one store into both — `mountStore()`
- * as an identity mapping, `/srv` to `/srv` — and the design already leans on it,
- * which is why a phar the shell runs belongs in PHP's private MEMFS outside the
- * docroot where nothing under the docroot can reach it. `mountStore()` permits
- * `root !== path`, so a caller that uses it owes this function a store that
- * sees what the runtime sees.
+ * **Which filesystem is the whole question, and the answer is the runtime's.**
+ * `ctx.fs` — the shell's view — is the tempting one and is wrong: it is the
+ * runtime's tree only where an embedder mounted one store into both, and where
+ * PHP owns its own MEMFS while the shell merely carries requests, resolving
+ * over it means routing against a tree the runtime cannot see. Resolving over
+ * the filesystem the runtime will open the script from is correct in every
+ * arrangement, which is why this function takes a probe and its caller builds
+ * one from the runtime rather than from `ctx`.
  *
  * @module
  */
@@ -79,8 +79,14 @@ export function inodeProbe(store) {
 
 /**
  * A {@link Probe} over `ctx.fs`, the filesystem a `wasi-sh` host builtin is
- * handed — the shell's own view, which is the whole reason the router can move
- * out of the runtime at all. It answers `null` rather than throwing.
+ * handed. It answers `null` rather than throwing.
+ *
+ * **Nothing in this package routes over it, and that is the point of keeping
+ * it.** `ctx.fs` is the SHELL's view, which is the runtime's only where an
+ * embedder mounted one store into both — so `serve.mjs` resolves over the
+ * runtime's own filesystem instead, and has no precondition to state. This is
+ * here for an embedder that genuinely wants to route over the shell's tree and
+ * knows why; `test/resolve-oracle.test.mjs` pins that it answers alike.
  */
 export function hostFsProbe(fs) {
   return {
